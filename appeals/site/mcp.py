@@ -67,7 +67,7 @@ def make_server(releases, name='Research data', streamable_http_path='/mcp', all
     @server.tool(annotations=READ_ONLY)
     def explain(target: str = 'pipeline') -> dict[str, Any]:
         """How values are produced. "pipeline" describes the whole flow: layers, gates, the reasoning steps in
-        order, thresholds and what the run did. A column, table, node ID (such as L9a or duration) or code (such as D4 or X4)
+        order, thresholds and what the run did. A column, table, node ID (such as L5a or duration) or code (such as D4 or X4)
         returns that node and everything upstream of it: scan questions and options, gates, step prompts and
         return types, the rule that settles each field, and the code of derived values."""
         return guide.explain(current(), target)

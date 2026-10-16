@@ -89,8 +89,9 @@ execution, renders as a diagram, and checks itself.
   single question to the `Base` and declares the typed result it returns, with
   quotes. A step runs when its gate passes and, if it has one, when its
   `only_if` condition on earlier answers holds. It starts fresh from the
-  `Base` unless it declares `chain_after`, in which case those steps'
-  exchanges are kept in context; related details run as such a chain. Its
+  `Base` unless it names a step it comes `after`, in which case the
+  exchanges along that line are kept in context; related details run as
+  such a chain, one conversation. Its
   reply must be JSON matching that type. A reply that doesn't parse or
   validate is sent back to the model with the errors, a set number of times,
   before the step fails; a reply cut off at the output limit is sent again

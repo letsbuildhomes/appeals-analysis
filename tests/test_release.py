@@ -193,7 +193,7 @@ def test_the_guide_explains_columns_and_the_pipeline(released):
     assert 'index' in guide.describe(release)
     d4 = guide.explain(release, 'D4')
     assert [n['id'] for n in d4['explains']] == ['court_result']
-    assert {'D4', 'L9c', 'base'} <= {n['id'] for n in d4['upstream']}
+    assert {'D4', 'L5c', 'base'} <= {n['id'] for n in d4['upstream']}
     flow = guide.explain(release, 'pipeline')
     assert flow['steps_in_order'] and all(layer['what_happens'] for layer in flow['layers'])
 

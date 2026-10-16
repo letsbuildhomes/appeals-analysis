@@ -156,7 +156,7 @@ def pipeline(release):
     for sid in g['step_order']:
         s = nodes[sid]
         steps.append({'id': sid, 'title': s['title'], 'runs_when': s['when_text'], 'only_if': s['only_if'],
-                      'chain_after': s['chain_after'], 'confirms': s['confirms']})
+                      'after': s['after'], 'context': s['context'], 'confirms': s['confirms']})
     return {'release': release.id, 'pipeline': g['name'], 'graph': g['hash'], 'what_this_is': g.get('description'),
             'layers': layers,
             'gates': [{'id': n['id'], 'title': n['title'], 'condition': n['condition'], 'why': n['why']}
@@ -165,7 +165,7 @@ def pipeline(release):
             'steps_in_order': steps, 'thresholds': g['thresholds'],
             'this_run': {k: release.meta['run'][k] for k in ('dockets_proceeding_to_steps',
                                                               'reasoning_calls_per_proceeding_docket', 'endpoints')},
-            'next': 'explain a column, table, node ID (such as L9a or duration) or code (such as D4 or X4) to trace it back'}
+            'next': 'explain a column, table, node ID (such as L5a or duration) or code (such as D4 or X4) to trace it back'}
 
 
 def _resolve(release, target):

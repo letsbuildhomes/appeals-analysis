@@ -92,10 +92,22 @@ select, input[type=search] {
 .tag.skip { color: var(--skip); }
 
 /* ---- graph ---------------------------------------------------------------- */
-.graph-page { display: grid; grid-template-columns: 1fr 420px; height: calc(100vh - 52px); }
+.graph-page { display: grid; grid-template-columns: 1fr 0; height: calc(100vh - 52px); position: relative; }
+.graph-page.open { grid-template-columns: 1fr 420px; }
+.graph-page:not(.open) aside.panel { display: none; }
+.zoom { position: absolute; left: 16px; bottom: 16px; z-index: 5; display: flex; background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 8px; overflow: hidden; box-shadow: 0 1px 4px rgb(0 0 0 / 0.08); }
+.zoom button { border: 0; background: none; padding: 6px 11px; font: inherit; font-size: 13px; color: var(--text);
+  cursor: pointer; min-width: 34px; }
+.zoom button + button { border-left: 1px solid var(--line); }
+.zoom button:hover { background: var(--surface-2); }
+#zoom-level { min-width: 56px; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+aside.panel .close { float: right; border: 0; background: none; font-size: 20px; line-height: 1; color: var(--muted);
+  cursor: pointer; padding: 0 2px; }
+aside.panel .close:hover { color: var(--text); }
 .canvas-wrap { overflow: auto; position: relative; }
 .canvas { position: relative; }
-.canvas svg.edges { position: absolute; inset: 0; pointer-events: none; overflow: visible; }
+.canvas svg.edges { position: absolute; inset: 0; pointer-events: none; overflow: visible; z-index: 1; }
 .colhead { position: absolute; top: 14px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--muted); font-weight: 600; }
 .colhead span { color: var(--faint); font-weight: 500; letter-spacing: 0.02em; text-transform: none; margin-left: 6px; }
@@ -103,7 +115,7 @@ select, input[type=search] {
 .lane .lane-name { position: absolute; left: 16px; top: 10px; font-size: 12px; font-weight: 600; color: var(--muted); width: 110px; }
 .node {
   position: absolute; background: var(--surface); border: 1px solid var(--line-strong); border-left: 3px solid var(--kind);
-  border-radius: 6px; padding: 5px 9px 5px 9px; cursor: pointer; overflow: hidden;
+  border-radius: 6px; padding: 5px 9px 5px 9px; cursor: pointer; overflow: hidden; z-index: 2;
   transition: opacity 0.15s, box-shadow 0.15s, border-color 0.15s;
 }
 .node:hover { border-color: var(--muted); border-left-color: var(--kind); }
@@ -123,7 +135,12 @@ select, input[type=search] {
 .node.off { opacity: 0.45; border-style: dashed; border-left-style: solid; }
 path.edge { fill: none; stroke: var(--line-strong); stroke-width: 1.2; opacity: 0.55; }
 path.edge.condition { stroke: var(--plan); opacity: 0.25; stroke-dasharray: 4 3; }
-path.edge.chain { stroke: var(--steps); stroke-width: 2; opacity: 0.7; }
+path.edge.chain { stroke: var(--steps); stroke-width: 2; opacity: 0.8; }
+.arrowhead { fill: var(--steps); }
+.group { position: absolute; border: 1px solid color-mix(in srgb, var(--steps) 40%, transparent); border-radius: 9px;
+  background: color-mix(in srgb, var(--steps) 6%, transparent); }
+.group.set { border-style: dashed; }
+.group span { position: absolute; left: 10px; top: 5px; font-size: 11px; color: var(--muted); font-family: var(--mono); }
 path.edge.lit { opacity: 1; stroke-width: 1.8; }
 path.edge.faded { opacity: 0.05; }
 .legend { position: absolute; display: flex; gap: 16px; font-size: 12px; color: var(--muted); }
@@ -135,6 +152,53 @@ aside.panel .empty { color: var(--muted); }
 aside.panel h2 { font-size: 16px; margin: 4px 0 2px; font-weight: 650; }
 aside.panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
   margin: 20px 0 8px; font-weight: 600; }
+details.sec { margin-top: 18px; }
+details.sec > summary { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted);
+  font-weight: 600; cursor: pointer; list-style: none; padding: 4px 0; border-bottom: 1px solid var(--line);
+  margin-bottom: 8px; user-select: none; }
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::before { content: '▸'; display: inline-block; width: 14px; transition: transform 0.12s; }
+details.sec[open] > summary::before { transform: rotate(90deg); }
+details.sec > summary:hover { color: var(--text); }
+.sec-body > * + * { margin-top: 6px; }
+.sub { font-size: 11.5px; font-weight: 600; color: var(--muted); margin: 12px 0 4px; }
+
+/* a value type drawn as a shape */
+.typeview { background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; font-size: 12.5px; }
+.ty-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; padding: 2px 0; }
+.ty-key { font-family: var(--mono); font-weight: 600; font-size: 12px; }
+.ty-key::after { content: ':'; color: var(--faint); }
+.ty-nest { margin-left: 6px; padding-left: 10px; border-left: 1px solid var(--line-strong); }
+.ty { font-size: 11px; padding: 0 6px; border-radius: 4px; background: color-mix(in srgb, var(--facts) 14%, transparent);
+  color: var(--facts); font-weight: 600; white-space: nowrap; }
+.ty.quoted { background: color-mix(in srgb, var(--steps) 16%, transparent); color: var(--steps); }
+.ty.ns { background: none; color: var(--faint); font-weight: 500; border: 1px dashed var(--line-strong); }
+.ty-note { color: var(--muted); font-size: 11.5px; }
+.ty-foot { margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11.5px; }
+.choices { display: inline-flex; flex-wrap: wrap; gap: 3px; }
+.choice { font-size: 11.5px; padding: 0 6px; border-radius: 10px; border: 1px solid var(--line-strong); cursor: help; }
+.choice.ns { color: var(--faint); border-style: dashed; }
+
+/* JSON as a collapsible tree */
+.jtree { font-family: var(--mono); font-size: 12px; line-height: 1.55; background: var(--surface-2);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; overflow-x: auto; }
+.jtree details > summary { list-style: none; cursor: pointer; }
+.jtree details > summary::-webkit-details-marker { display: none; }
+.jtree details > summary::before { content: '▸'; color: var(--faint); display: inline-block; width: 12px; margin-left: -12px;
+  transition: transform 0.12s; }
+.jtree details[open] > summary::before { transform: rotate(90deg); }
+.jtree .j-node, .jtree .j-line { padding-left: 12px; }
+.j-children { padding-left: 4px; border-left: 1px dotted var(--line-strong); margin-left: 2px; }
+.j-key { color: var(--plan); }
+.j-colon, .j-punct { color: var(--faint); }
+.j-str { color: var(--scan); word-break: break-word; }
+.j-str.ns { color: var(--faint); font-style: italic; }
+.j-num, .j-bool { color: var(--steps); }
+.j-null { color: var(--faint); }
+.j-count, .j-preview { color: var(--faint); font-size: 11px; margin-left: 6px; }
+details[open] > summary > .j-count, details[open] > summary > .j-preview { display: none; }
+details:not([open]) > summary > .j-count { display: none; }
+details.raw > summary { font-size: 11.5px; color: var(--muted); cursor: pointer; margin-top: 4px; }
 aside.panel .kindline { display: flex; gap: 6px; align-items: center; margin-bottom: 4px; }
 aside.panel p { margin: 6px 0; }
 .ask { font-size: 14px; line-height: 1.5; }

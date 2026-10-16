@@ -32,7 +32,7 @@ LAYER_GUIDE = {
     'steps': 'One reasoning-model call per step, each appending one small question to a shared Base (framing, the '
              'docket text and the scan\'s answers as claims to confirm or refute). Each reply is JSON of the step\'s '
              'type, with quotes that code checks against the cited page. A step may keep earlier steps\' exchanges '
-             'in context (chain_after) or run only if their answers call for it (only_if).',
+             'in context (after) or run only if their answers call for it (only_if).',
     'facts': 'One settled value per field: the step\'s answer when its quote checks out, otherwise the scan\'s most '
              'likely answer, otherwise "not stated". A rule can make a field "not stated" when an earlier answer '
              'makes it moot.',
@@ -203,7 +203,8 @@ class Step(Node):
     `only_if`: a further condition on the scan or on earlier steps' answers, checked just before
     the step would run; when false, the step is skipped.
     `variants` maps variant names to prompts, chosen by `choose`; otherwise `prompt`.
-    `chain_after`: steps whose exchange stays in context, when they ran.
+    `after`: the step this one follows in a chain. Its exchange, and the exchanges it kept in
+    context, stay in context here, for each step on the line that ran.
     `halt_unless`: a condition on this step's answer; when false, later steps don't run.
     """
     title: str = ''
@@ -213,7 +214,7 @@ class Step(Node):
     variants: dict = field(default_factory=dict)
     choose: E.Expr | None = None
     returns: Record = None
-    chain_after: list = field(default_factory=list)
+    after: 'Step | None' = None
     halt_unless: E.Expr | None = None
     confirms: list = field(default_factory=list)
     kind: ClassVar[str] = 'step'
@@ -221,6 +222,10 @@ class Step(Node):
 
     def templates(self):
         return self.variants or {'': self.prompt}
+
+    def line(self):
+        """The steps this one follows, from the start of its chain to the step just before it."""
+        return [*self.after.line(), self.after] if self.after else []
 
     def placeholders(self):
         return {m for t in self.templates().values() for m in PLACEHOLDER.findall(t)}
@@ -233,7 +238,8 @@ class Step(Node):
             refs |= self.choose.refs()
         if self.only_if:
             refs |= self.only_if.refs()
-        refs |= {s.id for s in self.chain_after}
+        if self.after:
+            refs.add(self.after.id)
         return refs
 
     def describe(self):
@@ -247,7 +253,8 @@ class Step(Node):
             'choose': self.choose.text() if self.choose else None,
             'returns': self.returns.describe(),
             'schema': self.returns.schema(),
-            'chain_after': [s.id for s in self.chain_after],
+            'after': self.after.id if self.after else None,
+            'context': [s.id for s in self.line()],
             'halt_unless': self.halt_unless.text() if self.halt_unless else None,
             'confirms': self.confirms,
         }

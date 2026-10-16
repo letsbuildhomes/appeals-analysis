@@ -195,9 +195,9 @@ S3 creates lots) ∧ S3 is not "already built" or "no physical change".
 | A1 | Does a document state the date the appeal was filed? If so, what is it? | yes · no → date + precision | Scan (Choice); value from L2 | X4, A |
 | A2 | If not, the earliest dated event showing the appeal existed; and the month or year the docket number gives | date + precision | L2b; code, from the docket number | X4 |
 | A3 | In which municipality is the project? | one of the Vermont municipalities found in the text · not stated | Scan (Choice over candidates) | A |
-| A4 | How many new dwelling units would the project add, as proposed? | stated? → count | Scan (Choice); value from L5a | X3, A |
-| A5 | Is the appeal limited to part of the proposal? How many units added in that part? | yes · no · not stated → count | Scan (Choice); values from L5b, L5c | X3, A |
-| A6 | How many new building lots for housing would the application create? | stated? → count | Scan (Choice); value from L5d | A |
+| A4 | How many new dwelling units would the project add, as proposed? | stated? → count | Scan (Choice); value from L6a | X3, A |
+| A5 | Is the appeal limited to part of the proposal? How many units added in that part? | yes · no · not stated → count | Scan (Choice); values from L6b, L6c | X3, A |
+| A6 | How many new building lots for housing would the application create? | stated? → count | Scan (Choice); value from L6d | A |
 | A7 | Which kinds of permission are at issue? | subdivision · site plan · planned development or master plan · conditional use · variance · zoning permit · other | Scan (Yes/no ×7); each flagged kind confirmed by its own L3 step | A |
 
 ### B · Who appeals, and against what
@@ -208,27 +208,27 @@ S3 creates lots) ∧ S3 is not "already built" or "no physical change".
 | B2 | Are all appellants named, rather than "X, et al."? | yes · no | Scan (Choice); context for L4 | X6 |
 | B3 | For each appellant: who are they? | applicant or owner · individual neighbor · group of neighbors · other organization · municipality · state agency · other · not stated | L4 (LLM value) | X6 |
 | B4 | For each appellant: were they represented? | represented by a lawyer · self-represented · not stated | L4 (LLM value) | X6 |
-| B5 | How many new dwelling units did the municipality approve? | count · not stated | L5e (LLM value) | X3 |
+| B5 | How many new dwelling units did the municipality approve? | count · not stated | L6e (LLM value) | X3 |
 
 ### C · On what grounds
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| C1 | Do the documents say what the appellant argued? | yes · no (no makes C2–C4 "not stated") | Scan (Choice); confirmed by L6 | C |
-| C2 | Does an argument dispute how a judgment-based standard (compatibility, character of the area, adequacy) was applied? | yes · no | Scan (Choice); confirmed by L6 | C |
-| C3 | Does an argument challenge whether such a standard is valid, for example as too vague? | yes · no | Scan (Choice); confirmed by L6 | C |
-| C4 | Did the court treat the judgment-based argument as a principal issue? | yes · no · not stated | Scan (Choice); confirmed by L6 | C |
-| C5 | Which issues did the appellant raise? | traffic or access · density · character or appearance · natural resources · noise or lighting · dimensional rules · procedure · standing · vested rights · other | Scan (Yes/no ×10); each flagged issue confirmed by its own L7 step | C |
+| C1 | Do the documents say what the appellant argued? | yes · no (no makes C2–C4 "not stated") | Scan (Choice); confirmed by L7 | C |
+| C2 | Does an argument dispute how a judgment-based standard (compatibility, character of the area, adequacy) was applied? | yes · no | Scan (Choice); confirmed by L7 | C |
+| C3 | Does an argument challenge whether such a standard is valid, for example as too vague? | yes · no | Scan (Choice); confirmed by L7 | C |
+| C4 | Did the court treat the judgment-based argument as a principal issue? | yes · no · not stated | Scan (Choice); confirmed by L7 | C |
+| C5 | Which issues did the appellant raise? | traffic or access · density · character or appearance · natural resources · noise or lighting · dimensional rules · procedure · standing · vested rights · other | Scan (Yes/no ×10); each flagged issue confirmed by its own L8 step | C |
 
 ### D · What the court does
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| D1 | How did the court hear the appeal? | de novo · on the town's record · not stated | Scan (Choice); quoted by L8 | D |
-| D2 | Does a decision leave nothing pending in this docket? | yes · no | Scan (Choice); confirmed by L9 | X4, D |
-| D3 | If so, how did the docket end? | decided on the merits · dismissed · settled · withdrawn · not stated | Scan (Choice); confirmed by L9 | X2, D |
-| D4 | If decided on the merits, what did the court do with the application? | granted · granted with conditions · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L9 | X2, X5, D |
-| D5 | If dismissed, on what basis? | standing · timeliness · jurisdiction · mootness · other · not stated | Scan (Choice); confirmed by L9 | D |
+| D1 | How did the court hear the appeal? | de novo · on the town's record · not stated | Scan (Choice); quoted by L9 | D |
+| D2 | Does a decision leave nothing pending in this docket? | yes · no | Scan (Choice); confirmed by L5 | X4, D |
+| D3 | If so, how did the docket end? | decided on the merits · dismissed · settled · withdrawn · not stated | Scan (Choice); confirmed by L5 | X2, D |
+| D4 | If decided on the merits, what did the court do with the application? | granted · granted with conditions · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | X2, X5, D |
+| D5 | If dismissed, on what basis? | standing · timeliness · jurisdiction · mootness · other · not stated | Scan (Choice); confirmed by L5 | D |
 
 The scan reads the whole docket at once, so D2–D5 describe the docket as a
 whole.
@@ -237,18 +237,18 @@ whole.
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| E1 | Date of the court's first decision leaving nothing pending | date + precision | L10a (chained after L9a) | X4 |
-| E2 | If no decision ends the docket: date of the latest order | date + precision | L10b | X4 |
+| E1 | Date of the court's first decision leaving nothing pending | date + precision | L5e (chained after L5a) | X4 |
+| E2 | If no decision ends the docket: date of the latest order | date + precision | L5f | X4 |
 
 ### F · What it cost the housing
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| F1 | Did the court stop construction or stay the permit? Dates? | yes · no → start, end | Scan (Choice); confirmed by L11 | F |
-| F2 | Did the court's result change the number of units added from what the municipality approved? | more · fewer · same · not stated | Scan (Choice); count from L5 | X2, X3 |
-| F3 | Did it change the number of units added from what the application proposed? | more · fewer · same · not stated | Scan (Choice); count from L5 | X3 |
-| F4 | How many new dwelling units did the court approve? | count · not stated | L5f (LLM value) | X3 |
-| F5 | Did the court impose conditions that change the buildings' size or design? | yes · no | Scan (Choice); confirmed by L12 | F |
+| F1 | Did the court stop construction or stay the permit? Dates? | yes · no → start, end | Scan (Choice); confirmed by L10 | F |
+| F2 | Did the court's result change the number of units added from what the municipality approved? | more · fewer · same · not stated | Scan (Choice); count from L6 | X2, X3 |
+| F3 | Did it change the number of units added from what the application proposed? | more · fewer · same · not stated | Scan (Choice); count from L6 | X3 |
+| F4 | How many new dwelling units did the court approve? | count · not stated | L6f (LLM value) | X3 |
+| F5 | Did the court impose conditions that change the buildings' size or design? | yes · no | Scan (Choice); confirmed by L11 | F |
 
 ### Gates
 
@@ -257,12 +257,12 @@ Thresholds are *to set* per question from the reference set.
 | Gate | Condition | Passes to |
 |---|---|---|
 | Scope | P(in scope) from S1–S5. At or above the high threshold: continue. At or below the low threshold: stop. Between them: run L1 first. | Base and all steps / L1 / stop |
-| Counts | A4, A5 or A6 stated, or F2/F3 is more or fewer | L5 |
-| Discretion | C1 yes and (C2 or C3 at or above threshold) | L6 |
-| Review | D1 is not "not stated" | L8 |
-| Final | D2 at or above threshold | L9 |
-| Stay | F1 at or above threshold | L11 |
-| Design | F5 at or above threshold | L12 |
+| Counts | A4, A5 or A6 stated, or F2/F3 is more or fewer | L6 |
+| Discretion | C1 yes and (C2 or C3 at or above threshold) | L7 |
+| Review | D1 is not "not stated" | L9 |
+| Final | D2 at or above threshold | L5 |
+| Stay | F1 at or above threshold | L10 |
+| Design | F5 at or above threshold | L11 |
 
 An item of A7 or C5 at or above `check` is flagged, and its own step
 confirms or refutes it, with a prompt saying whether the scan was fairly
@@ -276,8 +276,10 @@ calls.
 
 Each step asks the reasoning model for **one detail**, with the quote that
 supports it, and returns JSON of the step's type. Details that depend on each
-other run as a chain. A chained step keeps the earlier steps' exchanges in
-context, and it runs only if their answers call for it (its *only if*): how
+other run as a chain: one conversation, in which each step names the step it
+follows and sees every exchange along that line. A chain is a line, or a tree
+where one step has two possible follow-ups; a step never follows two steps. A
+step runs only if earlier answers call for it (its *only if*): how
 the docket ended is asked only once a final decision is found, and the
 dismissal basis only if it was dismissed. Every step starts from the docket's
 cached `Base`, which states the scan's answers as claims, so most steps
@@ -288,46 +290,51 @@ the errors (twice by default) before the step fails. A reply cut off at the
 output limit is not the model's mistake: the same request is sent again
 unchanged (twice by default).
 
-In the tables, "L3" names a group of steps, L3a to L3c and so on. Steps run in
-the order listed. The court's result (L9) comes before the counts (L5)
-because the units the court approved depend on it. When a scope step finds
-the docket out of scope, the remaining steps are skipped.
+Steps are numbered by chain, in the order the chains run, and lettered by
+their order within the chain: L5 is the court's chain, L5a to L5f. A step
+that is asked once per flagged item is named after its item, as in
+L3_variance. Steps run in the order listed. A step can depend on an answer
+from another chain only through its *only if*, never through context: the
+units the court approved (L6f) follow the other counts, and run only if the
+court's chain found the application granted, which is why the court's chain
+(L5) runs before the counts (L6). When a scope step finds the docket out of
+scope, the remaining steps are skipped.
 
-| Step | Gate | Only if | Asks for | Chained after |
+| Step | Gate | Only if | Asks for | Follows |
 |---|---|---|---|---|
-| L1a–e Scope | scope borderline | — | S1, S2, S3, S4, S5, one at a time; each halts the docket when it rules scope out | the earlier scope steps |
+| L1a–e Scope | scope borderline | — | S1, S2, S3, S4, S5, one at a time; each halts the docket when it rules scope out | the scope step before it |
 | L2a Filing date | — | — | the filing date as a document states it | — |
 | L2b Earliest event | — | L2a not stated | the earliest dated event showing the appeal existed | L2a |
 | L3 Town decision | — | — | B1 | — |
 | L3 per kind | — | that A7 kind flagged | whether that kind of permission is at issue | — |
 | L4a Appellants | — | — | each appellant's name and role (B2 says whether the list can be complete) | — |
 | L4b Lawyers | — | — | for each appellant, represented or self-represented | L4a |
-| L9a Final decision | final | — | whether a decision leaves nothing pending, quoting the first | — |
-| L9b How it ended | final | L9a yes | D3 | L9a |
-| L9c Result | final | L9b on the merits | D4 | L9a, L9b |
-| L9d Dismissal basis | final | L9b dismissed | D5 | L9a, L9b |
-| L10a End date | — | L9a yes | the date of that decision | L9a |
-| L10b Latest order | — | L9a not yes | the date of the latest dated order | L9a |
-| L5a Units added: proposed | counts | — | A4 | — |
-| L5b Partial appeal | counts | — | A5 | L5a |
-| L5c Units added: under appeal | counts | L5b yes | units added in the part under appeal | L5a, L5b |
-| L5d Housing lots | counts | — | A6 | L5a |
-| L5e Units added: town | counts | — | B5 | L5a–c |
-| L5f Units added: court | counts | L9c granted, with or without conditions | F4 | L9a–c, L5a, L5e |
-| L6a Arguments stated | discretion | — | C1 | — |
-| L6b–d Judgment standards | discretion | L6a yes | C2, C3, C4, one at a time | the earlier L6 steps |
-| L7 per issue | — | that C5 issue flagged | whether the appellant raised it | — |
-| L8 Review standard | review | — | the passage establishing how the court heard the appeal | — |
-| L11a Stay | stay | — | whether the court itself stayed the permit | — |
-| L11b Stay dates | stay | L11a yes | start and end | L11a |
-| L12a Size or design | design | — | whether the court itself imposed such conditions | — |
-| L12b The change | design | L12a yes | a one-sentence description, quoted | L12a |
+| L5a Final decision | final | — | whether a decision leaves nothing pending, quoting the first | — |
+| L5b How it ended | final | L5a yes | D3 | L5a |
+| L5c Result | final | L5b on the merits | D4 | L5b |
+| L5d Dismissal basis | final | L5b dismissed | D5 | L5b |
+| L5e End date | — | L5a yes | the date of that decision | L5a |
+| L5f Latest order | — | L5a not yes | the date of the latest dated order | L5a |
+| L6a Units added: proposed | counts | — | A4 | — |
+| L6b Partial appeal | counts | — | A5 | L6a |
+| L6c Units added: under appeal | counts | L6b yes | units added in the part under appeal | L6b |
+| L6d Housing lots | counts | — | A6 | L6a |
+| L6e Units added: town | counts | — | B5 | L6c |
+| L6f Units added: court | counts | L5c granted, with or without conditions | F4 | L6e |
+| L7a Arguments stated | discretion | — | C1 | — |
+| L7b–d Judgment standards | discretion | L7a yes | C2, C3, C4, one at a time | the L7 step before it |
+| L8 per issue | — | that C5 issue flagged | whether the appellant raised it | — |
+| L9 Review standard | review | — | the passage establishing how the court heard the appeal | — |
+| L10a Stay | stay | — | whether the court itself stayed the permit | — |
+| L10b Stay dates | stay | L10a yes | start and end | L10a |
+| L11a Size or design | design | — | whether the court itself imposed such conditions | — |
+| L11b The change | design | L11a yes | a one-sentence description, quoted | L11a |
 
 A reasoning-model answer with a verified quote overrides the scan's answer.
 Each override is logged as a disagreement, and those logs are the data for
 tuning thresholds. A field can also be "not stated" by rule when an earlier
-answer makes it moot: C2–C4 when L6a finds no arguments stated, D3–D5 when
-L9a finds no final decision, D4 unless the docket was decided on the merits,
+answer makes it moot: C2–C4 when L7a finds no arguments stated, D3–D5 when
+L5a finds no final decision, D4 unless the docket was decided on the merits,
 and D5 unless it was dismissed.
 
 ### Derived fields

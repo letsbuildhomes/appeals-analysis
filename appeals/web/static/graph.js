@@ -1,5 +1,6 @@
 // The graph view: the pipeline drawn from its description, with an optional run overlaid.
 import { api, el, short, header, AREA_ORDER, params, setParams } from '/common.js';
+import { typeView, example, jsonTree, parseReply } from '/inspect.js';
 
 const COLUMNS = [
   { layer: 'scan', title: 'Scan', note: 'one decision-model request', width: 230 },
@@ -86,34 +87,106 @@ function notice(text) {
 
 // ---- layout ------------------------------------------------------------------------
 
+// The steps column holds groups: a chain is drawn as a row that reads left to right, branching
+// onto a new row where a step has two follow-ups; one-per-item steps (L3_…, L8_…) are packed
+// into a grid; any other step stands alone. A group sits in the lane of its first step.
+const STEP_W = 158, STEP_GAP = 22, GROUP_PAD = 10, GROUP_HEAD = 18, GROUP_GAP = 12, SET_COLS = 3;
+
+function parentOf(n) {
+  if (n.after !== undefined) return n.after;
+  return n.chain_after?.length ? n.chain_after[n.chain_after.length - 1] : null;   // pipelines stored before `after`
+}
+
+function stepGroups() {
+  const order = graph.step_order || graph.nodes.filter(n => n.kind === 'step').map(n => n.id);
+  const rank = Object.fromEntries(order.map((id, i) => [id, i]));
+  const children = {};
+  for (const id of order) {
+    const parent = parentOf(byId[id]);
+    if (parent) (children[parent] = children[parent] || []).push(id);
+  }
+  const groups = [], sets = {};
+  for (const id of order) {
+    const n = byId[id];
+    if (parentOf(n)) continue;
+    const set = id.match(/^(L\d+)_/);
+    if (set && !children[id]) {
+      if (!sets[set[1]]) {
+        sets[set[1]] = { kind: 'set', area: n.area, label: `${set[1]}_… one step per flagged item`, ids: [], rank: rank[id] };
+        groups.push(sets[set[1]]);
+      }
+      sets[set[1]].ids.push(id);
+      continue;
+    }
+    if (!children[id]) { groups.push({ kind: 'single', area: n.area, cells: [{ id, col: 0, row: 0 }], cols: 1, rows: 1, rank: rank[id] }); continue; }
+    const cells = [];
+    let rows = 0;
+    const place = (sid, col, row) => {
+      cells.push({ id: sid, col, row });
+      rows = Math.max(rows, row + 1);
+      (children[sid] || []).forEach((child, i) => place(child, col + 1, i === 0 ? row : rows));
+    };
+    place(id, 0, 0);
+    groups.push({ kind: 'chain', area: n.area, label: `${id.replace(/[a-z]$/, '')} · one conversation`, cells,
+      cols: Math.max(...cells.map(c => c.col)) + 1, rows, rank: rank[id] });
+  }
+  for (const g of Object.values(sets)) {
+    g.cols = Math.min(SET_COLS, g.ids.length);
+    g.rows = Math.ceil(g.ids.length / SET_COLS);
+    g.cells = g.ids.map((id, i) => ({ id, col: i % SET_COLS, row: Math.floor(i / SET_COLS) }));
+  }
+  for (const g of groups) {
+    const boxed = g.kind !== 'single';
+    g.width = g.cols * (STEP_W + STEP_GAP) - STEP_GAP + (boxed ? GROUP_PAD * 2 : 0);
+    g.height = g.rows * (NODE_H + NODE_GAP) - NODE_GAP + (boxed ? GROUP_PAD * 2 + GROUP_HEAD : 0);
+  }
+  return groups.sort((a, b) => a.rank - b.rank);
+}
+
 function layout() {
   byId = Object.fromEntries(graph.nodes.map(n => [n.id, n]));
   positions = {};
+  const groups = stepGroups();
+  const columns = COLUMNS.map(c => c.layer === 'steps'
+    ? { ...c, width: Math.max(c.width, ...groups.map(g => g.width)) } : c);
   const x = {};
   let left = LEFT;
-  for (const c of COLUMNS) { x[c.layer] = left; left += c.width + GAP; }
+  for (const c of columns) { x[c.layer] = left; left += c.width + GAP; }
   const width = left;
-  const visible = graph.nodes.filter(n => n.kind !== 'scan' && n.kind !== 'base');
+  const visible = graph.nodes.filter(n => !['scan', 'base', 'step'].includes(n.kind));
   const cells = {};
   for (const n of visible) {
     const key = `${n.area}|${KIND_LAYER[n.kind]}`;
     (cells[key] = cells[key] || []).push(n);
   }
-  const lanes = [];
+  const lanes = [], boxes = [];
   let y = TOP + NODE_H + 30;                    // room for the base node above the lanes
   for (const area of AREA_ORDER) {
-    const tallest = Math.max(1, ...COLUMNS.map(c => (cells[`${area}|${c.layer}`] || []).length));
-    const height = tallest * (NODE_H + NODE_GAP) - NODE_GAP + LANE_PAD * 2;
+    const laneGroups = groups.filter(g => g.area === area);
+    const stepsHeight = laneGroups.reduce((h, g) => h + g.height + GROUP_GAP, 0) - (laneGroups.length ? GROUP_GAP : 0);
+    const tallest = Math.max(NODE_H, stepsHeight,
+      ...columns.map(c => (cells[`${area}|${c.layer}`] || []).length * (NODE_H + NODE_GAP) - NODE_GAP));
+    const height = tallest + LANE_PAD * 2;
     lanes.push({ area, y, height });
-    for (const c of COLUMNS) {
+    for (const c of columns) {
       (cells[`${area}|${c.layer}`] || []).forEach((n, i) => {
         positions[n.id] = { x: x[c.layer], y: y + LANE_PAD + i * (NODE_H + NODE_GAP), w: c.width, h: NODE_H };
       });
     }
+    let gy = y + LANE_PAD;
+    for (const g of laneGroups) {
+      const boxed = g.kind !== 'single';
+      if (boxed) boxes.push({ x: x.steps, y: gy, w: g.width, h: g.height, label: g.label, kind: g.kind });
+      const ox = x.steps + (boxed ? GROUP_PAD : 0), oy = gy + (boxed ? GROUP_PAD + GROUP_HEAD : 0);
+      for (const cell of g.cells) {
+        positions[cell.id] = { x: ox + cell.col * (STEP_W + STEP_GAP), y: oy + cell.row * (NODE_H + NODE_GAP), w: STEP_W, h: NODE_H };
+      }
+      gy += g.height + GROUP_GAP;
+    }
     y += height;
   }
   positions.base = { x: x.steps, y: TOP, w: COLUMNS[2].width, h: NODE_H };
-  return { x, width, height: y + 40, lanes };
+  return { x, width, height: y + 40, lanes, boxes };
 }
 
 // ---- drawing -----------------------------------------------------------------------
@@ -121,8 +194,8 @@ function layout() {
 function draw() {
   const canvas = document.getElementById('canvas');
   const svg = document.getElementById('edges');
-  canvas.querySelectorAll('.node, .lane, .colhead, .legend').forEach(n => n.remove());
-  const { x, width, height, lanes } = layout();
+  canvas.querySelectorAll('.node, .lane, .colhead, .legend, .group').forEach(n => n.remove());
+  const { x, width, height, lanes, boxes } = layout();
   canvas.style.width = `${width}px`;
   canvas.style.height = `${height}px`;
   svg.setAttribute('width', width);
@@ -132,13 +205,17 @@ function draw() {
     canvas.append(el('div', { class: 'lane', style: `top:${lane.y}px;height:${lane.height}px` },
       el('div', { class: 'lane-name' }, graph.areas[lane.area])));
   }
+  for (const b of boxes) {
+    canvas.append(el('div', { class: `group ${b.kind}`, style: `left:${b.x}px;top:${b.y}px;width:${b.w}px;height:${b.h}px` },
+      el('span', {}, b.label)));
+  }
   for (const c of COLUMNS) {
     canvas.append(el('div', { class: 'colhead', style: `left:${x[c.layer]}px` }, c.title, el('span', {}, c.note)));
   }
   canvas.append(el('div', { class: 'legend', style: `left:${LEFT}px;top:44px` },
     el('span', {}, el('i', { style: 'background:var(--line-strong)' }), 'data'),
     el('span', {}, el('i', { style: 'background:var(--plan)' }), 'condition'),
-    el('span', {}, el('i', { style: 'background:var(--steps)' }), 'chained context'),
+    el('span', {}, el('i', { style: 'background:var(--steps)' }), 'next in the same conversation'),
     el('span', {}, `pipeline ${graph.hash}`),
     run ? el('span', {}, `run ${run.id}${docket ? ` · docket ${docket}` : ''}`) : null));
 
@@ -173,22 +250,27 @@ function nodeBox(n, pos) {
 }
 
 function drawEdges(svg) {
-  svg.innerHTML = '';
+  svg.innerHTML = `<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7"
+    orient="auto-start-reverse"><path d="M0,0 L8,4 L0,8 z" class="arrowhead"/></marker></defs>`;
   for (const e of graph.edges) {
     if (e.kind === 'asked' || e.kind === 'base') continue;
     const a = positions[e.from], b = positions[e.to];
     if (!a || !b) continue;
+    const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2;
     let d;
-    if (Math.abs(a.x - b.x) < 5) {               // same column: loop on the right
-      const x1 = a.x + a.w, y1 = a.y + a.h / 2, y2 = b.y + b.h / 2, bulge = x1 + 30;
-      d = `M${x1},${y1} C${bulge},${y1} ${bulge},${y2} ${x1},${y2}`;
-    } else {
-      const x1 = a.x + a.w, y1 = a.y + a.h / 2, x2 = b.x, y2 = b.y + b.h / 2, dx = Math.max(30, (x2 - x1) / 2);
+    if (Math.abs(y1 - y2) < 1 && x2 > x1) {         // next step on the same row: a short straight arrow
+      d = `M${x1},${y1} L${x2 - 1},${y2}`;
+    } else if (x2 > x1 + 4) {
+      const dx = Math.max(Math.min(30, (x2 - x1) / 2), (x2 - x1) / 2);
       d = `M${x1},${y1} C${x1 + dx},${y1} ${x2 - dx},${y2} ${x2},${y2}`;
+    } else {                                          // a target to the left: loop around on the right
+      const bulge = Math.max(x1, b.x + b.w) + 30, xe = b.x + b.w;
+      d = `M${x1},${y1} C${bulge},${y1} ${bulge},${y2} ${xe},${y2}`;
     }
     const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
     path.setAttribute('d', d);
     path.setAttribute('class', `edge ${e.kind}`);
+    if (e.kind === 'chain') path.setAttribute('marker-end', 'url(#arrow)');
     path.dataset.from = e.from;
     path.dataset.to = e.to;
     svg.append(path);
@@ -225,16 +307,60 @@ function highlight(id) {
 }
 
 function select(id) {
-  if (selected === id) {
-    selected = null;
-    document.querySelectorAll('.node').forEach(n => n.classList.remove('dim', 'sel'));
-    document.querySelectorAll('path.edge').forEach(p => p.classList.remove('lit', 'faded'));
-    document.getElementById('panel').innerHTML = '<p class="empty">Select a node to see what it does.</p>';
-    return;
-  }
+  if (id === null || selected === id) return deselect();
   selected = id;
   highlight(id);
   showPanel(id);
+}
+
+function deselect() {
+  selected = null;
+  document.querySelectorAll('.node').forEach(n => n.classList.remove('dim', 'sel'));
+  document.querySelectorAll('path.edge').forEach(p => p.classList.remove('lit', 'faded'));
+  document.getElementById('panel').innerHTML = '';
+  document.getElementById('page').classList.remove('open');
+}
+
+// ---- zoom ---------------------------------------------------------------------------
+
+const ZOOM_MIN = 0.25, ZOOM_MAX = 2, ZOOM_STEP = 1.2;
+let zoom = Number(localStorage.getItem('graph-zoom')) || 1;
+
+// Zoom about a point of the visible canvas (its centre by default), keeping that point still.
+function setZoom(value, at) {
+  const wrap = document.getElementById('wrap');
+  const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+  const px = at ? at.x : wrap.clientWidth / 2, py = at ? at.y : wrap.clientHeight / 2;
+  const cx = (wrap.scrollLeft + px) / zoom, cy = (wrap.scrollTop + py) / zoom;
+  zoom = next;
+  document.getElementById('canvas').style.zoom = zoom;
+  wrap.scrollLeft = cx * zoom - px;
+  wrap.scrollTop = cy * zoom - py;
+  localStorage.setItem('graph-zoom', String(zoom));
+  const label = document.getElementById('zoom-level');
+  if (label) label.textContent = `${Math.round(zoom * 100)}%`;
+}
+
+function fitWidth() {
+  const wrap = document.getElementById('wrap'), canvas = document.getElementById('canvas');
+  setZoom(wrap.clientWidth / (canvas.offsetWidth || 1));
+  wrap.scrollLeft = 0;
+}
+
+function zoomControls() {
+  const wrap = document.getElementById('wrap');
+  document.getElementById('zoom').replaceChildren(
+    el('button', { title: 'Zoom out', onclick: () => setZoom(zoom / ZOOM_STEP) }, '−'),
+    el('button', { id: 'zoom-level', title: 'Reset to 100%', onclick: () => setZoom(1) }, `${Math.round(zoom * 100)}%`),
+    el('button', { title: 'Zoom in', onclick: () => setZoom(zoom * ZOOM_STEP) }, '+'),
+    el('button', { title: 'Fit the width', onclick: fitWidth }, 'Fit'));
+  wrap.addEventListener('wheel', e => {                // ctrl/⌘ + wheel, and trackpad pinch
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+    const box = wrap.getBoundingClientRect();
+    setZoom(zoom * Math.exp(-e.deltaY * 0.0025), { x: e.clientX - box.left, y: e.clientY - box.top });
+  }, { passive: false });
+  document.getElementById('canvas').style.zoom = zoom;
 }
 
 // ---- run overlay --------------------------------------------------------------------
@@ -291,8 +417,35 @@ function overlay(n) {
 
 // ---- panel --------------------------------------------------------------------------
 
+// A titled section of the panel that folds away; `open: false` starts it folded.
 function section(title, ...content) {
-  return [el('h3', {}, title), ...content];
+  return folding(title, true, content);
+}
+
+function folded(title, ...content) {
+  return folding(title, false, content);
+}
+
+function folding(title, open, content) {
+  return [el('details', { class: 'sec', open },
+    el('summary', {}, title), el('div', { class: 'sec-body' }, content.flat(Infinity)))];
+}
+
+// The shape a step must reply with: drawn from its type, with an example and the raw schema to hand.
+function returnsView(n) {
+  const out = [];
+  if (n.returns) {
+    out.push(...section('Returns', typeView(n.returns),
+      el('div', { class: 'sub' }, 'Example reply'), jsonTree(example(n.returns))));
+  }
+  if (n.schema) out.push(...folded('Raw JSON schema (replies that do not match are sent back)', jsonTree(n.schema, 2)));
+  return out;
+}
+
+function reply(text) {
+  const parsed = parseReply(text);
+  if (!parsed.ok) return el('pre', { class: 'block' }, text);
+  return [jsonTree(parsed.value), el('details', { class: 'raw' }, el('summary', {}, 'raw text'), el('pre', { class: 'block' }, text))];
 }
 
 function links(ids) {
@@ -303,15 +456,17 @@ function showPanel(id) {
   const n = byId[id];
   const panel = document.getElementById('panel');
   panel.innerHTML = '';
+  document.getElementById('page').classList.add('open');
+  panel.append(el('button', { class: 'close', title: 'Close', onclick: () => deselect() }, '×'));
   const from = graph.edges.filter(e => e.to === id && e.kind !== 'asked').map(e => e.from);
   const to = graph.edges.filter(e => e.from === id && e.kind !== 'asked').map(e => e.to);
-  panel.append(
+  panel.append(...[
     el('div', { class: 'kindline' }, el('span', { class: `tag ${n.layer}` }, n.kind), el('span', { class: 'tag' }, graph.areas[n.area] || n.area)),
     el('h2', {}, `${n.code || n.id}${n.title || n.label ? ' · ' + (n.title || n.label) : ''}`),
     ...renderers[n.kind](n),
     ...(from.length ? section('Reads', links(from)) : []),
     ...(to.length ? section('Feeds', links(to)) : []),
-  );
+  ].flat(Infinity).filter(Boolean));
 }
 
 function optionList(options, dist) {
@@ -332,7 +487,7 @@ function quotes(list) {
 }
 
 function json(value) {
-  return el('pre', { class: 'block' }, JSON.stringify(value, null, 1));
+  return value !== null && typeof value === 'object' ? jsonTree(value) : el('pre', { class: 'block' }, JSON.stringify(value));
 }
 
 const renderers = {
@@ -377,7 +532,8 @@ const renderers = {
       el('dt', {}, 'Runs when'), el('dd', {}, n.when ? `gate ${n.when}: ${n.when_text}` : n.when_text),
       n.only_if ? [el('dt', {}, 'Only if'), el('dd', {}, el('code', {}, n.only_if))] : null,
       n.choose ? [el('dt', {}, 'Variant'), el('dd', {}, el('code', {}, n.choose))] : null,
-      n.chain_after.length ? [el('dt', {}, 'Chained after'), el('dd', {}, n.chain_after.join(', '))] : null,
+      parentOf(n) ? [el('dt', {}, 'Follows'), el('dd', {}, parentOf(n))] : null,
+      (n.context || n.chain_after || []).length ? [el('dt', {}, 'In context'), el('dd', {}, (n.context || n.chain_after).join(', '))] : null,
       n.halt_unless ? [el('dt', {}, 'Halts unless'), el('dd', {}, el('code', {}, n.halt_unless))] : null,
       n.confirms.length ? [el('dt', {}, 'Confirms'), el('dd', {}, n.confirms.join(', '))] : null)];
     const r = records?.[n.id]?.value;
@@ -388,7 +544,7 @@ const renderers = {
         out.push(...section(`Replies · ${exchange.attempts.length} attempt${exchange.attempts.length > 1 ? 's' : ''}`,
           exchange.attempts.map((a, i) => el('div', { class: 'attempt' },
             el('div', { class: 'why' }, `Attempt ${i + 1}`),
-            el('pre', { class: 'block' }, a.reply),
+            reply(a.reply),
             a.truncated ? el('div', { class: 'errors' }, `${a.errors.join('; ')}: the same request was sent again`)
               : a.errors.length ? el('div', { class: 'errors' }, 'Sent back: ', a.errors.join('; ')) : el('div', { class: 'why' }, 'Valid')))));
       }
@@ -397,9 +553,10 @@ const renderers = {
     } else if (r?.skipped) {
       out.push(el('p', { class: 'why' }, r.skipped));
     }
-    if (n.variants) out.push(...section('Prompt variants', Object.entries(n.variants).map(([k, v]) => [el('p', {}, el('strong', {}, k)), el('pre', { class: 'block' }, v)])));
-    else out.push(...section('Prompt', el('pre', { class: 'block' }, n.prompt)));
-    out.push(...section('Returns (JSON schema; replies that do not match are sent back)', json(n.schema)));
+    const ran = Boolean(r && !r.skipped && r.prompt), templates = ran ? folded : section;
+    if (n.variants) out.push(...templates('Prompt variants', Object.entries(n.variants).map(([k, v]) => [el('div', { class: 'sub' }, k), el('pre', { class: 'block' }, v)])));
+    else out.push(...templates(ran ? 'Prompt template' : 'Prompt', el('pre', { class: 'block' }, n.prompt)));
+    out.push(...returnsView(n));
     return out;
   },
   field(n) {
@@ -418,7 +575,7 @@ const renderers = {
         ...quotes(f.quotes)));
     }
     if (n.source) out.push(...section('Function', el('pre', { class: 'block' }, n.source)));
-    out.push(...section('Value type', json(n.value_type)));
+    out.push(...section('Value type', typeView(n.value_type)));
     return out;
   },
   derive(n) {
@@ -426,7 +583,7 @@ const renderers = {
     return [
       ...(v !== undefined ? section('This docket', json(v)) : []),
       ...section('Function', el('pre', { class: 'block' }, n.source)),
-      ...section('Value type', json(n.value_type)),
+      ...section('Value type', typeView(n.value_type)),
     ];
   },
   answer(n) {
@@ -439,4 +596,6 @@ const renderers = {
   },
 };
 
+zoomControls();
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && selected) deselect(); });
 main().catch(e => notice(e.message));

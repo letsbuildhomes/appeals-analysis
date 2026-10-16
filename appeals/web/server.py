@@ -120,6 +120,11 @@ def make_handler(api):
         def log_message(self, fmt, *args):
             pass
 
+        def end_headers(self):
+            if not self.path.startswith('/api/'):       # pages change as we work on them: always revalidate
+                self.send_header('Cache-Control', 'no-cache')
+            super().end_headers()
+
         def do_GET(self):
             url = urlparse(self.path)
             if not url.path.startswith('/api/'):

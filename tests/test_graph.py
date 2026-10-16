@@ -82,6 +82,15 @@ def test_codebook_builds_and_every_question_reaches_an_answer():
     assert pipeline.hash() != build(THRESHOLDS | {'final': 0.6}).hash()     # thresholds are part of the identity
 
 
+def test_a_chain_keeps_its_whole_line_in_context_but_draws_one_edge_per_step():
+    pipeline = build(THRESHOLDS)
+    units_court = pipeline.nodes['L6f']
+    assert [s.id for s in units_court.line()] == ['L6a', 'L6b', 'L6c', 'L6e']
+    chain = {(e['from'], e['to']) for e in pipeline.edges if e['kind'] == 'chain'}
+    assert chain == {(s.after.id, s.id) for s in pipeline.steps if s.after}
+    assert ('L5c', 'L6f') in {(e['from'], e['to']) for e in pipeline.edges if e['kind'] == 'condition'}
+
+
 def test_plan_skips_gated_steps():
     pipeline = build(THRESHOLDS)
     scan = {q.id: {o: (1.0 if i == 0 else 0.0) for i, o in enumerate(q.request(_Docket()).get('criteria', {'yes': 1, 'no': 0}) if q.options_from else q.options)}
@@ -92,7 +101,7 @@ def test_plan_skips_gated_steps():
     assert runs['L1a'] is False          # scope confidently in: no scope check
     assert runs['L2a'] and runs['L3'] and runs['L4a']
     depends = {s['step'] for s in plan['steps'] if s.get('depends')}
-    assert {'L2b', 'L9b', 'L10a', 'L10b'} <= depends          # decided by earlier answers, when the docket runs
+    assert {'L2b', 'L5b', 'L5e', 'L5f'} <= depends          # decided by earlier answers, when the docket runs
 
 
 class _Docket:
@@ -158,7 +167,7 @@ def _quoted(value):
 def test_a_moot_question_is_not_stated_whatever_the_scan_says():
     pipeline = build(THRESHOLDS)
     scan = {'D3': {'decided on the merits': 0.9, 'dismissed': 0.1}, 'D4': {'granted': 0.9, 'denied': 0.1}}
-    steps = _facts(L9a={'final': _quoted('yes')}, L9b={'ended': _quoted('dismissed')})
+    steps = _facts(L5a={'final': _quoted('yes')}, L5b={'ended': _quoted('dismissed')})
     facts = layers.resolve(pipeline, scan, steps, '116-11-18 Vtec')
     assert facts['how_ended']['answer'] == 'dismissed'
     assert facts['court_result']['answer'] == NOT_STATED and facts['court_result']['source'] == 'rule'
@@ -168,7 +177,7 @@ def test_a_moot_question_is_not_stated_whatever_the_scan_says():
 def test_set_items_come_from_their_own_steps():
     pipeline = build(THRESHOLDS)
     scan = {'C5.traffic': {'yes': 0.8, 'no': 0.2}, 'C5.density': {'yes': 0.7, 'no': 0.3}}
-    steps = _facts(L7_traffic={'raised': _quoted('no')})
+    steps = _facts(L8_traffic={'raised': _quoted('no')})
     issues = layers.resolve(pipeline, scan, steps)['issues_raised']
     assert issues['answer']['traffic'] == 'no' and issues['source']['traffic'] == 'step'
     assert issues['answer']['density'] == 'yes' and issues['source']['density'] == 'scan'
@@ -204,10 +213,10 @@ def test_flagged_items_get_a_prompt_for_how_sure_the_scan_was():
             'C5.traffic': {'yes': 0.9, 'no': 0.1}, 'C5.density': {'yes': 0.45, 'no': 0.55},
             'C5.character': {'yes': 0.2, 'no': 0.8}}
     steps = {s['step']: s for s in layers.plan(pipeline, scan)['steps']}
-    assert steps['L7_traffic']['runs'] and steps['L7_traffic']['variant'] == 'scan fairly confident'
-    assert steps['L7_density']['runs'] and steps['L7_density']['variant'] == 'scan uncertain'
-    assert not steps['L7_character']['runs']
-    prompt = layers.render_prompt(pipeline, pipeline.nodes['L7_density'], 'scan uncertain', scan)
+    assert steps['L8_traffic']['runs'] and steps['L8_traffic']['variant'] == 'scan fairly confident'
+    assert steps['L8_density']['runs'] and steps['L8_density']['variant'] == 'scan uncertain'
+    assert not steps['L8_character']['runs']
+    prompt = layers.render_prompt(pipeline, pipeline.nodes['L8_density'], 'scan uncertain', scan)
     assert prompt.startswith('The scan was uncertain whether the appellant raised density')
     assert 'B1 (What did the municipal decision' in layers.claim(pipeline, {'B1': {'denied': 0.6, 'approved': 0.4}}, 'B1')
     assert layers.claim(pipeline, {'B1': {'denied': 0.6, 'approved': 0.4}}, 'B1').endswith('scan: denied, uncertain')

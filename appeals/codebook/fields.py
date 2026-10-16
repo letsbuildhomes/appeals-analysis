@@ -51,13 +51,13 @@ docket_filing = Field('docket_filing', 'A', code='A2', label='Filing month or ye
 municipality = Field('municipality', 'A', code='A3', label='Municipality', type=Name(), scan=Q.A3,
                      notes=['One of the Vermont municipalities named in the documents, chosen by the scan; it has no quote.'])
 units_added_proposed = Field('units_added_proposed', 'A', code='A4', label='Units added: proposed', type=Count(),
-                             step=L.L5a, path='proposed')
+                             step=L.L6a, path='proposed')
 appeal_partial = Field('appeal_partial', 'A', code='A5', label='Appeal covers only part', type=_choice(Q.A5),
-                       scan=Q.A5, step=L.L5b, path='partial')
+                       scan=Q.A5, step=L.L6b, path='partial')
 units_added_under_appeal = Field('units_added_under_appeal', 'A', code='A5', label='Units added: under appeal',
-                                 type=Count(), step=L.L5c, path='under_appeal')
+                                 type=Count(), step=L.L6c, path='under_appeal')
 housing_lots = Field('housing_lots', 'A', code='A6', label='New housing lots', type=Count(),
-                     step=L.L5d, path='lots')
+                     step=L.L6d, path='lots')
 permission_kinds = Field('permission_kinds', 'A', code='A7', label='Kinds of permission', type=_items(Q.A7),
                          scan=Q.A7, steps=L.KINDS, path='at_issue')
 
@@ -75,52 +75,52 @@ appellants = Field('appellants', 'B', code='B3', label='Appellants', type=ListOf
 appellant_lawyers = Field('appellant_lawyers', 'B', code='B4', label='Appellants\' representation',
                           type=ListOf(L.APPELLANT_LAWYER, not_stated=True), step=L.L4b, path='representation')
 units_added_town_approved = Field('units_added_town_approved', 'B', code='B5', label='Units added: town approved',
-                                  type=Count(), step=L.L5e, path='town_approved')
+                                  type=Count(), step=L.L6e, path='town_approved')
 
 # ---- C · Grounds -------------------------------------------------------------------------
-NO_ARGUMENTS = A('L6a', 'stated').is_('no')
+NO_ARGUMENTS = A('L7a', 'stated').is_('no')
 arguments_stated = Field('arguments_stated', 'C', code='C1', label='Arguments stated', type=_choice(Q.C1),
-                         scan=Q.C1, step=L.L6a, path='stated',
+                         scan=Q.C1, step=L.L7a, path='stated',
                          notes=['A procedural dismissal whose documents don\'t say what the appellant argued leaves the grounds (C1–C5) "not stated".'])
 disputes_application = Field('disputes_application', 'C', code='C2', label='Disputes applying a judgment standard',
-                             type=_choice(Q.C2), scan=Q.C2, step=L.L6b, path='applied', not_stated_if=NO_ARGUMENTS)
+                             type=_choice(Q.C2), scan=Q.C2, step=L.L7b, path='applied', not_stated_if=NO_ARGUMENTS)
 challenges_validity = Field('challenges_validity', 'C', code='C3', label='Challenges a standard\'s validity',
-                            type=_choice(Q.C3), scan=Q.C3, step=L.L6c, path='validity', not_stated_if=NO_ARGUMENTS)
+                            type=_choice(Q.C3), scan=Q.C3, step=L.L7c, path='validity', not_stated_if=NO_ARGUMENTS)
 principal_issue = Field('principal_issue', 'C', code='C4', label='Judgment standard a principal issue',
-                        type=_choice(Q.C4), scan=Q.C4, step=L.L6d, path='principal', not_stated_if=NO_ARGUMENTS)
+                        type=_choice(Q.C4), scan=Q.C4, step=L.L7d, path='principal', not_stated_if=NO_ARGUMENTS)
 issues_raised = Field('issues_raised', 'C', code='C5', label='Issues raised', type=_items(Q.C5),
                       scan=Q.C5, steps=L.ISSUES, path='raised')
 
 # ---- D · The court -----------------------------------------------------------------------
-NOT_FINAL = A('L9a', 'final').is_('no')
+NOT_FINAL = A('L5a', 'final').is_('no')
 review_standard = Field('review_standard', 'D', code='D1', label='Review standard', type=_choice(Q.D1),
-                        scan=Q.D1, step=L.L8, path='standard')
+                        scan=Q.D1, step=L.L9, path='standard')
 final_decision = Field('final_decision', 'D', code='D2', label='A decision ends the docket', type=_choice(Q.D2),
-                       scan=Q.D2, step=L.L9a, path='final',
+                       scan=Q.D2, step=L.L5a, path='final',
                        notes=["The end of the case is the court's first decision that leaves nothing pending in this docket. Partial rulings don't end it, and later post-judgment proceedings don't extend it.",
                               'An outcome is never inferred from a ruling on a motion.'])
 how_ended = Field('how_ended', 'D', code='D3', label='How the docket ended', type=_choice(Q.D3),
-                  scan=Q.D3, step=L.L9b, path='ended', not_stated_if=NOT_FINAL)
+                  scan=Q.D3, step=L.L5b, path='ended', not_stated_if=NOT_FINAL)
 court_result = Field('court_result', 'D', code='D4', label='What the court did', type=_choice(Q.D4),
-                     scan=Q.D4, step=L.L9c, path='result',
-                     not_stated_if=NOT_FINAL | A('L9b', 'ended').in_(['dismissed', 'settled', 'withdrawn']))
+                     scan=Q.D4, step=L.L5c, path='result',
+                     not_stated_if=NOT_FINAL | A('L5b', 'ended').in_(['dismissed', 'settled', 'withdrawn']))
 dismissal_basis = Field('dismissal_basis', 'D', code='D5', label='Dismissal basis', type=_choice(Q.D5),
-                        scan=Q.D5, step=L.L9d, path='dismissal_basis',
-                        not_stated_if=NOT_FINAL | A('L9b', 'ended').in_(['decided on the merits', 'settled', 'withdrawn']))
+                        scan=Q.D5, step=L.L5d, path='dismissal_basis',
+                        not_stated_if=NOT_FINAL | A('L5b', 'ended').in_(['decided on the merits', 'settled', 'withdrawn']))
 
 # ---- E · How long ------------------------------------------------------------------------
 final_decision_date = Field('final_decision_date', 'E', code='E1', label='Date of the first final decision',
-                            type=DateValue(), step=L.L10a, path='final_decision_date')
+                            type=DateValue(), step=L.L5e, path='final_decision_date')
 latest_order_date = Field('latest_order_date', 'E', code='E2', label='Date of the latest order',
-                          type=DateValue(), step=L.L10b, path='latest_order_date',
+                          type=DateValue(), step=L.L5f, path='latest_order_date',
                           notes=['Filled only when no decision ends the docket. It bounds the end of the case from below; it is not the end.'])
 
 # ---- F · Cost to housing -------------------------------------------------------------------
 stayed = Field('stayed', 'F', code='F1', label='Court stayed the permit', type=_choice(Q.F1),
-               scan=Q.F1, step=L.L11a, path='stayed',
+               scan=Q.F1, step=L.L10a, path='stayed',
                notes=['Only stays the court imposed.'])
-stay_start = Field('stay_start', 'F', code='F1', label='Stay start', type=DateValue(), step=L.L11b, path='start')
-stay_end = Field('stay_end', 'F', code='F1', label='Stay end', type=DateValue(), step=L.L11b, path='end')
+stay_start = Field('stay_start', 'F', code='F1', label='Stay start', type=DateValue(), step=L.L10b, path='start')
+stay_end = Field('stay_end', 'F', code='F1', label='Stay end', type=DateValue(), step=L.L10b, path='end')
 units_vs_town = Field('units_vs_town', 'F', code='F2', label='Units added vs the town\'s decision',
                       type=_choice(Q.F2), scan=Q.F2,
                       notes=['From the scan only: a direction with a probability, no quote.'])
@@ -128,12 +128,12 @@ units_vs_application = Field('units_vs_application', 'F', code='F3', label='Unit
                              type=_choice(Q.F3), scan=Q.F3,
                              notes=['From the scan only: a direction with a probability, no quote.'])
 units_added_court_approved = Field('units_added_court_approved', 'F', code='F4', label='Units added: court approved',
-                                   type=Count(), step=L.L5f, path='court_approved')
+                                   type=Count(), step=L.L6f, path='court_approved')
 design_changed = Field('design_changed', 'F', code='F5', label='Court changed size or design', type=_choice(Q.F5),
-                       scan=Q.F5, step=L.L12a, path='changed',
+                       scan=Q.F5, step=L.L11a, path='changed',
                        notes=["Only changes the court imposed; changes the town made belong to the town's decision."])
 design_change = Field('design_change', 'F', code='F5', label='The size or design change', type=Text(),
-                      step=L.L12b, path='description',
+                      step=L.L11b, path='description',
                       notes=['Free text from the reasoning model, describing the change; never scored.'])
 
 ALL = [municipal_body, action_kind, physical_change, housing_use, units_effect,

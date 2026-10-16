@@ -167,7 +167,7 @@ class Runner:
                                results[step.id])
                     continue
             prompt = layers.render_prompt(p, step, entry['variant'], scan)
-            chain = [s for s in step.chain_after if results.get(s.id, {}).get('answer') is not None]
+            chain = [s for s in step.line() if results.get(s.id, {}).get('answer') is not None]
             history = [(results[s.id]['prompt'], results[s.id]['reply']) for s in chain]
             key = key_of('step', self.nodes[step.id], base_key, prompt, history, self.reasoning.identity())
             cached = self.store.cached_record(key)

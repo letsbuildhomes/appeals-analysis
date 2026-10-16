@@ -9,9 +9,10 @@
 <body>
 <header class="top"></header>
 <div id="notice"></div>
-<div class="graph-page">
+<div class="graph-page" id="page">
+  <div class="zoom" id="zoom"></div>
   <div class="canvas-wrap" id="wrap"><div class="canvas" id="canvas"><svg class="edges" id="edges"></svg></div></div>
-  <aside class="panel" id="panel"><p class="empty">Select a node to see what it does.</p></aside>
+  <aside class="panel" id="panel"></aside>
 </div>
 <script type="module" src="/graph.js"></script>
 </body>

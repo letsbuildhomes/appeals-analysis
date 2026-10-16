@@ -79,7 +79,7 @@ class Pipeline:
     @staticmethod
     def _edge_kind(source, target):
         if isinstance(source, Step) and isinstance(target, Step):
-            return 'chain' if source in target.chain_after else 'condition'
+            return 'chain' if source is target.after else 'condition'
         if isinstance(target, (Gate, Step)) and isinstance(source, (Question, YesNoSet, Gate)):
             return 'condition'
         if isinstance(source, Base):
