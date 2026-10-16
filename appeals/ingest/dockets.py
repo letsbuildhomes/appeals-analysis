@@ -11,11 +11,14 @@ rules (docs/PIPELINE.md, "Dockets"):
    listing entry's docket. A listing docket the heading doesn't name never
    makes a docket; it is flagged.
 3. Flags, never changes: a heading docket one digit away from the listing's,
-   or one filed after the document was posted.
+   one filed after the document was posted, or one whose number spells a year
+   outside the plausible range (appeals.dates).
 """
 from dataclasses import dataclass
 import json
 import re
+
+from appeals import dates
 
 CAPTION_WINDOW = 3000
 CONTINUATION_LINES = 4          # lines below a label that may continue its column of numbers
@@ -123,14 +126,20 @@ def heading_dockets(page_one):
 
 # ---- rules 2 and 3: membership and flags ------------------------------------
 
-def filing_year(docket):
-    """The year a docket number encodes."""
+def _encoded_year(docket):
+    """The year a docket number's digits spell, plausible or not."""
     if m := re.fullmatch(r'\d+-\d+-(\d\d) Vtec', docket):
         year = int(m[1])
         return 2000 + year if year < 70 else 1900 + year
     if m := re.fullmatch(r'(\d\d)-[A-Z]+-\d+', docket):
         return 2000 + int(m[1])
     return None
+
+
+def filing_year(docket):
+    """The year a docket number encodes, or None when it encodes none or an implausible one."""
+    year = _encoded_year(docket)
+    return year if year is not None and dates.plausible_year(year) else None
 
 
 def filing_period(docket):
@@ -169,6 +178,9 @@ def assign(page_one, listing_text, posted_year):
         dockets = []
         flags.append('no_docket')
     for docket, _ in dockets:
+        encoded = _encoded_year(docket)
+        if encoded is not None and not dates.plausible_year(encoded):
+            flags.append(f'implausible_year:{docket}')
         year = filing_year(docket)
         if year and posted_year and year > posted_year:
             flags.append(f'filed_after_posting:{docket}')

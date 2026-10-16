@@ -44,9 +44,8 @@ def cmd_ingest(args):
     store = Store(settings.db)
     if args.crawl:
         folder = listing.crawl(settings)
-        entries = listing.read_snapshot(folder)
-        store.add_listing_entries(entries)
-        print(f'Listing: {len(entries)} entries saved to {folder}')
+        print(f'Listing: new snapshot saved to {folder}')
+    listing.reparse_all(settings, store)
     pdfs.download_new(settings, store, limit=args.limit)
     text.extract_missing(settings, store)
     dockets.assign_all(store)

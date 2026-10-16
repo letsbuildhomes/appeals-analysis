@@ -2,7 +2,9 @@
 
 A snapshot is a folder of the listing's HTML pages exactly as served
 (`page_0000.html`, …). Parsing reads one entry per listed document: its title,
-posting date, division, docket text and `/media/<id>` link.
+posting date, division, docket text and `/media/<id>` link. A posting date
+outside the plausible range (appeals.dates) is dropped, and the entry's note
+keeps the date as listed.
 """
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
@@ -12,6 +14,8 @@ import re
 import time
 
 import httpx
+
+from appeals import dates
 
 ROW = re.compile(r'<article class="views-row[^"]*">(.*?)</article>', re.S)
 LINK = re.compile(r'<a href="(/media/\d+)"[^>]*>(.*?)</a>', re.S)
@@ -31,10 +35,19 @@ class Entry:
     posted: date | None
     division: str
     docket: str | None
+    note: str | None = None
 
 
 def _text(fragment):
     return ' '.join(html.unescape(re.sub(r'<[^>]+>', ' ', fragment)).split())
+
+
+def _posted(listed):
+    """The posting date and a note: (date, None), or (None, why it was dropped) when it is implausible."""
+    if listed is None:
+        return None, None
+    why = dates.problem(listed)
+    return (None, f'posting date {listed} dropped: {why}') if why else (date.fromisoformat(listed), None)
 
 
 def parse_page(markup, snapshot, page):
@@ -47,13 +60,15 @@ def parse_page(markup, snapshot, page):
         posted = POSTED.search(row)
         division = DIVISION.search(row)
         docket = DOCKET.search(row)
+        posted, note = _posted(posted.group(1) if posted else None)
         entries.append(Entry(
             snapshot=snapshot, page=page, ordinal=ordinal,
             media_url=SITE + link.group(1),
             title=_text(link.group(2)),
-            posted=date.fromisoformat(posted.group(1)) if posted else None,
+            posted=posted,
             division=_text(division.group(1)) if division else '',
             docket=_text(docket.group(1)) or None if docket else None,
+            note=note,
         ))
     return entries
 
@@ -70,6 +85,16 @@ def read_snapshot(folder):
         page = int(path.stem.split('_')[1])
         entries.extend(parse_page(path.read_text(encoding='utf-8'), folder.name, page))
     return entries
+
+
+def reparse_all(settings, store, log=print):
+    """Parse every saved snapshot again into the store, so parser fixes reach entries already stored."""
+    folders = sorted(p for p in settings.listings.iterdir() if p.is_dir()) if settings.listings.exists() else []
+    entries = [e for folder in folders for e in read_snapshot(folder)]
+    with store.transaction():
+        store.add_listing_entries(entries)
+    log(f'Listing: {len(entries)} entries from {len(folders)} snapshots, '
+        f'{sum(e.note is not None for e in entries)} with a note')
 
 
 def crawl(settings, max_pages=None):

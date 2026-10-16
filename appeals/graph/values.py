@@ -6,11 +6,11 @@ compare two answers (for scoring) and make an example (for the fake model).
 "Not stated" is a real answer for every type that allows it.
 """
 import random
-import re
+
+from appeals import dates
 
 NOT_STATED = 'not stated'
 OUT_OF_SCOPE = 'out of scope'      # a research row's value for a docket we did not study
-DATE = re.compile(r'^\d{4}(-\d{2}(-\d{2})?)?$')
 
 
 class ValueType:
@@ -78,16 +78,20 @@ class Count(ValueType):
 
 
 class DateValue(ValueType):
-    """A date as precise as the documents allow: YYYY, YYYY-MM or YYYY-MM-DD."""
+    """A date as precise as the documents allow: YYYY, YYYY-MM or YYYY-MM-DD, a real calendar date within
+    the plausible years (appeals.dates)."""
     name = 'date'
 
     def schema(self):
-        return {'anyOf': [{'type': 'string', 'pattern': DATE.pattern}, {'const': NOT_STATED}]}
+        return {'anyOf': [{'type': 'string', 'pattern': dates.DATE.pattern}, {'const': NOT_STATED}]}
 
     def validate(self, value, path):
-        if value == NOT_STATED or (isinstance(value, str) and DATE.match(value)):
+        if value == NOT_STATED:
             return []
-        return [f'{path}: expected a date as YYYY, YYYY-MM or YYYY-MM-DD, or "{NOT_STATED}"; got {value!r}']
+        why = dates.problem(value)
+        if why:
+            return [f'{path}: {why}, or "{NOT_STATED}"; got {value!r}']
+        return []
 
     def example(self, rng):
         return rng.choice([NOT_STATED, f'20{rng.randint(5, 24):02d}-{rng.randint(1, 12):02d}-{rng.randint(1, 28):02d}'])

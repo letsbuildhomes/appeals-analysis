@@ -221,3 +221,12 @@ def test_an_out_of_scope_row_keeps_only_its_scope_values():
     out = layers.row(pipeline, '12-1-20 Vtec', facts, derived)
     assert out['action_kind'] == 'enforcement or violation notice' and out['X1'] is False
     assert out['town_decision'] == 'out of scope' and out['X5'] == 'out of scope'
+
+
+def test_dates_must_be_real_and_plausible():
+    kind = DateValue()
+    assert kind.validate('2019-05-31', 'd') == [] and kind.validate('2019', 'd') == [] and kind.validate(NOT_STATED, 'd') == []
+    assert 'outside 1990' in kind.validate('0022-03-31', 'd')[0]
+    assert 'not a calendar date' in kind.validate('2019-02-30', 'd')[0]
+    assert 'not a calendar date' in kind.validate('2019-13', 'd')[0]
+    assert 'expected YYYY' in kind.validate('31/05/2019', 'd')[0]

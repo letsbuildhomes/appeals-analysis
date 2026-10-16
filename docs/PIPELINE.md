@@ -103,6 +103,13 @@ Every entry is taken. The listing's document-type filter (Opinions, Decisions,
 Orders, Judgements) is not used, because it marks the posting era rather than
 the kind of document.
 
+**Plausible dates.** Every date read from the listing, a docket number or a
+model's reply must be a real calendar date from 1990, when the Environmental
+Court was created, to the current year. A listing date outside that range is
+dropped, and the entry keeps a note with the date as listed; the listing has
+at least one such typo ("03/31/0022"). Saved snapshots are parsed again on
+every ingest, so a parser fix reaches entries already stored.
+
 ### Documents
 
 - Each PDF is stored once under the SHA-256 of its bytes. A file must look
@@ -166,8 +173,9 @@ Rules, in order:
 3. **Membership.** Each docket's documents are all those naming it. A
    document with no docket at all is kept as its own case.
 4. **Flags, never changes.** A heading docket one digit away from the listing
-   docket, or one filed after the document was posted, is flagged for review
-   and left as is.
+   docket, one filed after the document was posted, or one whose number spells
+   an implausible year, is flagged for review and left as is. An implausible
+   year is never used as a filing date.
 
 Documents within a docket are ordered by posting date, then by hash.
 

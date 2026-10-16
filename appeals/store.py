@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS listing_entries (
     posted     TEXT,      -- YYYY-MM-DD
     division   TEXT,
     docket     TEXT,      -- the listing's docket text, as shown
+    note       TEXT,      -- why something listed was not used, such as an implausible posting date
     PRIMARY KEY (snapshot, page, ordinal)
 );
 CREATE INDEX IF NOT EXISTS listing_entries_media ON listing_entries (media_url);
@@ -139,7 +140,15 @@ class Store:
             self.db.execute('PRAGMA journal_mode = WAL')
             self.db.execute('PRAGMA synchronous = NORMAL')
             self.db.executescript(SCHEMA)
+            self._add_missing_columns()
         self.db.execute('PRAGMA busy_timeout = 10000')     # wait for a writer's lock instead of failing
+
+    def _add_missing_columns(self):
+        """Columns added after a table was first created: (table, column, declaration)."""
+        for table, column, declaration in [('listing_entries', 'note', 'TEXT')]:
+            columns = {row[1] for row in self.db.execute(f'PRAGMA table_info({table})')}
+            if column not in columns:
+                self.db.execute(f'ALTER TABLE {table} ADD COLUMN {column} {declaration}')
 
     def close(self):
         self.db.close()
@@ -168,8 +177,10 @@ class Store:
 
     def add_listing_entries(self, entries):
         self.db.executemany(
-            'INSERT OR REPLACE INTO listing_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [(e.snapshot, e.page, e.ordinal, e.media_url, e.title, _iso(e.posted), e.division, e.docket) for e in entries])
+            'INSERT OR REPLACE INTO listing_entries (snapshot, page, ordinal, media_url, title, posted, division, '
+            'docket, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [(e.snapshot, e.page, e.ordinal, e.media_url, e.title, _iso(e.posted), e.division, e.docket, e.note)
+             for e in entries])
 
     def add_download(self, media_url, final_url, sha256, fetched_at):
         self.db.execute('INSERT OR REPLACE INTO downloads VALUES (?, ?, ?, ?)',

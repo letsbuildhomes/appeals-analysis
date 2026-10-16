@@ -63,3 +63,20 @@ def test_listing_fallback_and_flags():
 def test_filed_after_posting():
     _, flags = assign('                                  Docket No. 12-3-19 Vtec', '', 2015)
     assert 'filed_after_posting:12-3-19 Vtec' in flags
+
+
+def test_implausible_docket_years_are_not_dates():
+    from appeals.ingest.dockets import filing_period, filing_year
+    assert filing_year('12-3-85 Vtec') is None and filing_period('12-3-85 Vtec') is None       # before the court
+    assert filing_year('89-ENV-00001') is None                                                 # 2089
+    assert filing_period('116-11-18 Vtec') == '2018-11' and filing_period('25-ENV-00113') == '2025'
+    dockets, flags = assign('Docket No. 12-3-85 Vtec\n', '', 2001)
+    assert 'implausible_year:12-3-85 Vtec' in flags
+
+
+def test_an_implausible_posting_date_is_dropped_with_a_note():
+    from appeals.ingest.listing import parse_page
+    markup = ('<article class="views-row"><a href="/media/1">A decision</a>'
+              '<time datetime="0022-03-31T12:00:00Z">03/31/0022</time></article>')
+    [entry] = parse_page(markup, 'snap', 0)
+    assert entry.posted is None and entry.note.startswith('posting date 0022-03-31 dropped: the year 22 is outside 1990')
