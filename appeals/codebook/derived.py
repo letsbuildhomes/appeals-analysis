@@ -7,6 +7,7 @@ import calendar
 from datetime import date
 
 from appeals.codebook import fields as F
+from appeals.codebook import steps as L
 from appeals.graph.nodes import Derive
 from appeals.graph.values import (NOT_STATED, Boolean, Count, CountsBy, DateValue, Integer, OneOf, OrNotStated,
                                   Record, Text, YesNo)
@@ -46,13 +47,13 @@ def date_range(value):
     """The first and last day a YYYY, YYYY-MM or YYYY-MM-DD date could mean, and whether it names one day."""
     if not isinstance(value, str) or value == NOT_STATED:
         return None
-    parts = [int(p) for p in value.split('-')]
-    year, month, day = parts + [None] * (3 - len(parts))
-    if day:
-        return date(year, month, day), date(year, month, day), True
-    if month:
-        return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1]), False
-    return date(year, 1, 1), date(year, 12, 31), False
+    match [int(p) for p in value.split('-')]:
+        case [year, month, day]:
+            return date(year, month, day), date(year, month, day), True
+        case [year, month]:
+            return date(year, month, 1), date(year, month, calendar.monthrange(year, month)[1]), False
+        case [year]:
+            return date(year, 1, 1), date(year, 12, 31), False
 
 
 def duration(v):
@@ -146,10 +147,10 @@ X5 = Derive('last_permission', 'F', code='X5', label='Last observed permission',
             notes=["The court's result when it decided on the merits, otherwise the town's decision. It is not whether the appeal succeeded, and not whether anything was built."])
 NEIGHBORS = ('individual neighbor', 'group of neighbors')
 ROLE_MIX = {'neighbor': 'An individual neighbor or a group of neighbors.',
-            **{k: v for k, v in F.appellants.type.item.fields['role'].options.items() if k not in NEIGHBORS}}
+            **{k: v for k, v in L.ROLE.options.items() if k not in NEIGHBORS}}
 X6 = Derive('appellant_mix', 'B', code='X6', label='Appellant mix',
             type=Record(count=Count(), roles=CountsBy(ROLE_MIX),
-                        representation=CountsBy(F.appellant_lawyers.type.item.fields['representation'].options)),
+                        representation=CountsBy(L.REPRESENTATION_KIND.options)),
             inputs=[F.appellants_named, F.appellants, F.appellant_lawyers], fn=appellant_mix,
             notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.'])
 

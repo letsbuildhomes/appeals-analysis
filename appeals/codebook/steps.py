@@ -129,8 +129,10 @@ ROLES = {'applicant or owner': 'The applicant or property owner seeking permissi
          'other': 'Someone else.'}
 REPRESENTATION = {'represented by a lawyer': 'A lawyer appeared for them.',
                   'self-represented': 'The documents say they represented themselves.'}
-APPELLANT = Record(name=Name(), role=OneOf(ROLES))
-APPELLANT_LAWYER = Record(name=Name(), representation=OneOf(REPRESENTATION))
+ROLE = OneOf(ROLES)
+REPRESENTATION_KIND = OneOf(REPRESENTATION)
+APPELLANT = Record(name=Name(), role=ROLE)
+APPELLANT_LAWYER = Record(name=Name(), representation=REPRESENTATION_KIND)
 
 L4a = Step('L4a', 'B', title='Appellants',
     prompt="""List every appellant in this docket: whoever brought this appeal or a cross-appeal, not every party.
