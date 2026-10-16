@@ -181,6 +181,17 @@ def repair_message(errors):
             'Reply again with only the corrected JSON object, matching the schema.')
 
 
+@dataclass
+class Completion:
+    """One request's outcome: the reply text, token usage, cost, the API's stop reason, and
+    whether the reply was cut off at the output limit."""
+    text: str
+    usage: dict
+    cost: float
+    stop: str | None
+    truncated: bool
+
+
 class ReasoningModel:
     """Shared behavior: build the conversation, ask, validate, send back errors, retry."""
 
@@ -197,32 +208,34 @@ class ReasoningModel:
     async def ask(self, system, base, history, prompt, returns):
         """history: earlier (prompt, reply) pairs kept in context (chained steps).
 
-        A reply that ran out of output tokens is not the model's mistake, so the same
-        request is sent again unchanged, up to `truncation_retries` times. A complete
-        reply that doesn't parse or validate is sent back with its errors, up to
-        `json_repairs` times.
+        A reply that ran out of output tokens, or came back empty, is not a mistake the
+        model can fix, so the same request is sent again unchanged, up to `resends` times.
+        A reply that doesn't parse or validate is sent back with its errors, up to
+        `json_repairs` times. Every attempt records the stop reason the API gave.
         """
         question = f'{prompt}\n\n{answer_instructions(returns)}'
         turns = [{'role': 'user', 'text': question}]
-        attempts, cost, repairs, truncations = [], 0.0, 0, 0
+        attempts, cost, repairs, resends = [], 0.0, 0, 0
         while True:
-            text, usage, step_cost, truncated = await self._complete(system, base, history, turns)
-            cost += step_cost
-            if truncated:
-                truncations += 1
-                attempts.append({'reply': text, 'usage': usage, 'truncated': True,
-                                 'errors': [f'the reply ran out of output tokens '
-                                            f'({self.settings.max_output_tokens} allowed)']})
-                if truncations > self.settings.truncation_retries:
+            done = await self._complete(system, base, history, turns)
+            cost += done.cost
+            if done.truncated or not done.text.strip():
+                resends += 1
+                why = (f'the reply ran out of output tokens ({self.settings.max_output_tokens} allowed)'
+                       if done.truncated else 'the reply was empty')
+                attempts.append({'reply': done.text, 'usage': done.usage, 'stop': done.stop, 'resent': True,
+                                 'truncated': done.truncated, 'errors': [why]})
+                if resends > self.settings.resends:
                     return Reply(None, self._exchange(system, history, question, attempts), cost,
-                                 error=f'ran out of output tokens {truncations} times')
+                                 error=f'no usable reply after {resends} resends ({why})')
                 continue
+            text = done.text
             try:
                 value = parse_json(text)
                 errors = returns.validate(value, '')
             except ValueError as error:
                 value, errors = None, [str(error)]
-            attempts.append({'reply': text, 'errors': errors, 'usage': usage})
+            attempts.append({'reply': text, 'errors': errors, 'usage': done.usage, 'stop': done.stop})
             if not errors:
                 return Reply(value, self._exchange(system, history, question, attempts), cost)
             repairs += 1
@@ -242,7 +255,7 @@ class ReasoningModel:
         return charge.usd
 
     async def _complete(self, system, base, history, turns):
-        """One request. Returns (text, usage, cost, truncated), where truncated means the output limit was hit."""
+        """One request, returned as a Completion."""
         raise NotImplementedError
 
 
@@ -271,7 +284,8 @@ class AnthropicReasoning(ReasoningModel):
         text = ''.join(block.get('text', '') for block in data.get('content', []) if block.get('type') == 'text')
         u = dict(data.get('usage') or {})
         cost = self._cost(u, sent_at)
-        return text, u, cost, data.get('stop_reason') == 'max_tokens'
+        stop = data.get('stop_reason')
+        return Completion(text, u, cost, stop, stop == 'max_tokens')
 
 
 class OpenAIReasoning(ReasoningModel):
@@ -303,7 +317,8 @@ class OpenAIReasoning(ReasoningModel):
         text = (choice.get('message') or {}).get('content') or ''
         u = dict(data.get('usage') or {})
         cost = self._cost(u, sent_at)
-        return text, u, cost, choice.get('finish_reason') == 'length'
+        stop = choice.get('finish_reason')
+        return Completion(text, u, cost, stop, stop == 'length')
 
 
 class FakeReasoning(ReasoningModel):
@@ -321,7 +336,7 @@ class FakeReasoning(ReasoningModel):
         question = turns[0]['text']
         rng = make_rng(base[:2000], question[:400], len(turns))
         if len(turns) == 1 and rng.random() < 1 / 6:
-            return '{"answer": "unfinished', {'fake': True}, 0.0, False
+            return Completion('{"answer": "unfinished', {'fake': True}, 0.0, 'stop', False)
         schema = json.loads(question.split('JSON Schema exactly:\n', 1)[1].rsplit('\nEvery answer', 1)[0])
         pages = re.findall(r'<document n="(\d+)"[^>]*>|<page n="(\d+)" source="[a-z]+">\n(.*?)\n</page>', base, re.S)
         passages, doc = [], 1
@@ -332,7 +347,7 @@ class FakeReasoning(ReasoningModel):
                 sentences = [s.strip() for s in re.split(r'(?<=[.;])\s+', ' '.join(text.split())) if 40 < len(s.strip()) < 220]
                 passages += [(doc, int(page), s) for s in sentences[:6]]
         await asyncio.sleep(0)
-        return json.dumps(_example(schema, rng, passages)), {'fake': True}, 0.0, False
+        return Completion(json.dumps(_example(schema, rng, passages)), {'fake': True}, 0.0, 'stop', False)
 
 
 def _example(schema, rng, passages):

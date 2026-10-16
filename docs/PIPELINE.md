@@ -287,8 +287,9 @@ confirm or refute rather than answer from scratch.
 
 A reply that isn't valid JSON of the step's type goes back to the model with
 the errors (twice by default) before the step fails. A reply cut off at the
-output limit is not the model's mistake: the same request is sent again
-unchanged (twice by default).
+output limit, or an empty one, is not a mistake the model can correct: the
+same request is sent again unchanged (twice by default). Every attempt
+records the stop reason the API reported.
 
 Steps are numbered by chain, in the order the chains run, and lettered by
 their order within the chain: L5 is the court's chain, L5a to L5f. A step

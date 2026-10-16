@@ -6,7 +6,7 @@ from appeals.codebook import build
 from appeals.config import Reasoning
 from appeals.graph import expr as E
 from appeals.graph import layers
-from appeals.graph.endpoints import ReasoningModel, parse_json
+from appeals.graph.endpoints import Completion, ReasoningModel, parse_json
 from appeals.graph.nodes import Answer, Field, Gate, Question, Scan
 from appeals.graph.pipeline import GraphError, Pipeline
 from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record
@@ -119,8 +119,9 @@ class _Scripted(ReasoningModel):
     async def _complete(self, system, base, history, turns):
         self.seen.append(list(turns))
         reply = self.replies.pop(0)
-        truncated = reply is None                     # None stands for a reply cut off at the output limit
-        return (reply or '{"n": '), {}, 0.0, truncated
+        if reply is None:                             # None stands for a reply cut off at the output limit
+            return Completion('{"n": ', {}, 0.0, 'length', True)
+        return Completion(reply, {}, 0.0, 'stop', False)
 
 
 def test_malformed_reply_is_sent_back_with_errors():
@@ -150,7 +151,15 @@ def test_a_reply_cut_off_at_the_output_limit_is_sent_again_unchanged():
 def test_gives_up_after_the_truncation_limit():
     model = _Scripted([None, None, None])
     reply = asyncio.run(model.ask('sys', 'base', [], 'How many?', Record(n=Count())))
-    assert reply.answer is None and 'ran out of output tokens 3 times' in reply.error
+    assert reply.answer is None and 'no usable reply after 3 resends' in reply.error
+
+
+def test_an_empty_reply_is_sent_again_unchanged():
+    model = _Scripted(['', '  ', '{"n": 3}'])
+    reply = asyncio.run(model.ask('sys', 'base', [], 'How many?', Record(n=Count())))
+    assert reply.answer == {'n': 3} and [len(turns) for turns in model.seen] == [1, 1, 1]
+    attempts = reply.exchange['attempts']
+    assert attempts[0]['errors'] == ['the reply was empty'] and attempts[0]['resent'] and attempts[0]['stop'] == 'stop'
 
 
 # ---- codebook rules ------------------------------------------------------------------------

@@ -543,9 +543,9 @@ const renderers = {
       if (exchange) {
         out.push(...section(`Replies · ${exchange.attempts.length} attempt${exchange.attempts.length > 1 ? 's' : ''}`,
           exchange.attempts.map((a, i) => el('div', { class: 'attempt' },
-            el('div', { class: 'why' }, `Attempt ${i + 1}`),
+            el('div', { class: 'why' }, `Attempt ${i + 1}${a.stop ? ` · stop reason: ${a.stop}` : ''}`),
             reply(a.reply),
-            a.truncated ? el('div', { class: 'errors' }, `${a.errors.join('; ')}: the same request was sent again`)
+            (a.resent || a.truncated) ? el('div', { class: 'errors' }, `${a.errors.join('; ')}: the same request was sent again`)
               : a.errors.length ? el('div', { class: 'errors' }, 'Sent back: ', a.errors.join('; ')) : el('div', { class: 'why' }, 'Valid')))));
       }
       if (r.answer) out.push(...section('Answer, with quote checks', json(r.answer)));

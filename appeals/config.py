@@ -30,7 +30,7 @@ class Reasoning:
     model: Model
     max_output_tokens: int = 16000            # includes a thinking model's hidden reasoning
     json_repairs: int = 2                     # times a malformed reply is sent back for correction
-    truncation_retries: int = 2               # times a reply cut off at max_output_tokens is sent again unchanged
+    resends: int = 2                          # times a reply cut off at max_output_tokens, or empty, is sent again unchanged
 
 
 @dataclass(frozen=True)

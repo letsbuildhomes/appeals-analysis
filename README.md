@@ -94,8 +94,8 @@ execution, renders as a diagram, and checks itself.
   such a chain, one conversation. Its
   reply must be JSON matching that type. A reply that doesn't parse or
   validate is sent back to the model with the errors, a set number of times,
-  before the step fails; a reply cut off at the output limit is sent again
-  unchanged.
+  before the step fails; a reply cut off at the output limit, or empty, is
+  sent again unchanged.
 - **`Field`**: one settled value per docket, such as an appellant list, a
   date or a count, with its allowed values (always including "not stated").
   It takes its step's answer when the quote checks out, otherwise the scan's

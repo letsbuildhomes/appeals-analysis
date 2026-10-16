@@ -21,7 +21,7 @@ long_context_tokens = 30000                # dockets over this many estimated to
 model = "deepseek/deepseek-flash"
 max_output_tokens = 16000                  # includes a thinking model's hidden reasoning
 json_repairs = 2                           # times a malformed reply is sent back for correction
-truncation_retries = 2                     # times a reply cut off at max_output_tokens is sent again unchanged
+resends = 2                                # times a reply cut off at max_output_tokens, or empty, is sent again unchanged
 
 [run]
 workers = 24
