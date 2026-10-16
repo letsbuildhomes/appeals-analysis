@@ -204,11 +204,22 @@ not part of S1: one decision often grants several, so it is asked as a set
 |---|---|---|---|---|
 | A1 | Does a document state the date the appeal was filed? If so, what is it? | yes · no → date + precision | Scan (Choice); value from L2 | X4, A |
 | A2 | If not, the earliest dated event showing the appeal existed; and the month or year the docket number gives | date + precision | L2b; code, from the docket number | X4 |
-| A3 | In which municipality is the project? | one of the Vermont municipalities found in the text · not stated | Scan (Choice over candidates) | A |
+| A3 | In which Vermont town or city is the project, and in which village or other named place within it? | one of Vermont's 256 towns, cities, gores and grants · not stated; a place name · not stated | L3c (LLM value, checked against the list) | A |
 | A4 | How many new dwelling units would the project add, as proposed? | stated? → count | Scan (Choice); value from L6a | X3, A |
 | A5 | Is the appeal limited to part of the proposal? How many units added in that part? | yes · no · not stated → count | Scan (Choice); values from L6b, L6c | X3, A |
 | A6 | How many new building lots for housing would the application create? | stated? → count | Scan (Choice); value from L6d | A |
 | A7 | Which kinds of permission are at issue? | subdivision · site plan · planned development or master plan · conditional use · variance · zoning permit · other | Scan (Yes/no ×7); each flagged kind confirmed by its own L3 step | A |
+
+**The town (A3)** is asked of the reasoning model rather than the scan: it only
+matters for dockets in scope, which are the ones that reach the steps. The
+model writes the name; code checks it against the Census Bureau's list of
+Vermont's 256 towns, cities, gores and grants
+(`appeals/codebook/vermont_towns.tsv`), which is never put in the prompt. A
+name off the list goes back with the names it most likely meant: "Saint
+Johnsbury" gets "St. Johnsbury", and "Rutland" gets "Rutland City or Rutland
+Town", since four names (Barre, Newport, Rutland and St. Albans) belong to
+both a city and a town. A village is not a town: it is recorded as the place
+within its town.
 
 ### B · Who appeals, and against what
 
@@ -217,7 +228,7 @@ not part of S1: one decision often grants several, so it is asked as a set
 | B1 | What did the municipal decision appealed to this court decide? When several municipal bodies decided in turn, the last one. And its date. | approved · approved with conditions · approved in part (and denied in part) · denied · not stated → date + precision | Scan (Choice); confirmed by L3a; date from L3b | X2, X4, X5, B |
 | B2 | Are all appellants named, rather than "X, et al."? | yes · no | Scan (Choice); context for L4 | X6 |
 | B3 | For each appellant: who are they? | applicant or owner · individual neighbor · group of neighbors · other organization · municipality · state agency · other · not stated | L4 (LLM value) | X6 |
-| B4 | For each appellant: were they represented? | represented by a lawyer · self-represented · not stated | L4 (LLM value) | X6 |
+| B4 | For each of the first 10 appellants: was an attorney their lawyer at any point in the docket, and who? | represented by a lawyer · self-represented · not stated → lawyer names and firms | L4b, once per appellant (LLM value) | X6 |
 | B5 | How many new dwelling units did the municipality approve? | count · not stated | L6e (LLM value) | X3 |
 
 ### C · On what grounds
@@ -318,9 +329,10 @@ scope, the remaining steps are skipped.
 | L2b Earliest event | — | L2a not stated | the earliest dated event showing the appeal existed | L2a |
 | L3a Town decision | — | — | B1 | — |
 | L3b Town decision date | — | — | the date of that decision (the written decision's, when the vote differs) | L3a |
+| L3c Town and place | — | — | A3: the town or city, as the state writes it, and the place within it | L3b |
 | L3 per kind | — | that A7 kind flagged | whether that kind of permission is at issue | — |
 | L4a Appellants | — | — | each appellant's name and role (B2 says whether the list can be complete) | — |
-| L4b Lawyers | — | — | for each appellant, represented or self-represented | L4a |
+| L4b Lawyers, per appellant | — | — | for each of the first 10 appellants L4a listed, one call: represented by an attorney at any point, self-represented or not stated, and the lawyers' names and firms | L4a |
 | L5a Final decision | final | — | whether a decision leaves nothing pending, quoting the first | — |
 | L5b How it ended | final | L5a yes | D3 | L5a |
 | L5c Result | final | L5b on the merits | D4 | L5b |
@@ -358,7 +370,7 @@ and D5 unless it was dismissed.
 | X3 | Change in units added: against the town (F4 − B5) and against the application (F4 − A4, or A5 when the appeal covered only part); F2 and F3 give the direction when counts aren't stated | A4, A5, B5, F2, F3, F4 |
 | X4 | Duration in days, exact or at least, with each end recorded as closed or open and whether it is inferred. Start: A1 when stated to the day; else the town's decision (B1's date) when stated to the day and not after the latest possible filing day, as a closed start marked inferred; else the earliest of the latest possible days of A1, A2 and the docket number. End: E1's earliest possible day, else E2's | A1, A2, B1 date, E1, E2 |
 | X5 | Last observed permission: the court's result, or else the town's decision | D4, B1 |
-| X6 | Appellant mix, folding groups of neighbors into neighbors; the count is unknown when B2 is no | B2–B4 |
+| X6 | Appellant mix, folding groups of neighbors into neighbors; the count is unknown when B2 is no. Representation counts each appellant once and covers the appellants L4b asked about (representation_of) | B2–B4 |
 
 ### Calls per docket
 

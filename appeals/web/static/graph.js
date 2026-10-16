@@ -395,6 +395,8 @@ function overlay(n) {
     if (r?.skipped) return { badge: r.skipped.startsWith('halted') ? 'halted' : 'skipped', badgeClass: 'skip', off: true, value: r.skipped };
     if (!planned?.runs) return { badge: 'not run', badgeClass: 'skip', off: true, value: planned?.reason || '' };
     if (!r) return { badge: 'planned', value: planned.depends ? `if ${planned.depends}` : '' };
+    if (r.each) return { badge: `ran ×${r.asked}`, badgeClass: r.error ? 'fail' : 'pass',
+      value: `${r.asked} of ${r.items} asked · quotes ${r.quotes_verified}/${r.quotes_checked} verified` };
     if (r.error) return { badge: 'failed', badgeClass: 'fail', value: r.error };
     return { badge: r.attempts > 1 ? `ran · ${r.attempts} tries` : 'ran', badgeClass: 'pass',
       value: `quotes ${r.quotes_verified}/${r.quotes_checked} verified${r.variant ? ' · ' + r.variant : ''}` };
@@ -486,6 +488,23 @@ function quotes(list) {
     el('div', { class: 'cite' }, `document ${q.doc}, page ${q.page} · ${q.verified ? 'verified on the page' : 'not found on the page'}`)));
 }
 
+function fillItem(template, item) {
+  return template.replace(/\{(\w+)\}/g, (_, k) => item?.[k] ?? '');
+}
+
+function costLine(rec) {
+  return `Cost $${(rec.cost_usd || 0).toFixed(4)}${rec.reused ? ' (reused from an earlier run)' : ''}`;
+}
+
+function attempts(exchange) {
+  if (!exchange) return null;
+  return exchange.attempts.map((a, i) => el('div', { class: 'attempt' },
+    el('div', { class: 'why' }, `Attempt ${i + 1}${a.stop ? ` · stop reason: ${a.stop}` : ''}`),
+    reply(a.reply),
+    (a.resent || a.truncated) ? el('div', { class: 'errors' }, `${a.errors.join('; ')}: the same request was sent again`)
+      : a.errors.length ? el('div', { class: 'errors' }, 'Sent back: ', a.errors.join('; ')) : el('div', { class: 'why' }, 'Valid')));
+}
+
 function json(value) {
   return value !== null && typeof value === 'object' ? jsonTree(value) : el('pre', { class: 'block' }, JSON.stringify(value));
 }
@@ -535,25 +554,31 @@ const renderers = {
       parentOf(n) ? [el('dt', {}, 'Follows'), el('dd', {}, parentOf(n))] : null,
       (n.context || n.chain_after || []).length ? [el('dt', {}, 'In context'), el('dd', {}, (n.context || n.chain_after).join(', '))] : null,
       n.halt_unless ? [el('dt', {}, 'Halts unless'), el('dd', {}, el('code', {}, n.halt_unless))] : null,
-      n.confirms.length ? [el('dt', {}, 'Confirms'), el('dd', {}, n.confirms.join(', '))] : null)];
+      n.confirms.length ? [el('dt', {}, 'Confirms'), el('dd', {}, n.confirms.join(', '))] : null,
+      n.for_each ? [el('dt', {}, 'For each'), el('dd', {}, `item of ${n.for_each}${n.limit ? `, the first ${n.limit}` : ''}`)] : null)];
     const r = records?.[n.id]?.value;
-    if (r && !r.skipped && r.prompt) {
+    if (r?.each) {
+      out.push(el('p', { class: 'why' }, `Asked about ${r.asked} of ${r.items} item${r.items === 1 ? '' : 's'}, one call each.`));
+      r.each.forEach((e, i) => {
+        const rec = records[`${n.id}[${i + 1}]`];
+        out.push(...folded(`${i + 1} · ${n.item ? fillItem(n.item, e.item) : JSON.stringify(e.item)}${e.error ? ' · failed' : ''}`,
+          el('div', { class: 'sub' }, 'Prompt sent'), el('pre', { class: 'block' }, e.prompt),
+          attempts(rec?.exchange), e.answer ? [el('div', { class: 'sub' }, 'Answer, with quote checks'), json(e.answer)] : null,
+          rec ? el('p', { class: 'why' }, costLine(rec)) : null));
+      });
+    } else if (r && !r.skipped && r.prompt) {
       out.push(...section(`Prompt sent${r.variant ? ' · ' + r.variant : ''}`, el('pre', { class: 'block' }, r.prompt)));
       const exchange = records[n.id].exchange;
       if (exchange) {
         out.push(...section(`Replies · ${exchange.attempts.length} attempt${exchange.attempts.length > 1 ? 's' : ''}`,
-          exchange.attempts.map((a, i) => el('div', { class: 'attempt' },
-            el('div', { class: 'why' }, `Attempt ${i + 1}${a.stop ? ` · stop reason: ${a.stop}` : ''}`),
-            reply(a.reply),
-            (a.resent || a.truncated) ? el('div', { class: 'errors' }, `${a.errors.join('; ')}: the same request was sent again`)
-              : a.errors.length ? el('div', { class: 'errors' }, 'Sent back: ', a.errors.join('; ')) : el('div', { class: 'why' }, 'Valid')))));
+          attempts(exchange)));
       }
       if (r.answer) out.push(...section('Answer, with quote checks', json(r.answer)));
-      out.push(el('p', { class: 'why' }, `Cost $${(records[n.id].cost_usd || 0).toFixed(4)}${records[n.id].reused ? ' (reused from an earlier run)' : ''}`));
+      out.push(el('p', { class: 'why' }, costLine(records[n.id])));
     } else if (r?.skipped) {
       out.push(el('p', { class: 'why' }, r.skipped));
     }
-    const ran = Boolean(r && !r.skipped && r.prompt), templates = ran ? folded : section;
+    const ran = Boolean(r && !r.skipped && (r.prompt || r.each)), templates = ran ? folded : section;
     if (n.variants) out.push(...templates('Prompt variants', Object.entries(n.variants).map(([k, v]) => [el('div', { class: 'sub' }, k), el('pre', { class: 'block' }, v)])));
     else out.push(...templates(ran ? 'Prompt template' : 'Prompt', el('pre', { class: 'block' }, n.prompt)));
     out.push(...returnsView(n));

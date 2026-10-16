@@ -91,7 +91,9 @@ execution, renders as a diagram, and checks itself.
   `only_if` condition on earlier answers holds. It starts fresh from the
   `Base` unless it names a step it comes `after`, in which case the
   exchanges along that line are kept in context; related details run as
-  such a chain, one conversation. Its
+  such a chain, one conversation. A step can also run once per item of an
+  earlier step's list (`for_each`), up to a limit, such as once per
+  appellant; each iteration is its own call and record. Its
   reply must be JSON matching that type. A reply that doesn't parse or
   validate is sent back to the model with the errors, a set number of times,
   before the step fails; a reply cut off at the output limit, or empty, is
@@ -101,7 +103,8 @@ execution, renders as a diagram, and checks itself.
   It takes its step's answer when the quote checks out, otherwise the scan's
   most likely answer, otherwise "not stated". A rule can make it "not stated"
   when an earlier answer makes the question moot, and a few fields, such as
-  the filing month a docket number encodes, are computed in code.
+  the filing month a docket number encodes, are computed in code. A field
+  over a for-each step turns each iteration into entries (`per_item`).
 - **`Derive`**: a plain function from named fields to a new field, such as a
   duration in days or the town's overall decision. No model is involved.
 - **`Answer`**: one research answer, which groups the fields that make it up.

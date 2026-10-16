@@ -1,0 +1,260 @@
+# Vermont's towns, cities, gores and grants: the 256 county subdivisions in the U.S. Census Bureau's 2024
+# Gazetteer (2024_gaz_cousubs_50.txt). "name" is how the codebook writes each one; a name shared by a city and a
+# town says which ("Rutland City", "Rutland Town").
+name	kind	census_name	geoid
+Addison	town	Addison town	5000100325
+Albany	town	Albany town	5001900475
+Alburgh	town	Alburgh town	5001300860
+Andover	town	Andover town	5002701300
+Arlington	town	Arlington town	5000301450
+Athens	town	Athens town	5002501900
+Averill	town	Averill town	5000902125
+Avery's Gore	gore	Avery's gore	5000902162
+Bakersfield	town	Bakersfield town	5001102500
+Baltimore	town	Baltimore town	5002702575
+Barnard	town	Barnard town	5002702725
+Barnet	town	Barnet town	5000502875
+Barre City	city	Barre city	5002303175
+Barre Town	town	Barre town	5002303250
+Barton	town	Barton town	5001903550
+Belvidere	town	Belvidere town	5001504375
+Bennington	town	Bennington town	5000304825
+Benson	town	Benson town	5002105200
+Berkshire	town	Berkshire town	5001105425
+Berlin	town	Berlin town	5002305650
+Bethel	town	Bethel town	5002705800
+Bloomfield	town	Bloomfield town	5000906325
+Bolton	town	Bolton town	5000706550
+Bradford	town	Bradford town	5001707375
+Braintree	town	Braintree town	5001707600
+Brandon	town	Brandon town	5002107750
+Brattleboro	town	Brattleboro town	5002507900
+Bridgewater	town	Bridgewater town	5002708275
+Bridport	town	Bridport town	5000108575
+Brighton	town	Brighton town	5000908725
+Bristol	town	Bristol town	5000109025
+Brookfield	town	Brookfield town	5001709325
+Brookline	town	Brookline town	5002509475
+Brownington	town	Brownington town	5001909850
+Brunswick	town	Brunswick town	5000910075
+Buels Gore	gore	Buels gore	5000710300
+Burke	town	Burke town	5000510450
+Burlington	city	Burlington city	5000710675
+Cabot	town	Cabot town	5002311125
+Calais	town	Calais town	5002311350
+Cambridge	town	Cambridge town	5001511500
+Canaan	town	Canaan town	5000911800
+Castleton	town	Castleton town	5002111950
+Cavendish	town	Cavendish town	5002712250
+Charleston	town	Charleston town	5001913150
+Charlotte	town	Charlotte town	5000713300
+Chelsea	town	Chelsea town	5001713525
+Chester	town	Chester town	5002713675
+Chittenden	town	Chittenden town	5002114350
+Clarendon	town	Clarendon town	5002114500
+Colchester	town	Colchester town	5000714875
+Concord	town	Concord town	5000915250
+Corinth	town	Corinth town	5001715700
+Cornwall	town	Cornwall town	5000116000
+Coventry	town	Coventry town	5001916150
+Craftsbury	town	Craftsbury town	5001916300
+Danby	town	Danby town	5002116825
+Danville	town	Danville town	5000517125
+Derby	town	Derby town	5001917350
+Dorset	town	Dorset town	5000317725
+Dover	town	Dover town	5002517875
+Dummerston	town	Dummerston town	5002518325
+Duxbury	town	Duxbury town	5002318550
+East Haven	town	East Haven town	5000921250
+East Montpelier	town	East Montpelier town	5002321925
+Eden	town	Eden town	5001523500
+Elmore	town	Elmore town	5001523725
+Enosburgh	town	Enosburgh town	5001124050
+Essex	town	Essex town	5000724175
+Essex Junction	city	Essex Junction city	5000724400
+Fair Haven	town	Fair Haven town	5002125375
+Fairfax	town	Fairfax town	5001124925
+Fairfield	town	Fairfield town	5001125225
+Fairlee	town	Fairlee town	5001725675
+Fayston	town	Fayston town	5002325825
+Ferdinand	town	Ferdinand town	5000925975
+Ferrisburgh	town	Ferrisburgh town	5000126300
+Fletcher	town	Fletcher town	5001126500
+Franklin	town	Franklin town	5001127100
+Georgia	town	Georgia town	5001127700
+Glastenbury	town	Glastenbury town	5000327962
+Glover	town	Glover town	5001928075
+Goshen	town	Goshen town	5000128600
+Grafton	town	Grafton town	5002528900
+Granby	town	Granby town	5000929125
+Grand Isle	town	Grand Isle town	5001329275
+Granville	town	Granville town	5000129575
+Greensboro	town	Greensboro town	5001930175
+Groton	town	Groton town	5000530550
+Guildhall	town	Guildhall town	5000930775
+Guilford	town	Guilford town	5002530925
+Halifax	town	Halifax town	5002531150
+Hancock	town	Hancock town	5000131525
+Hardwick	town	Hardwick town	5000531825
+Hartford	town	Hartford town	5002732275
+Hartland	town	Hartland town	5002732425
+Highgate	town	Highgate town	5001133025
+Hinesburg	town	Hinesburg town	5000733475
+Holland	town	Holland town	5001933775
+Hubbardton	town	Hubbardton town	5002134450
+Huntington	town	Huntington town	5000734600
+Hyde Park	town	Hyde Park town	5001535050
+Ira	town	Ira town	5002135425
+Irasburg	town	Irasburg town	5001935575
+Isle La Motte	town	Isle La Motte town	5001335875
+Jamaica	town	Jamaica town	5002536175
+Jay	town	Jay town	5001936325
+Jericho	town	Jericho town	5000736700
+Johnson	town	Johnson town	5001537075
+Killington	town	Killington town	5002137685
+Kirby	town	Kirby town	5000537900
+Landgrove	town	Landgrove town	5000339025
+Leicester	town	Leicester town	5000139325
+Lemington	town	Lemington town	5000939700
+Lewis	town	Lewis town	5000939775
+Lincoln	town	Lincoln town	5000140075
+Londonderry	town	Londonderry town	5002540225
+Lowell	town	Lowell town	5001940525
+Ludlow	town	Ludlow town	5002741275
+Lunenburg	town	Lunenburg town	5000941425
+Lyndon	town	Lyndon town	5000541725
+Maidstone	town	Maidstone town	5000942475
+Manchester	town	Manchester town	5000342850
+Marlboro	town	Marlboro town	5002543375
+Marshfield	town	Marshfield town	5002343600
+Mendon	town	Mendon town	5002144125
+Middlebury	town	Middlebury town	5000144350
+Middlesex	town	Middlesex town	5002344500
+Middletown Springs	town	Middletown Springs town	5002144800
+Milton	town	Milton town	5000745250
+Monkton	town	Monkton town	5000145550
+Montgomery	town	Montgomery town	5001145850
+Montpelier	city	Montpelier city	5002346000
+Moretown	town	Moretown town	5002346225
+Morgan	town	Morgan town	5001946450
+Morristown	town	Morristown town	5001546675
+Mount Holly	town	Mount Holly town	5002147200
+Mount Tabor	town	Mount Tabor town	5002147425
+New Haven	town	New Haven town	5000148700
+Newark	town	Newark town	5000547725
+Newbury	town	Newbury town	5001748175
+Newfane	town	Newfane town	5002548400
+Newport City	city	Newport city	5001948850
+Newport Town	town	Newport town	5001948925
+North Hero	town	North Hero town	5001350650
+Northfield	town	Northfield town	5002350275
+Norton	town	Norton town	5000952750
+Norwich	town	Norwich town	5002752900
+Orange	town	Orange town	5001753425
+Orwell	town	Orwell town	5000153725
+Panton	town	Panton town	5000153950
+Pawlet	town	Pawlet town	5002154250
+Peacham	town	Peacham town	5000554400
+Peru	town	Peru town	5000355000
+Pittsfield	town	Pittsfield town	5002155450
+Pittsford	town	Pittsford town	5002155600
+Plainfield	town	Plainfield town	5002355825
+Plymouth	town	Plymouth town	5002756050
+Pomfret	town	Pomfret town	5002756350
+Poultney	town	Poultney town	5002156875
+Pownal	town	Pownal town	5000357025
+Proctor	town	Proctor town	5002157250
+Putney	town	Putney town	5002557700
+Randolph	town	Randolph town	5001758075
+Reading	town	Reading town	5002758375
+Readsboro	town	Readsboro town	5000358600
+Richford	town	Richford town	5001159125
+Richmond	town	Richmond town	5000759275
+Ripton	town	Ripton town	5000159650
+Rochester	town	Rochester town	5002760100
+Rockingham	town	Rockingham town	5002560250
+Roxbury	town	Roxbury town	5002360625
+Royalton	town	Royalton town	5002760850
+Rupert	town	Rupert town	5000361000
+Rutland City	city	Rutland city	5002161225
+Rutland Town	town	Rutland town	5002161300
+Ryegate	town	Ryegate town	5000561525
+Salisbury	town	Salisbury town	5000162575
+Sandgate	town	Sandgate town	5000362875
+Searsburg	town	Searsburg town	5000363175
+Shaftsbury	town	Shaftsbury town	5000363550
+Sharon	town	Sharon town	5002763775
+Sheffield	town	Sheffield town	5000564075
+Shelburne	town	Shelburne town	5000764300
+Sheldon	town	Sheldon town	5001164600
+Shoreham	town	Shoreham town	5000165050
+Shrewsbury	town	Shrewsbury town	5002165275
+Somerset	town	Somerset town	5002565762
+South Burlington	city	South Burlington city	5000766175
+South Hero	town	South Hero town	5001367000
+Springfield	town	Springfield town	5002769550
+St. Albans City	city	St. Albans city	5001161675
+St. Albans Town	town	St. Albans town	5001161750
+St. George	town	St. George town	5000762050
+St. Johnsbury	town	St. Johnsbury town	5000562200
+Stamford	town	Stamford town	5000369775
+Stannard	town	Stannard town	5000569925
+Starksboro	town	Starksboro town	5000170075
+Stockbridge	town	Stockbridge town	5002770375
+Stowe	town	Stowe town	5001570525
+Strafford	town	Strafford town	5001770675
+Stratton	town	Stratton town	5002570750
+Sudbury	town	Sudbury town	5002171050
+Sunderland	town	Sunderland town	5000371425
+Sutton	town	Sutton town	5000571575
+Swanton	town	Swanton town	5001171725
+Thetford	town	Thetford town	5001772400
+Tinmouth	town	Tinmouth town	5002172925
+Topsham	town	Topsham town	5001773075
+Townshend	town	Townshend town	5002573300
+Troy	town	Troy town	5001973525
+Tunbridge	town	Tunbridge town	5001773675
+Underhill	town	Underhill town	5000773975
+Vergennes	city	Vergennes city	5000174650
+Vernon	town	Vernon town	5002574800
+Vershire	town	Vershire town	5001774950
+Victory	town	Victory town	5000975175
+Waitsfield	town	Waitsfield town	5002375325
+Walden	town	Walden town	5000575700
+Wallingford	town	Wallingford town	5002175925
+Waltham	town	Waltham town	5000176075
+Wardsboro	town	Wardsboro town	5002576225
+Warner's Grant	grant	Warner's grant	5000976337
+Warren	town	Warren town	5002376525
+Warren's Gore	gore	Warren's gore	5000976562
+Washington	town	Washington town	5001776750
+Waterbury	town	Waterbury town	5002376975
+Waterford	town	Waterford town	5000577125
+Waterville	town	Waterville town	5001577425
+Weathersfield	town	Weathersfield town	5002777500
+Wells	town	Wells town	5002177950
+West Fairlee	town	West Fairlee town	5001779975
+West Haven	town	West Haven town	5002180875
+West Rutland	town	West Rutland town	5002182300
+West Windsor	town	West Windsor town	5002783050
+Westfield	town	Westfield town	5001980200
+Westford	town	Westford town	5000780350
+Westminster	town	Westminster town	5002581400
+Westmore	town	Westmore town	5001981700
+Weston	town	Weston town	5002782000
+Weybridge	town	Weybridge town	5000183275
+Wheelock	town	Wheelock town	5000583500
+Whiting	town	Whiting town	5000183800
+Whitingham	town	Whitingham town	5002583950
+Williamstown	town	Williamstown town	5001784175
+Williston	town	Williston town	5000784475
+Wilmington	town	Wilmington town	5002584700
+Windham	town	Windham town	5002584850
+Windsor	town	Windsor town	5002784925
+Winhall	town	Winhall town	5000385075
+Winooski	city	Winooski city	5000785150
+Wolcott	town	Wolcott town	5001585375
+Woodbury	town	Woodbury town	5002385525
+Woodford	town	Woodford town	5000385675
+Woodstock	town	Woodstock town	5002785975
+Worcester	town	Worcester town	5002386125

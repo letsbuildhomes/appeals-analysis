@@ -9,7 +9,7 @@ from appeals.codebook import questions as Q
 from appeals.codebook import steps as L
 from appeals.graph.expr import StepAnswer as A
 from appeals.graph.nodes import Field
-from appeals.graph.values import Count, DateValue, ListOf, Name, OneOf, Record, Text, YesNo
+from appeals.graph.values import NOT_STATED, Count, DateValue, ListOf, Name, OneOf, Record, Text, YesNo
 from appeals.ingest.dockets import filing_period
 
 
@@ -48,8 +48,14 @@ docket_filing = Field('docket_filing', 'A', code='A2', label='Filing month or ye
                       type=DateValue(), from_docket=docket_number_filing,
                       notes=['Read by code from the docket number: 128-8-10 Vtec was filed in August 2010, 25-ENV-00114 in 2025.',
                              'A bound on the filing date (the appeal was filed by then), not the filing date itself.'])
-municipality = Field('municipality', 'A', code='A3', label='Municipality', type=Name(), scan=Q.A3,
-                     notes=['One of the Vermont municipalities named in the documents, chosen by the scan; it has no quote.'])
+municipality = Field('municipality', 'A', code='A3', label='Municipality', type=L.TOWN, step=L.L3c, path='town',
+                     notes=['One of Vermont\'s 256 towns, cities, gores and grants, written as the codebook lists them '
+                            '(from the Census Bureau); a name shared by a city and a town says which, such as "Rutland City".',
+                            'A village belongs to its town; the village is the place (place_within_town).'])
+place_within_town = Field('place_within_town', 'A', code='A3', label='Place within the town', type=Name(),
+                          step=L.L3c, path='place',
+                          notes=['A village or other named place within the town where the project is, such as Quechee in '
+                                 'Hartford, when the documents name one.'])
 units_added_proposed = Field('units_added_proposed', 'A', code='A4', label='Units added: proposed', type=Count(),
                              step=L.L6a, path='proposed')
 appeal_partial = Field('appeal_partial', 'A', code='A5', label='Appeal covers only part', type=_choice(Q.A5),
@@ -76,8 +82,24 @@ appellants = Field('appellants', 'B', code='B3', label='Appellants', type=ListOf
                    notes=['Only appellants with a verified quote are listed.',
                           '"Not stated" means the list was never established, which is different from an empty list.',
                           'A named group of neighbors counts as neighbors, not as an organization.'])
+def lawyer_rows(item, answer):
+    """One entry per lawyer who appeared for the appellant, or a single entry when none did."""
+    kind = answer['representation']['answer']
+    lawyers = answer['lawyers'] if kind == 'represented by a lawyer' else []
+    entry = {'appellant': item['name'], 'representation': kind}
+    return ([entry | {'lawyer': lawyer['name'], 'firm': lawyer['firm']} for lawyer in lawyers]
+            or [entry | {'lawyer': NOT_STATED, 'firm': NOT_STATED}])
+
+
 appellant_lawyers = Field('appellant_lawyers', 'B', code='B4', label='Appellants\' representation',
-                          type=ListOf(L.APPELLANT_LAWYER, not_stated=True), step=L.L4b, path='representation')
+                          type=ListOf(L.APPELLANT_LAWYER, not_stated=True), step=L.L4b, path='representation',
+                          per_item=lawyer_rows,
+                          notes=['Asked one appellant at a time, for the first 10 appellants listed; appellant_mix '
+                                 'gives how many there are in all.',
+                                 'Represented means an attorney appeared for them at any point in the docket. A '
+                                 'non-lawyer speaking for them is not representation.',
+                                 'One entry per lawyer, so an appellant with two lawyers has two entries. Names and '
+                                 'firms are as written; the same lawyer may be spelled differently across dockets.'])
 units_added_town_approved = Field('units_added_town_approved', 'B', code='B5', label='Units added: town approved',
                                   type=Count(), step=L.L6e, path='town_approved')
 
@@ -141,7 +163,7 @@ design_change = Field('design_change', 'F', code='F5', label='The size or design
                       notes=['Free text from the reasoning model, describing the change; never scored.'])
 
 ALL = [proceeding, physical_change, housing_use, units_effect,
-       filing_date, earliest_event, docket_filing, municipality, units_added_proposed, appeal_partial,
+       filing_date, earliest_event, docket_filing, municipality, place_within_town, units_added_proposed, appeal_partial,
        units_added_under_appeal, housing_lots, permission_kinds,
        town_decision, town_decision_date, appellants_named, appellants, appellant_lawyers,
        units_added_town_approved,

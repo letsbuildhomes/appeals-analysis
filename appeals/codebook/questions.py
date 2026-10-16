@@ -3,7 +3,6 @@
 Each question is self-contained: the decision model sees only its text and
 options, never its ID. IDs and answer sets follow docs/PIPELINE.md.
 """
-import re
 
 from appeals.graph.nodes import Question, YesNoSet
 
@@ -69,33 +68,10 @@ S4 = Question('S4', 'scope',
 
 # ---- A · Which decisions -------------------------------------------------------------
 
-def town_candidates(docket):
-    """Municipalities named in the docket text as "Town of X", "City of X", "Village of X" or "X Development Review Board" (and similar boards)."""
-    text = docket.text
-    names = re.findall(r'\b(?:Town|City|Village) of ([A-Z][a-z]+(?:[ -][A-Z][a-z]+){0,2})', text)
-    names += re.findall(r'\b([A-Z][a-z]+(?: [A-Z][a-z]+){0,2}) (?:Development Review Board|Planning Commission|'
-                        r'Zoning Board of Adjustment|Zoning Administrator|Selectboard|City Council)', text)
-    skip = {'The', 'In', 'Vermont', 'State', 'Superior', 'Environmental', 'Appeal', 'Appeals'}
-    counts = {}
-    for name in names:
-        name = name.strip()
-        if name.split()[0] not in skip:
-            counts[name] = counts.get(name, 0) + 1
-    ranked = sorted(counts, key=counts.get, reverse=True)[:40]
-    options = {name: f'The project is in {name}.' for name in ranked}
-    options[NOT_STATED] = NS
-    return options
-
-
 A1 = Question('A1', 'A',
     ask='Does any document state the date this appeal was filed with the court (the notice of appeal)?',
     options={'yes': 'A document states when the appeal was filed.', 'no': 'No document states the filing date.'},
     why='The filing date starts the duration. When it is not stated, the earliest dated event is used instead.')
-
-A3 = Question('A3', 'A',
-    ask='In which Vermont municipality is the project at issue located?',
-    options_from=town_candidates,
-    why='Where appeals happen.')
 
 A4 = Question('A4', 'A',
     ask='Do the documents state how many new dwelling units the project would add? Existing units that would remain '
@@ -248,5 +224,5 @@ F5 = Question('F5', 'F',
     why='Design changes the court imposed, short of denial.')
 
 
-ALL = [S1, S2, S3, S4, A1, A3, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, C5, D1, D2, D3, D4, D5,
+ALL = [S1, S2, S3, S4, A1, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, C5, D1, D2, D3, D4, D5,
        F1, F2, F3, F5]

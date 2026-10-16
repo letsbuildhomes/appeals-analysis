@@ -25,7 +25,7 @@ scope = Answer('answer_scope', 'scope', title='Scope', question='Is this docket 
 
 which = Answer('answer_A', 'A', title='Which decisions get appealed',
                question='When the appeal was filed, in which town, how many units added and lots, what kind of permission.',
-               parts=[F.filing_date, F.earliest_event, F.docket_filing, F.municipality, F.units_added_proposed,
+               parts=[F.filing_date, F.earliest_event, F.docket_filing, F.municipality, F.place_within_town, F.units_added_proposed,
                       F.appeal_partial, F.units_added_under_appeal, F.housing_lots, F.permission_kinds],
                examples=[
                    example('How many appeals were filed each year? (the filing date, else the docket number)', """

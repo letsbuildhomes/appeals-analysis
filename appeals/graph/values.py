@@ -5,6 +5,7 @@ to the reasoning model), validate a reply (errors are sent back to the model),
 compare two answers (for scoring) and make an example (for the fake model).
 "Not stated" is a real answer for every type that allows it.
 """
+import difflib
 import random
 
 from appeals import dates
@@ -155,6 +156,44 @@ class Name(Text):
         return rng.choice(['Burlington', 'Stowe', 'South Burlington', NOT_STATED])
 
 
+class KnownName(Name):
+    """A name from a fixed list too long to show the model, such as a state's towns.
+
+    The list is not in the prompt or the schema; code checks each answer against it. A name not on
+    it is sent back with the closest names on the list, as `suggest(value)` finds them (by
+    default, the nearest spellings). It describes itself as a name carrying its list, so a release
+    stores it like any other name.
+    """
+    def __init__(self, names, what, suggest=None):
+        self.names = list(names)
+        self.known = set(self.names)
+        self.what = what
+        self.suggest = suggest or (lambda value: difflib.get_close_matches(value, self.names, n=3, cutoff=0.75))
+
+    def describe(self):
+        return {'type': self.name, 'known': {'of': self.what, 'names': self.names}}
+
+    def validate(self, value, path):
+        if value == NOT_STATED or value in self.known:
+            return []
+        if not isinstance(value, str):
+            return [f'{path}: expected the name of {self.what}; got {value!r}']
+        close = [c for c in self.suggest(value) if c in self.known]
+        if close:
+            quoted = [f'"{c}"' for c in close]
+            options = quoted[0] if len(quoted) == 1 else f'{", ".join(quoted[:-1])} or {quoted[-1]}'
+            return [f'{path}: you wrote "{value}", which is not on the official list of {self.what}. '
+                    f'Did you mean {options}?']
+        return [f'{path}: "{value}" is not on the official list of {self.what}. '
+                f'Give the name as the state writes it, or "{NOT_STATED}".']
+
+    def same(self, a, b):
+        return a == b
+
+    def example(self, rng):
+        return rng.choice([*self.names[:5], NOT_STATED])
+
+
 class Record(ValueType):
     """An object with these fields, all required."""
     name = 'record'
@@ -298,7 +337,7 @@ class Quoted(ValueType):
             return errors + [f'{path}.quotes: expected a list']
         for i, q in enumerate(quotes):
             errors += QUOTE.validate(q, f'{path}.quotes[{i}]')
-        if not quotes and value['answer'] != NOT_STATED and not isinstance(self.answer, Text):
+        if not quotes and value['answer'] != NOT_STATED and type(self.answer) is not Text:
             errors.append(f'{path}.quotes: an answer other than "{NOT_STATED}" needs at least one quote')
         return errors
 
@@ -317,6 +356,8 @@ def from_description(d):
     """The value type a `describe()` dict came from, so stored graphs can validate values without the codebook."""
     simple = {'count': Count, 'integer': Integer, 'true or false': Boolean, 'date': DateValue, 'text': Text, 'name': Name}
     kind = d['type']
+    if kind == 'name' and 'known' in d:
+        return KnownName(d['known']['names'], d['known']['of'])
     if kind in simple:
         return simple[kind]()
     if kind == 'one of':

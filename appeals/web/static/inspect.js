@@ -30,6 +30,12 @@ function typeRows(desc, key) {
       return [head(pill('quoted', 'quoted'), ...first.childNodes), ...rest];
     }
     case 'one of': return [head(pill('one of'), choices(desc.options))];
+    case 'name':
+      if (!desc.known) return [head(pill('name'))];
+      return [head(pill('name'), el('span', { class: 'ty-note' },
+        `one of ${desc.known.names.length} ${desc.known.of}, checked in code and not shown to the model; a name off the list is sent back with the closest names`),
+        pill('or not stated', 'ns')),
+        el('details', { class: 'raw' }, el('summary', {}, 'the list'), choices(Object.fromEntries(desc.known.names.map(n => [n, ''])))) ];
     case 'counts by': return [head(pill('count for each of'), choices(desc.options))];
     case 'or not stated': {
       const [first, ...rest] = typeRows(desc.value, null);
@@ -59,7 +65,7 @@ export function example(desc) {
     case 'or not stated': return example(desc.value);
     case 'count': case 'integer': return 12;
     case 'date': return '2015-06-01';
-    case 'name': return 'Jane Doe';
+    case 'name': return desc.known ? desc.known.names[0] : 'Jane Doe';
     case 'true or false': return true;
     case 'text': return '…';
     default: return null;

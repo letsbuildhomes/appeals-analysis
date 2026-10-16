@@ -169,27 +169,63 @@ class Runner:
             prompt = layers.render_prompt(p, step, entry['variant'], scan)
             chain = [s for s in step.line() if results.get(s.id, {}).get('answer') is not None]
             history = [(results[s.id]['prompt'], results[s.id]['reply']) for s in chain]
-            key = key_of('step', self.nodes[step.id], base_key, prompt, history, self.reasoning.identity())
-            cached = self.store.cached_record(key)
-            if cached:
-                result = cached['value']
-                self._save(run_id, number, 'steps', step.id, key, None, reused=True)
+            if step.for_each:
+                result = await self._each(run_id, number, docket, base, base_key, step, entry, prompt, chain, history,
+                                          results)
             else:
-                self._check_budget()
-                started = time.monotonic()
-                reply = await self.reasoning.ask(SYSTEM, base, history, prompt, step.returns)
-                self._charge(reply.cost)
-                answer, checked, verified = (layers.verify_quotes(reply.answer, docket) if reply.answer is not None
-                                             else (None, 0, 0))
-                final_reply = reply.exchange['attempts'][-1]['reply']
-                result = {'variant': entry['variant'], 'prompt': prompt, 'reply': final_reply, 'answer': answer,
-                          'error': reply.error, 'attempts': len(reply.exchange['attempts']),
-                          'quotes_checked': checked, 'quotes_verified': verified,
-                          'chained_after': [s.id for s in chain]}
-                self._save(run_id, number, 'steps', step.id, key, result, reply.exchange, reply.cost,
-                           time.monotonic() - started)
+                result = await self._ask(run_id, number, docket, base, base_key, step, step.id, entry, prompt, chain,
+                                         history)
             results[step.id] = result
             answers = {sid: r['answer'] for sid, r in results.items() if r.get('answer') is not None}
             if result.get('answer') is not None and layers.halts(step, answers):
                 halted = step.id
         return results
+
+    async def _ask(self, run_id, number, docket, base, base_key, step, node_id, entry, prompt, chain, history):
+        """One reasoning call for a step (or one item of a for-each step), reused when cached."""
+        key = key_of('step', self.nodes[step.id], base_key, prompt, history, self.reasoning.identity())
+        cached = self.store.cached_record(key)
+        if cached:
+            self._save(run_id, number, 'steps', node_id, key, None, reused=True)
+            return cached['value']
+        self._check_budget()
+        started = time.monotonic()
+        reply = await self.reasoning.ask(SYSTEM, base, history, prompt, step.returns)
+        self._charge(reply.cost)
+        answer, checked, verified = (layers.verify_quotes(reply.answer, docket) if reply.answer is not None
+                                     else (None, 0, 0))
+        final_reply = reply.exchange['attempts'][-1]['reply']
+        result = {'variant': entry['variant'], 'prompt': prompt, 'reply': final_reply, 'answer': answer,
+                  'error': reply.error, 'attempts': len(reply.exchange['attempts']),
+                  'quotes_checked': checked, 'quotes_verified': verified,
+                  'chained_after': [s.id for s in chain]}
+        self._save(run_id, number, 'steps', node_id, key, result, reply.exchange, reply.cost,
+                   time.monotonic() - started)
+        return result
+
+    async def _each(self, run_id, number, docket, base, base_key, step, entry, template, chain, history, results):
+        """A for-each step: one call per verified item of the earlier list, up to the step's limit.
+
+        Each iteration is stored as its own record (L4b[1], L4b[2], …); the step's own record
+        summarizes them, and its answer is {"each": [{"item": …, "answer": …}]}.
+        """
+        items = layers.each_items(step, results)
+        asked = items[:step.limit] if step.limit else items
+        each = []
+        for i, item in enumerate(asked, 1):
+            prompt = template.replace('{item}', step.item_text(item))
+            one = await self._ask(run_id, number, docket, base, base_key, step, f'{step.id}[{i}]', entry, prompt,
+                                  chain, history)
+            each.append({'item': item, **one})
+        result = {'variant': entry['variant'], 'items': len(items), 'asked': len(asked), 'each': each,
+                  'answer': {'each': [{'item': e['item'], 'answer': e['answer']} for e in each
+                                      if e.get('answer') is not None]},
+                  'error': '; '.join(f'item {i}: {e["error"]}' for i, e in enumerate(each, 1) if e.get('error'))
+                           or None,
+                  'attempts': sum(e.get('attempts', 0) for e in each),
+                  'quotes_checked': sum(e.get('quotes_checked', 0) for e in each),
+                  'quotes_verified': sum(e.get('quotes_verified', 0) for e in each),
+                  'chained_after': [s.id for s in chain]}
+        self._save(run_id, number, 'steps', step.id, key_of('each', base_key, step.id, [e['prompt'] for e in each],
+                                                             [e.get('reply') for e in each]), result)
+        return result

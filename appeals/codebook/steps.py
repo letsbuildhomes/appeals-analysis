@@ -11,11 +11,12 @@ the scan's answer.
 import re
 
 from appeals.codebook import gates as G
+from appeals.codebook import towns
 from appeals.codebook.questions import NOT_STATED, A7, B1, C5, D3, D4, D5, S1, S2, S3, S4
 from appeals.graph.expr import If, T
 from appeals.graph.expr import StepAnswer as A
 from appeals.graph.nodes import Base, Step
-from appeals.graph.values import Count, DateValue, ListOf, Name, OneOf, Quoted, Record, Text, YesNo
+from appeals.graph.values import Count, DateValue, KnownName, ListOf, Name, OneOf, Quoted, Record, Text, YesNo
 
 base = Base('base', 'steps', framing="""
 You are reading every published decision in one docket of the Vermont Superior Court, Environmental Division.
@@ -114,6 +115,16 @@ L3b = Step('L3b', 'B', title='Date of the town\'s decision', after=L3a,
 it issued its written decision, give the written decision's date. If no document dates it, answer "not stated".""",
     returns=Record(decision_date=Quoted(DateValue())), confirms=[])
 
+TOWN = KnownName(towns.NAMES, 'Vermont towns and cities', suggest=towns.suggest)
+SHARED_NAMES = '; '.join(f'"{n} City" or "{n} Town"' for n in towns.SHARED)
+
+L3c = Step('L3c', 'A', title='Town and place', after=L3b,
+    prompt=f"""In which Vermont town or city is the project at issue located? Give its name as the State of Vermont
+writes it, such as "St. Johnsbury". Where a city and a town share a name, say which: {SHARED_NAMES}.
+If the documents name a village or other place within that town or city where the project is, such as Quechee in
+Hartford, give it as the place; otherwise the place is "not stated". {QUOTE_IT}""",
+    returns=Record(town=Quoted(TOWN), place=Quoted(Name())), confirms=[])
+
 KINDS = {key: Step(f'L3_{_slug(key)}', 'A', title=f'Permission: {key}',
     only_if=A7.p(key) >= T.check, choose=_bucket(A7.p(key)),
     variants=_variants(f'{meaning} is at issue in this appeal',
@@ -131,12 +142,13 @@ ROLES = {'applicant or owner': 'The applicant or property owner seeking permissi
          'municipality': 'The town or one of its bodies.',
          'state agency': 'A state agency.',
          'other': 'Someone else.'}
-REPRESENTATION = {'represented by a lawyer': 'A lawyer appeared for them.',
+REPRESENTATION = {'represented by a lawyer': 'An attorney appeared for them at some point in this docket.',
                   'self-represented': 'The documents say they represented themselves.'}
 ROLE = OneOf(ROLES)
 REPRESENTATION_KIND = OneOf(REPRESENTATION)
 APPELLANT = Record(name=Name(), role=ROLE)
-APPELLANT_LAWYER = Record(name=Name(), representation=REPRESENTATION_KIND)
+LAWYER = Record(name=Name(), firm=Name())
+APPELLANT_LAWYER = Record(appellant=Name(), representation=REPRESENTATION_KIND, lawyer=Name(), firm=Name())
 
 L4a = Step('L4a', 'B', title='Appellants',
     prompt="""List every appellant in this docket: whoever brought this appeal or a cross-appeal, not every party.
@@ -145,10 +157,14 @@ with a quote.
 {B2}""",
     returns=Record(appellants=ListOf(Quoted(APPELLANT))), confirms=['B2'])
 
-L4b = Step('L4b', 'B', title='Appellants\' lawyers', after=L4a,
-    prompt="""For each appellant you listed, say whether a lawyer represented them, with a quote. Say
-"self-represented" only when the documents say so, and "not stated" when they say neither.""",
-    returns=Record(representation=ListOf(Quoted(APPELLANT_LAWYER))), confirms=[])
+L4b = Step('L4b', 'B', title='Each appellant\'s lawyers', after=L4a,
+    for_each=(L4a, 'appellants'), item='{name} ({role})', limit=10,
+    prompt="""Was {item} represented by a lawyer at any point in this docket? Only an attorney counts: a
+spokesperson, neighbor or anyone else who is not a lawyer speaking for them does not. Answer "self-represented"
+only when the documents say they represented themselves, and "not stated" when the documents don't say. If a lawyer
+represented them, list every lawyer who appeared for them, with the law firm when stated (otherwise "not stated"),
+and quote the passage that shows it.""",
+    returns=Record(representation=Quoted(REPRESENTATION_KIND), lawyers=ListOf(LAWYER)), confirms=[])
 
 
 # ---- D, E · How the docket ended, then when (before the counts: the court's count needs the result) ----------------------------
@@ -311,7 +327,7 @@ L11b = Step('L11b', 'F', title='The size or design change', when=G.design, after
 
 ORDER = [L1a, L1b, L1c, L1d,
          L2a, L2b,
-         L3a, L3b, *KINDS.values(),
+         L3a, L3b, L3c, *KINDS.values(),
          L4a, L4b,
          L5a, L5b, L5c, L5d, L5e, L5f,
          L6a, L6b, L6c, L6d, L6e, L6f,

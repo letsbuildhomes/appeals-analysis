@@ -142,6 +142,13 @@ def halts(step, answers):
     return not step.halt_unless.evaluate(E.Context(steps=answers))
 
 
+def each_items(step, results):
+    """The items a for-each step runs over: the earlier list's entries whose quotes check out, in order."""
+    source, path = step.for_each
+    listed = _at(results.get(source.id, {}).get('answer'), path)
+    return [entry['answer'] for entry in listed if _quoted_ok(entry)] if isinstance(listed, list) else []
+
+
 # ---- facts ---------------------------------------------------------------------------
 
 def _at(value, path):
@@ -170,6 +177,8 @@ def resolve(pipeline, scan, steps, number=None):
         if f.from_docket:
             facts[f.id] = {'answer': f.from_docket(number) if number else NOT_STATED, 'quotes': [],
                            'source': 'docket number', 'probability': None, 'conflict': False}
+        elif f.per_item:
+            facts[f.id] = _resolve_each(f, steps)
         elif f.steps:
             facts[f.id] = _resolve_set(f, scan, steps)
         else:
@@ -207,6 +216,23 @@ def _resolve_one(f, scan, steps):
         if step_value is not None:
             fact['note'] = 'step answer not used: no verified quote'
     return fact
+
+
+def _resolve_each(f, steps):
+    """A field over a for-each step: per_item's entries for every item whose answer at `path` checks out."""
+    result = steps.get(f.step.id, {})
+    if result.get('answer') is None:
+        return {'answer': NOT_STATED, 'quotes': [], 'source': 'none', 'probability': None, 'conflict': False}
+    answer, quotes, dropped = [], [], 0
+    for e in result['answer']['each']:
+        quoted = _at(e['answer'], f.path)
+        if _quoted_ok(quoted):
+            answer += f.per_item(e['item'], e['answer'])
+            quotes += quoted['quotes']
+        else:
+            dropped += 1
+    return {'answer': answer, 'quotes': quotes, 'source': 'step', 'probability': None, 'conflict': False,
+            'dropped': dropped, 'items': result.get('items'), 'asked': result.get('asked')}
 
 
 def _resolve_set(f, scan, steps):

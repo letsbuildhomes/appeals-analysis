@@ -64,14 +64,12 @@ class Node:
 class Question(Node):
     """One closed question for the decision model.
 
-    `options` maps each option to its meaning. `options_from`, when given, makes
-    the options per docket: a function of the docket text returning options.
+    `options` maps each option to its meaning.
     """
     ask: str = ''
     options: dict = field(default_factory=dict)
     why: str = ''
     yes_no: bool = False
-    options_from: Callable | None = None
     kind: ClassVar[str] = 'question'
     layer: ClassVar[int] = 1
 
@@ -93,18 +91,12 @@ class Question(Node):
         if self.yes_no:
             return {'type': 'yes_no', 'instructions': self.ask,
                     'criteria': {'true': self.options['yes'], 'false': self.options['no']}}
-        options = self.options_from(docket) if self.options_from else self.options
-        return {'type': 'choice', 'instructions': self.ask, 'criteria': options}
+        return {'type': 'choice', 'instructions': self.ask, 'criteria': self.options}
 
     def describe(self):
         d = super().describe() | {'ask': self.ask, 'why': self.why,
                                   'question_type': 'yes/no' if self.yes_no else 'choice'}
-        if self.options_from:
-            d['options'] = {'(per docket)': (self.options_from.__doc__ or '').strip()}
-            d['options_source'] = textwrap.dedent(inspect.getsource(self.options_from))
-        else:
-            d['options'] = self.options
-        return d
+        return d | {'options': self.options}
 
 
 @dataclass(eq=False)
@@ -206,6 +198,10 @@ class Step(Node):
     `after`: the step this one follows in a chain. Its exchange, and the exchanges it kept in
     context, stay in context here, for each step on the line that ran.
     `halt_unless`: a condition on this step's answer; when false, later steps don't run.
+    `for_each`: (step, path) of an earlier step's list. The step then runs once per item with a
+    verified quote, at most `limit` times, with `{item}` in the prompt replaced by `item`
+    filled from that item's answer, such as "{name} ({role})". Each iteration starts from the
+    same context and doesn't see the others. No step may follow a for-each step.
     """
     title: str = ''
     when: Gate | None = None
@@ -217,6 +213,9 @@ class Step(Node):
     after: 'Step | None' = None
     halt_unless: E.Expr | None = None
     confirms: list = field(default_factory=list)
+    for_each: tuple | None = None
+    item: str = ''
+    limit: int | None = None
     kind: ClassVar[str] = 'step'
     layer: ClassVar[int] = 3
 
@@ -240,7 +239,13 @@ class Step(Node):
             refs |= self.only_if.refs()
         if self.after:
             refs.add(self.after.id)
+        if self.for_each:
+            refs.add(self.for_each[0].id)
         return refs
+
+    def item_text(self, item):
+        """The text that replaces {item} in the prompt, from one item's answer."""
+        return self.item.format(**item) if isinstance(item, dict) else str(item)
 
     def describe(self):
         return super().describe() | {
@@ -257,6 +262,8 @@ class Step(Node):
             'context': [s.id for s in self.line()],
             'halt_unless': self.halt_unless.text() if self.halt_unless else None,
             'confirms': self.confirms,
+            'for_each': (f'{self.for_each[0].id}.{self.for_each[1]}' if self.for_each else None),
+            'item': self.item or None, 'limit': self.limit,
         }
 
 
@@ -270,6 +277,8 @@ class Field(Node):
     quotes check out), then the scan's most likely answer to `scan`, then "not stated".
     A yes/no set takes each item from its own step: `steps` maps item keys to steps.
     `from_docket` instead computes the value from the docket number, in code.
+    `per_item`, for a for-each step: a function (item, answer) turning one iteration into the
+    field's list entries; `path` then names the quoted answer that must check out.
     `not_stated_if`: a condition on earlier answers that makes the field "not stated"
     whatever the sources say, such as grounds when no arguments are stated.
     `notes`: what a reader of the data must know to use the value correctly.
@@ -282,6 +291,7 @@ class Field(Node):
     steps: dict = field(default_factory=dict)
     path: str | None = None
     from_docket: Callable | None = None
+    per_item: Callable | None = None
     not_stated_if: E.Expr | None = None
     notes: list = field(default_factory=list)
     kind: ClassVar[str] = 'field'
@@ -302,6 +312,9 @@ class Field(Node):
     def describe(self):
         if self.from_docket:
             rule = 'computed from the docket number'
+        elif self.per_item:
+            rule = (f'one entry per {self.step.for_each[1]} item the step was asked about, from its answer '
+                    f'when {self.path} has a verified quote')
         elif self.steps:
             rule = ('each item: its step\'s answer with a verified quote when the step ran, '
                     'else the scan\'s answer at the threshold')
@@ -322,6 +335,8 @@ class Field(Node):
             'rule': rule, 'notes': self.notes}
         if self.from_docket:
             d['source'] = textwrap.dedent(inspect.getsource(self.from_docket))
+        if self.per_item:
+            d['source'] = textwrap.dedent(inspect.getsource(self.per_item))
         return d
 
 

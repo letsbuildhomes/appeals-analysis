@@ -93,7 +93,7 @@ def test_a_chain_keeps_its_whole_line_in_context_but_draws_one_edge_per_step():
 
 def test_plan_skips_gated_steps():
     pipeline = build(THRESHOLDS)
-    scan = {q.id: {o: (1.0 if i == 0 else 0.0) for i, o in enumerate(q.request(_Docket()).get('criteria', {'yes': 1, 'no': 0}) if q.options_from else q.options)}
+    scan = {q.id: {o: (1.0 if i == 0 else 0.0) for i, o in enumerate(q.options)}
             for q in pipeline.scan.flat()}
     plan = layers.plan(pipeline, scan)
     assert plan['proceeds'] is True
@@ -263,6 +263,45 @@ def test_a_docket_with_several_proceedings_counts_when_one_is_a_municipal_permit
     assert layers.plan(pipeline, scan)['gates']['scope']['passed']
     derived = layers.derive(pipeline, layers.resolve(pipeline, scan, {}, '12-1-20 Vtec'))
     assert derived['in_scope'] is True
+
+
+def test_a_town_off_the_list_is_sent_back_with_the_names_meant():
+    from appeals.codebook.steps import TOWN
+    assert len(TOWN.names) == 256 and TOWN.validate('St. Johnsbury', 't') == [] and TOWN.validate(NOT_STATED, 't') == []
+    assert 'you wrote "Saint Johnsbury"' in TOWN.validate('Saint Johnsbury', 't')[0]
+    assert 'Did you mean "St. Johnsbury"?' in TOWN.validate('Saint Johnsbury', 't')[0]
+    assert 'Did you mean "Rutland City" or "Rutland Town"?' in TOWN.validate('Rutland', 't')[0]
+    assert 'Did you mean "Rutland City"?' in TOWN.validate('City of Rutland', 't')[0]
+    assert 'as the state writes it' in TOWN.validate('Quechee', 't')[0]          # a village: no town to suggest
+    quoted = Quoted(TOWN)
+    assert 'needs at least one quote' in quoted.validate({'answer': 'Norwich', 'quotes': []}, 't')[0]
+    model = _Scripted(['{"town": "Saint Johnsbury"}', '{"town": "St. Johnsbury"}'])
+    reply = asyncio.run(model.ask('sys', 'base', [], 'Which town?', Record(town=TOWN)))
+    assert reply.answer == {'town': 'St. Johnsbury'} and 'Did you mean "St. Johnsbury"?' in model.seen[1][-1]['text']
+
+
+def test_lawyers_are_asked_per_appellant_and_become_one_entry_per_lawyer():
+    pipeline = build(THRESHOLDS)
+    step = pipeline.nodes['L4b']
+    assert step.for_each == (pipeline.nodes['L4a'], 'appellants') and step.limit == 10
+    assert step.item_text({'name': 'Lynne Stern', 'role': 'individual neighbor'}) == 'Lynne Stern (individual neighbor)'
+    listed = [{'answer': {'name': 'Ann', 'role': 'individual neighbor'}, 'quotes': [{'verified': True}]},
+              {'answer': {'name': 'Unquoted', 'role': 'other'}, 'quotes': [{'verified': False}]},
+              {'answer': {'name': 'Bo', 'role': 'individual neighbor'}, 'quotes': [{'verified': True}]}]
+    assert [i['name'] for i in layers.each_items(step, {'L4a': {'answer': {'appellants': listed}}})] == ['Ann', 'Bo']
+    lawyered = {'representation': _quoted('represented by a lawyer'),
+                'lawyers': [{'name': 'Kevin Candon', 'firm': 'not stated'}, {'name': 'Jo Roe', 'firm': 'Roe LLP'}]}
+    steps = {'L4b': {'answer': {'each': [{'item': listed[0]['answer'], 'answer': lawyered},
+                                         {'item': listed[2]['answer'],
+                                          'answer': {'representation': _quoted('self-represented'), 'lawyers': []}}]},
+                     'items': 2, 'asked': 2}}
+    fact = layers.resolve(pipeline, {}, steps)['appellant_lawyers']
+    assert [(e['appellant'], e['lawyer']) for e in fact['answer']] == [('Ann', 'Kevin Candon'), ('Ann', 'Jo Roe'),
+                                                                      ('Bo', 'not stated')]
+    from appeals.codebook.derived import appellant_mix
+    mix = appellant_mix({'appellants': [listed[0]['answer'], listed[2]['answer']], 'appellants_named': 'yes',
+                         'appellant_lawyers': fact['answer']})
+    assert mix['representation'] == {'represented by a lawyer': 1, 'self-represented': 1} and mix['representation_of'] == 2
 
 
 def test_dates_must_be_real_and_plausible():

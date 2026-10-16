@@ -120,9 +120,12 @@ def appellant_mix(v):
     for a in listed:
         role = 'neighbor' if a.get('role') in NEIGHBORS else a.get('role')
         roles[role] = roles.get(role, 0) + 1
-    for a in lawyers:
-        representation[a.get('representation')] = representation.get(a.get('representation'), 0) + 1
-    return {'count': count, 'roles': roles, 'representation': representation}
+    first = {}
+    for entry in lawyers:                              # one entry per lawyer: count each appellant once
+        first.setdefault(entry.get('appellant'), entry.get('representation'))
+    for kind in first.values():
+        representation[kind] = representation.get(kind, 0) + 1
+    return {'count': count, 'roles': roles, 'representation': representation, 'representation_of': len(first)}
 
 
 X1 = Derive('in_scope', 'scope', code='X1', label='In scope', type=Boolean(),
@@ -166,8 +169,9 @@ ROLE_MIX = {'neighbor': 'An individual neighbor or a group of neighbors.',
             **{k: v for k, v in L.ROLE.options.items() if k not in NEIGHBORS}}
 X6 = Derive('appellant_mix', 'B', code='X6', label='Appellant mix',
             type=Record(count=Count(), roles=CountsBy(ROLE_MIX),
-                        representation=CountsBy(L.REPRESENTATION_KIND.options)),
+                        representation=CountsBy(L.REPRESENTATION_KIND.options), representation_of=Count()),
             inputs=[F.appellants_named, F.appellants, F.appellant_lawyers], fn=appellant_mix,
-            notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.'])
+            notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.',
+                   'Representation is asked for the first 10 appellants only: representation_of says how many appellants the representation counts cover.'])
 
 ALL = [X1, X2, X3, X4, X5, X6]

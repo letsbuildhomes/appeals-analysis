@@ -10,6 +10,7 @@ import hashlib
 import json
 
 from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, Derive, Field, Gate, Question, Step, YesNoSet
+from appeals.graph.values import ListOf
 
 AREAS = {
     'scope': 'Scope',
@@ -114,7 +115,23 @@ class Pipeline:
             for ref in step.refs():
                 if ref in position and position[ref] >= position[step.id]:
                     problems.append(f'{step.id} reads {ref}, which runs after it')
+        for step in self.steps:
+            if step.after is not None and step.after.for_each:
+                problems.append(f'{step.id} follows {step.after.id}, a for-each step, which no step may follow')
+            if step.for_each:
+                source, path = step.for_each
+                try:
+                    listed = source.returns.at(path)
+                except KeyError:
+                    listed = None
+                if not isinstance(listed, ListOf):
+                    problems.append(f'{step.id} runs for each {source.id}.{path}, which is not a list')
+                if '{item}' not in ''.join(step.templates().values()):
+                    problems.append(f'{step.id} runs for each item but its prompt has no {{item}}')
         for f in self.fields:
+            for_each = any(s.for_each for s in f.item_steps().values())
+            if for_each != bool(f.per_item):
+                problems.append(f'{f.id}: a field reads a for-each step exactly when it has per_item')
             for step in f.item_steps().values():
                 try:
                     step.returns.at(f.path)
