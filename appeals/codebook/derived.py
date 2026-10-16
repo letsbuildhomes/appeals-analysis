@@ -8,7 +8,8 @@ from datetime import date
 
 from appeals.codebook import fields as F
 from appeals.graph.nodes import Derive
-from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Record, Text, YesNo
+from appeals.graph.values import (NOT_STATED, Boolean, Count, CountsBy, DateValue, Integer, OneOf, OrNotStated,
+                                  Record, Text, YesNo)
 
 
 def in_scope(v):
@@ -103,31 +104,53 @@ def appellant_mix(v):
     count = len(listed) if listed and v['appellants_named'] != 'no' else NOT_STATED
     roles, representation = {}, {}
     for a in listed:
-        role = 'neighbor' if a.get('role') in ('individual neighbor', 'group of neighbors') else a.get('role')
+        role = 'neighbor' if a.get('role') in NEIGHBORS else a.get('role')
         roles[role] = roles.get(role, 0) + 1
     for a in lawyers:
         representation[a.get('representation')] = representation.get(a.get('representation'), 0) + 1
     return {'count': count, 'roles': roles, 'representation': representation}
 
 
-X1 = Derive('X1', 'scope', code='X1', label='In scope', type=YesNo(),
-            inputs=[F.municipal_body, F.action_kind, F.physical_change, F.housing_use, F.units_effect], fn=in_scope)
-X2 = Derive('X2', 'D', code='X2', label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
-            inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome)
-X3 = Derive('X3', 'F', code='X3', label='Change in units added',
-            type=Record(vs_town=Count(), vs_application=Count(), direction_vs_town=Text(), direction_vs_application=Text()),
+X1 = Derive('in_scope', 'scope', code='X1', label='In scope', type=Boolean(),
+            inputs=[F.municipal_body, F.action_kind, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
+            notes=["True only for an appeal of a municipal body's decision on an application for permission, for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change."])
+X2 = Derive('court_changed_outcome', 'D', code='X2', label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
+            inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome,
+            notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".'])
+X3 = Derive('unit_change', 'F', code='X3', label='Change in units added',
+            type=Record(vs_town=Integer(), vs_application=Integer(), direction_vs_town=F.units_vs_town.type,
+                        direction_vs_application=F.units_vs_application.type),
             inputs=[F.units_added_court_approved, F.units_added_town_approved, F.units_added_proposed,
-                    F.units_added_under_appeal, F.units_vs_town, F.units_vs_application], fn=unit_change)
+                    F.units_added_under_appeal, F.units_vs_town, F.units_vs_application], fn=unit_change,
+            notes=['Measured two ways: against what the town approved (vs_town) and against what the application proposed, or the part under appeal (vs_application). Positive means the court allowed more units.',
+                   "The directions come from the scan and stand in when the counts aren't stated."])
 DATE_BOUND = Record(date=DateValue(), bound=OneOf({'closed': 'Exact.', 'open': 'A bound only.'}), **{'from': Text()})
-X4 = Derive('X4', 'E', code='X4', label='Duration in days',
-            type=Record(kind=OneOf({'exact': '', 'at least': '', 'unknown': ''}, not_stated=False), days=Count(),
-                        start=DATE_BOUND, end=DATE_BOUND),
+X4 = Derive('duration', 'E', code='X4', label='Duration in days',
+            type=Record(kind=OneOf({'exact': 'Both ends are exact dates.',
+                                   'at least': 'An end is only a bound, so the case lasted at least this many days.',
+                                   'unknown': 'An end is missing, or the start is not before the end.'},
+                                  not_stated=False),
+                        days=Count(),
+                        start=OrNotStated(DATE_BOUND), end=OrNotStated(DATE_BOUND)),
             inputs=[F.filing_date, F.earliest_event, F.docket_filing, F.final_decision_date, F.latest_order_date],
-            fn=duration)
-X5 = Derive('X5', 'F', code='X5', label='Last observed permission',
-            type=OneOf({'allowed': '', 'allowed with conditions': '', 'allowed in part': '', 'denied': ''}),
-            inputs=[F.court_result, F.town_decision], fn=last_permission)
-X6 = Derive('X6', 'B', code='X6', label='Appellant mix', type=Record(count=Count(), roles=Text(), representation=Text()),
-            inputs=[F.appellants_named, F.appellants, F.appellant_lawyers], fn=appellant_mix)
+            fn=duration,
+            notes=['A duration is exact or a lower bound ("at least"). Keep them apart: averaging the two together understates durations.',
+                   'A month or year counts as its latest possible day at the start and its earliest possible day at the end. The duration is unknown when an end is missing or the start is not before the end.',
+                   'The end is never extended to today.'])
+X5 = Derive('last_permission', 'F', code='X5', label='Last observed permission',
+            type=OneOf({'allowed': 'The project may go ahead as proposed.',
+                        'allowed with conditions': 'The project may go ahead with conditions.',
+                        'allowed in part': 'Part of the project may go ahead.',
+                        'denied': 'The project may not go ahead.'}),
+            inputs=[F.court_result, F.town_decision], fn=last_permission,
+            notes=["The court's result when it decided on the merits, otherwise the town's decision. It is not whether the appeal succeeded, and not whether anything was built."])
+NEIGHBORS = ('individual neighbor', 'group of neighbors')
+ROLE_MIX = {'neighbor': 'An individual neighbor or a group of neighbors.',
+            **{k: v for k, v in F.appellants.type.item.fields['role'].options.items() if k not in NEIGHBORS}}
+X6 = Derive('appellant_mix', 'B', code='X6', label='Appellant mix',
+            type=Record(count=Count(), roles=CountsBy(ROLE_MIX),
+                        representation=CountsBy(F.appellant_lawyers.type.item.fields['representation'].options)),
+            inputs=[F.appellants_named, F.appellants, F.appellant_lawyers], fn=appellant_mix,
+            notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.'])
 
 ALL = [X1, X2, X3, X4, X5, X6]

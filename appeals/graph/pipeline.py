@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 import hashlib
 import json
 
-from appeals.graph.nodes import LAYERS, Base, Derive, Field, Gate, Question, Step, YesNoSet
+from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, Derive, Field, Gate, Question, Step, YesNoSet
 
 AREAS = {
     'scope': 'Scope',
@@ -27,8 +27,11 @@ class GraphError(Exception):
 
 
 class Pipeline:
-    def __init__(self, name, scan, gates, base, steps, fields, derives, answers, proceed, thresholds, in_scope=None):
+    def __init__(self, name, scan, gates, base, steps, fields, derives, answers, proceed, thresholds, in_scope=None,
+                 conventions=(), description=''):
         self.name = name
+        self.description = description         # what the data is, in a sentence or two, for readers of it
+        self.conventions = list(conventions)   # rules every answer follows, for readers of the data
         self.scan = scan
         self.gates = gates
         self.base = base
@@ -194,11 +197,14 @@ class Pipeline:
     def describe(self):
         body = {
             'name': self.name,
+            'description': self.description,
             'layers': LAYERS[1:],
+            'layer_guide': LAYER_GUIDE,
             'areas': AREAS,
             'thresholds': self.thresholds,
             'proceed': self.proceed.text(),
             'in_scope': self.in_scope,
+            'conventions': self.conventions,
             'step_order': [s.id for s in self.steps],
             'nodes': [n.describe() for n in self.nodes.values()],
             'edges': self.edges,

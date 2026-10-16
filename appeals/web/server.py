@@ -63,6 +63,8 @@ class Api:
         cost = {r['docket']: r['cost'] for r in store.rows(
             'SELECT r.docket, sum(CASE WHEN r.reused THEN 0 ELSE n.cost_usd END) AS cost '
             'FROM run_records r JOIN node_records n ON n.key = r.key WHERE r.run_id = ? GROUP BY 1', (run_id,))}
+        scope = store.value('SELECT json_extract(g.description, \'$.in_scope\') FROM runs r JOIN graphs g ON g.hash = r.graph_hash '
+                            'WHERE r.id = ?', (run_id,))
         out = {}
         for r in rows:
             d = out.setdefault(r['docket'], {'docket': r['docket'], 'cost_usd': round(cost.get(r['docket']) or 0, 4)})
@@ -70,7 +72,7 @@ class Api:
             if r['node'] == 'plan':
                 d['proceeds'], d['calls'] = value['proceeds'], value['calls']
             elif r['node'] == 'derive':
-                d['in_scope'] = value.get('X1')
+                d['in_scope'] = value.get(scope) if scope else None
             else:
                 d['error'] = value.get('error')
         return sorted(out.values(), key=lambda d: (not d.get('proceeds', False), d['docket']))

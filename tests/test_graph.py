@@ -217,10 +217,10 @@ def test_an_out_of_scope_row_keeps_only_its_scope_values():
     facts = layers.resolve(pipeline, {'S1': {'yes': 1.0}, 'S2': {'enforcement or violation notice': 1.0},
                                       'B1': {'approved': 0.9, 'denied': 0.1}}, {}, '12-1-20 Vtec')
     derived = layers.derive(pipeline, facts)
-    assert derived['X1'] is False and facts['town_decision']['answer'] == 'approved'      # the trace keeps it
+    assert derived['in_scope'] is False and facts['town_decision']['answer'] == 'approved'      # the trace keeps it
     out = layers.row(pipeline, '12-1-20 Vtec', facts, derived)
-    assert out['action_kind'] == 'enforcement or violation notice' and out['X1'] is False
-    assert out['town_decision'] == 'out of scope' and out['X5'] == 'out of scope'
+    assert out['action_kind'] == 'enforcement or violation notice' and out['in_scope'] is False
+    assert out['town_decision'] == 'out of scope' and out['last_permission'] == 'out of scope'
 
 
 def test_dates_must_be_real_and_plausible():

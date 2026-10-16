@@ -28,65 +28,22 @@ Out of scope by decision:
 
 ## Conventions
 
-- **One row per docket.** Facts about another docket, even one decided in the
-  same document, are not this docket's.
-- **"Not stated" is a real answer**, and it is different from "no". A "no"
-  needs the documents to say so.
-- **Every answer except "not stated" has evidence**: a short exact quotation
-  with its document and page number. Code checks each quotation against the
-  page text.
-- **Closed answers only.** Options that aren't mutually exclusive become
-  separate yes/no questions. Dates, counts and names are the only open values.
-- **Dates are as precise as the documents allow:** a day, a month or a year,
-  with the precision recorded.
-- **Code combines answers into research answers.** No model does the
-  combining.
-- **Rules are composable tests, not lists of case types.** Examples illustrate
-  a rule but never decide it.
+The conventions and rulings live in the codebook, next to the answers they
+govern, so they travel with every run's graph description and every release:
 
-### Rulings so far
+- **Rules every answer follows** are in `appeals/codebook/conventions.py`:
+  one row per docket, "not stated" versus "no" versus "out of scope", quotes
+  as evidence, closed answers, date precision, units added, actors, how the
+  scan and the steps settle an answer, and what the source can't show.
+- **Rulings about one answer** are `notes` on its field, derived value or
+  answer: after-the-fact permits (S3), deemed approvals (B1), groups of
+  neighbors (B3, X6), procedural dismissals (C1), the end of the case (D2),
+  stays and design changes the court imposed (F1, F5), unit changes (X3) and
+  durations (X4).
 
-- **"Authorize something already built"** (after-the-fact permits) is out of
-  scope. Scope comes from the build, place, convert and create-lots tests.
-- **A named group of neighbors** counts as neighbors, not as an organization.
-- **A procedural dismissal** whose documents don't say what the appellant
-  argued leaves the grounds as "not stated".
-- **Stays and housing changes count only when the court imposed them.**
-  Changes the town made belong to the town's decision.
-- **Units are units added.** Every count of dwelling units is the number of
-  new units the project would create. Existing units that remain are not
-  counted, even when a decision gives a total for the whole property or
-  development; a unit that replaces one removed counts as one.
-- **Unit changes are measured two ways:** against what the town approved and
-  against what the application proposed. The question is whether the appeal
-  moved the outcome, and by how many units.
-- **The end of the case is the court's first decision that leaves nothing
-  pending.** Partial rulings don't end it, and later post-judgment proceedings
-  don't extend it.
-- **The docket number dates the filing when nothing else does.** `128-8-10
-  Vtec` was filed in August 2010; `25-ENV-00114` in 2025. Code reads it; no
-  model is asked.
-- **One question for the town's decision.** Its outcomes are exclusive
-  (approved, approved with conditions, approved in part, denied), so B1 asks
-  for one of them rather than asking separately whether anything was
-  approved or denied, which decisions rarely say outright. A deemed approval
-  counts as approved.
-- **The scan's confidence shapes the prompts.** A claim whose most likely
-  answer is at or above `sure` (0.8) is stated as "fairly confident", and
-  below it as "uncertain". An A7 or C5 item at or above `check` (0.3) gets its
-  own step, told which of the two it is; below `check` it is recorded as the
-  scan's "no" with no step.
-- **Out-of-scope rows hold only scope.** The scan, facts and derived values
-  keep everything for the trace, but the research row of an out-of-scope
-  docket reads "out of scope" outside the scope fields. That differs from
-  "not stated": we did not study the docket.
-- **Durations are exact or a lower bound.** A date stated only to the month or
-  year counts as its latest possible day when it starts the case, and its
-  earliest possible day when it ends it. Each end of the interval is closed
-  (an exact date of the filing or of the final decision) or open (only a
-  bound: a month or year, the earliest dated event, the docket number, or the
-  latest order when no decision ends the docket). Any open end makes the
-  duration "at least"; a start on or after the end leaves it unknown.
+To change a convention or a ruling, edit it there. The dashboard, the
+published releases and the MCP server all read it from the graph
+description; nothing else repeats it.
 
 ## Ingest
 

@@ -77,6 +77,36 @@ class Count(ValueType):
         return rng.choice([NOT_STATED, 1, 2, 4, 12, 24])
 
 
+class Integer(ValueType):
+    """A whole number that may be negative, such as a difference between two counts."""
+    name = 'integer'
+
+    def schema(self):
+        return {'anyOf': [{'type': 'integer'}, {'const': NOT_STATED}]}
+
+    def validate(self, value, path):
+        if value == NOT_STATED or (isinstance(value, int) and not isinstance(value, bool)):
+            return []
+        return [f'{path}: expected a whole number, or "{NOT_STATED}"; got {value!r}']
+
+    def example(self, rng):
+        return rng.choice([NOT_STATED, -2, 0, 3])
+
+
+class Boolean(ValueType):
+    """True or false, computed in code; never "not stated"."""
+    name = 'true or false'
+
+    def schema(self):
+        return {'type': 'boolean'}
+
+    def validate(self, value, path):
+        return [] if isinstance(value, bool) else [f'{path}: expected true or false; got {value!r}']
+
+    def example(self, rng):
+        return rng.choice([True, False])
+
+
 class DateValue(ValueType):
     """A date as precise as the documents allow: YYYY, YYYY-MM or YYYY-MM-DD, a real calendar date within
     the plausible years (appeals.dates)."""
@@ -161,20 +191,26 @@ class Record(ValueType):
 
 
 class ListOf(ValueType):
+    """A list of items. With `not_stated`, the whole list may be "not stated": the list was never
+    established, which is different from an empty list."""
     name = 'list'
 
-    def __init__(self, item):
+    def __init__(self, item, not_stated=False):
         self.item = item
+        self.not_stated = not_stated
 
     def describe(self):
-        return {'type': self.name, 'item': self.item.describe()}
+        return {'type': self.name, 'item': self.item.describe()} | ({'not_stated': True} if self.not_stated else {})
 
     def schema(self):
-        return {'type': 'array', 'items': self.item.schema()}
+        listed = {'type': 'array', 'items': self.item.schema()}
+        return {'anyOf': [listed, {'const': NOT_STATED}]} if self.not_stated else listed
 
     def validate(self, value, path):
+        if self.not_stated and value == NOT_STATED:
+            return []
         if not isinstance(value, list):
-            return [f'{path}: expected a list']
+            return [f'{path}: expected a list' + (f', or "{NOT_STATED}"' if self.not_stated else '')]
         return [e for i, v in enumerate(value) for e in self.item.validate(v, f'{path}[{i}]')]
 
     def same(self, a, b):
@@ -182,6 +218,53 @@ class ListOf(ValueType):
 
     def example(self, rng):
         return [self.item.example(rng) for _ in range(rng.randint(1, 3))]
+
+
+class OrNotStated(ValueType):
+    """A value of another type, or "not stated" as a whole, such as a date bound that wasn't found."""
+    name = 'or not stated'
+
+    def __init__(self, value):
+        self.value = value
+        self.scored = value.scored
+
+    def describe(self):
+        return {'type': self.name, 'value': self.value.describe()}
+
+    def schema(self):
+        return {'anyOf': [self.value.schema(), {'const': NOT_STATED}]}
+
+    def validate(self, value, path):
+        return [] if value == NOT_STATED else self.value.validate(value, path)
+
+    def example(self, rng):
+        return rng.choice([NOT_STATED, self.value.example(rng)])
+
+
+class CountsBy(ValueType):
+    """How many of something fall under each option: {option: count}, listing only options that occur."""
+    name = 'counts by'
+
+    def __init__(self, options):
+        self.options = dict(options)
+
+    def describe(self):
+        return {'type': self.name, 'options': self.options}
+
+    def schema(self):
+        return {'type': 'object', 'additionalProperties': {'type': 'integer', 'minimum': 0},
+                'propertyNames': {'enum': list(self.options)}}
+
+    def validate(self, value, path):
+        if not isinstance(value, dict):
+            return [f'{path}: expected an object of counts by option']
+        errors = [f'{path}: {k!r} is not one of {list(self.options)}' for k in value if k not in self.options]
+        errors += [f'{path}.{k}: expected a whole number of at least 0; got {v!r}' for k, v in value.items()
+                   if not isinstance(v, int) or isinstance(v, bool) or v < 0]
+        return errors
+
+    def example(self, rng):
+        return {k: rng.randint(1, 3) for k in rng.sample(list(self.options), min(2, len(self.options)))}
 
 
 QUOTE = Record(doc=Count(), page=Count(), quote=Text())
@@ -228,3 +311,24 @@ class Quoted(ValueType):
 
 def make_rng(*seed):
     return random.Random('|'.join(map(str, seed)))
+
+
+def from_description(d):
+    """The value type a `describe()` dict came from, so stored graphs can validate values without the codebook."""
+    simple = {'count': Count, 'integer': Integer, 'true or false': Boolean, 'date': DateValue, 'text': Text, 'name': Name}
+    kind = d['type']
+    if kind in simple:
+        return simple[kind]()
+    if kind == 'one of':
+        return OneOf(d['options'], not_stated=False)
+    if kind == 'counts by':
+        return CountsBy(d['options'])
+    if kind == 'record':
+        return Record(**{k: from_description(v) for k, v in d['fields'].items()})
+    if kind == 'list':
+        return ListOf(from_description(d['item']), not_stated=d.get('not_stated', False))
+    if kind == 'or not stated':
+        return OrNotStated(from_description(d['value']))
+    if kind == 'quoted':
+        return Quoted(from_description(d['answer']))
+    raise ValueError(f'unknown value type {kind!r}')

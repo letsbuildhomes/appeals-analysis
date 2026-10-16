@@ -22,6 +22,24 @@ from appeals.graph import expr as E
 from appeals.graph.values import NOT_STATED, OneOf, Record, ValueType, YesNo
 
 LAYERS = ['input', 'scan', 'plan', 'steps', 'facts', 'derive', 'answers']
+LAYER_GUIDE = {
+    'input': 'The docket text: every document whose heading names the docket, in posting order, marked by document '
+             'and page so quotes can cite them.',
+    'scan': 'One decision-model request answers every closed question at once with probabilities. The questions '
+            "can't see each other's answers. No quotes.",
+    'plan': 'Gates are conditions over the scan\'s probabilities and the thresholds. They decide whether the docket '
+            'goes on to the reasoning steps, and which steps run.',
+    'steps': 'One reasoning-model call per step, each appending one small question to a shared Base (framing, the '
+             'docket text and the scan\'s answers as claims to confirm or refute). Each reply is JSON of the step\'s '
+             'type, with quotes that code checks against the cited page. A step may keep earlier steps\' exchanges '
+             'in context (chain_after) or run only if their answers call for it (only_if).',
+    'facts': 'One settled value per field: the step\'s answer when its quote checks out, otherwise the scan\'s most '
+             'likely answer, otherwise "not stated". A rule can make a field "not stated" when an earlier answer '
+             'makes it moot.',
+    'derive': 'Plain code combines settled fields into research values, such as a duration in days. No model is '
+              'involved; the source code is part of the description.',
+    'answers': 'Each research answer groups the fields and derived values that answer one research question.',
+}
 PLACEHOLDER = re.compile(r'\{([A-Z][A-Za-z0-9_]*(?:\.[a-z_]+)?)\}')
 
 
@@ -247,6 +265,7 @@ class Field(Node):
     `from_docket` instead computes the value from the docket number, in code.
     `not_stated_if`: a condition on earlier answers that makes the field "not stated"
     whatever the sources say, such as grounds when no arguments are stated.
+    `notes`: what a reader of the data must know to use the value correctly.
     """
     code: str = ''
     label: str = ''
@@ -257,6 +276,7 @@ class Field(Node):
     path: str | None = None
     from_docket: Callable | None = None
     not_stated_if: E.Expr | None = None
+    notes: list = field(default_factory=list)
     kind: ClassVar[str] = 'field'
     layer: ClassVar[int] = 4
 
@@ -292,7 +312,7 @@ class Field(Node):
                           else f'{self.step.id}.{self.path}' if self.step else None),
             'from_scan': self.scan.id if self.scan else None,
             'not_stated_if': self.not_stated_if.text() if self.not_stated_if else None,
-            'rule': rule}
+            'rule': rule, 'notes': self.notes}
         if self.from_docket:
             d['source'] = textwrap.dedent(inspect.getsource(self.from_docket))
         return d
@@ -302,12 +322,16 @@ class Field(Node):
 
 @dataclass(eq=False)
 class Derive(Node):
-    """A plain function of settled fields: f({input id: answer}) → answer. Its source is shown in the dashboard."""
+    """A plain function of settled fields: f({input id: answer}) → answer. Its source is shown in the dashboard.
+
+    `notes`: what a reader of the data must know to use the value correctly.
+    """
     code: str = ''
     label: str = ''
     type: ValueType = None
     inputs: list = field(default_factory=list)
     fn: Callable = None
+    notes: list = field(default_factory=list)
     kind: ClassVar[str] = 'derive'
     layer: ClassVar[int] = 5
 
@@ -320,17 +344,24 @@ class Derive(Node):
     def describe(self):
         return super().describe() | {'code': self.code, 'label': self.label, 'value_type': self.type.describe(),
                                      'scored': self.type.scored, 'inputs': [n.id for n in self.inputs],
-                                     'source': self.source()}
+                                     'source': self.source(), 'notes': self.notes}
 
 
 # ---- layer 6: answers ------------------------------------------------------------
 
 @dataclass(eq=False)
 class Answer(Node):
-    """One research answer: the fields and derived values that make it up."""
+    """One research answer: the fields and derived values that make it up.
+
+    `notes`: what a reader must know to use the answer's data. `examples`: SQL over a
+    published release that answers a typical question, as {"question", "sql"}; building a
+    release runs each one, so an example that no longer works stops the release.
+    """
     title: str = ''
     question: str = ''
     parts: list = field(default_factory=list)
+    notes: list = field(default_factory=list)
+    examples: list = field(default_factory=list)
     kind: ClassVar[str] = 'answer'
     layer: ClassVar[int] = 6
 
@@ -339,7 +370,8 @@ class Answer(Node):
 
     def describe(self):
         return super().describe() | {'title': self.title, 'question': self.question,
-                                     'parts': [n.id for n in self.parts]}
+                                     'parts': [n.id for n in self.parts], 'notes': self.notes,
+                                     'examples': self.examples}
 
 
 __all__ = ['Node', 'Question', 'YesNoSet', 'Scan', 'Gate', 'Base', 'Step', 'Field', 'Derive', 'Answer',
