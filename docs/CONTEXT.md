@@ -149,10 +149,18 @@ Everything else there (the step and prompt libraries, the pipeline tags,
 the lab and experiment records, the research server and the legacy-run
 reproduction) solved problems this rewrite deliberately doesn't have.
 
+## Settled decisions
+
+- **Storage.** The pipeline's working store is SQLite (`data/appeals.sqlite`),
+  in write-ahead-log mode so the dashboard can read during a run. Analysis
+  of finished results (output snapshots, an MCP server for querying them,
+  and a public data dashboard) uses DuckDB, and is designed separately.
+- **The reasoning model is not fixed.** DeepSeek Flash is in use for now;
+  others will be tried through `config.toml`.
+
 ## Open decisions
 
 The user will decide these, so don't assume them:
-- the storage format,
 - the reasoning model and the budget,
 - the gate thresholds and the long-context threshold,
 - how the relabeling is done,

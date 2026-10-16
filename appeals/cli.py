@@ -103,8 +103,9 @@ def _pick_dockets(store, args):
 
 def _run_line(r):
     tags = f'  [{", ".join(r["tags"])}]' if r['tags'] else ''
-    model = (json.loads(r['endpoints']) if r['endpoints'] else {}).get('reasoning', {}).get('model', '')
-    return (f'{r["id"]}  {r["started_at"]:%Y-%m-%d %H:%M}  {r["dockets"]:>5} dockets  {r["status"]:<17} '
+    model = r['endpoints'].get('reasoning', {}).get('model', '')
+    started = (r['started_at'] or '')[:16].replace('T', ' ')
+    return (f'{r["id"]}  {started} UTC  {r["dockets"]:>5} dockets  {r["status"]:<17} '
             f'${r["cost_usd"] or 0:>7.2f}  {model}{tags}')
 
 

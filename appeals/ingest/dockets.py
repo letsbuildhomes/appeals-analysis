@@ -14,6 +14,7 @@ rules (docs/PIPELINE.md, "Dockets"):
    or one filed after the document was posted.
 """
 from dataclasses import dataclass
+import json
 import re
 
 CAPTION_WINDOW = 3000
@@ -181,8 +182,8 @@ def assign_all(store, log=print):
         FROM document_info i LEFT JOIN pages p ON p.sha256 = i.sha256 AND p.page = 1""")
     with store.transaction():
         for doc in docs:
-            listing = '; '.join(doc['listing_dockets'] or [])
-            year = doc['posted'].year if doc['posted'] else None
+            listing = '; '.join(json.loads(doc['listing_dockets'] or '[]'))
+            year = int(doc['posted'][:4]) if doc['posted'] else None
             dockets, flags = assign(doc['page_one'] or '', listing, year)
             if not dockets:
                 dockets = [(f'pdf-{doc["sha256"][:12]}', 'none')]   # a document with no docket stands alone
@@ -245,7 +246,8 @@ def docket_text(store, number):
     """The docket's documents in posting order (then hash), rendered with document and page markers."""
     docs = store.rows("""
         SELECT i.sha256, i.title, i.posted,
-               (SELECT list(docket ORDER BY docket) FROM document_dockets x WHERE x.sha256 = i.sha256) AS dockets
+               (SELECT json_group_array(docket ORDER BY docket) FROM document_dockets x WHERE x.sha256 = i.sha256)
+               AS dockets
         FROM document_dockets dd JOIN document_info i ON i.sha256 = dd.sha256
         WHERE dd.docket = ? ORDER BY i.posted NULLS LAST, i.sha256""", (number,))
     if not docs:
@@ -253,8 +255,8 @@ def docket_text(store, number):
     documents = []
     for n, doc in enumerate(docs, 1):
         pages = store.rows('SELECT page, text, source, status FROM pages WHERE sha256 = ? ORDER BY page', (doc['sha256'],))
-        documents.append(DocketDocument(n, doc['sha256'], doc['title'] or '', str(doc['posted'] or ''),
-                                        doc['dockets'] or [number], pages))
+        documents.append(DocketDocument(n, doc['sha256'], doc['title'] or '', doc['posted'] or '',
+                                        json.loads(doc['dockets'] or '[]') or [number], pages))
     return DocketText(number, documents, render(number, documents))
 
 
@@ -263,12 +265,13 @@ def list_dockets(store, search=None, limit=None):
     sql = """
         SELECT dd.docket AS number, count(*) AS documents, min(i.posted) AS first_posted, max(i.posted) AS last_posted,
                sum((SELECT sum(length(text)) FROM pages p WHERE p.sha256 = dd.sha256)) AS chars,
-               arg_min(i.title, i.posted) AS title
+               (SELECT i2.title FROM document_dockets d2 JOIN document_info i2 ON i2.sha256 = d2.sha256
+                WHERE d2.docket = dd.docket ORDER BY i2.posted NULLS LAST LIMIT 1) AS title
         FROM document_dockets dd JOIN document_info i ON i.sha256 = dd.sha256
         {where} GROUP BY dd.docket ORDER BY min(i.posted) DESC, dd.docket {limit}"""
     params = ()
     where = ''
     if search:
-        where = 'WHERE dd.docket ILIKE ? OR i.title ILIKE ?'
+        where = 'WHERE dd.docket LIKE ? OR i.title LIKE ?'           # case-insensitive in SQLite
         params = (f'%{search}%', f'%{search}%')
     return store.rows(sql.format(where=where, limit=f'LIMIT {int(limit)}' if limit else ''), params)

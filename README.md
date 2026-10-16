@@ -192,7 +192,7 @@ go in `.env` (never committed) or on the command line (`appeals run --help`).
 | `appeals/graph/` | the building blocks, the executor and the model endpoints; knows nothing about housing |
 | `appeals/codebook/` | the pipeline itself, one file per layer: questions → gates → steps → fields → derived → answers |
 | `appeals/web/` | the dashboard server and its pages |
-| `data/` | the DuckDB store, PDFs and listing snapshots (not in git) |
+| `data/` | the SQLite store (`appeals.sqlite`), PDFs and listing snapshots (not in git) |
 
 ## Status
 

@@ -9,16 +9,15 @@
     /api/dockets/<n>                one docket's documents and pages
     /api/stats                      counts for the header
 
-The server never writes. While a run holds the database's write lock, API
-calls answer 503 and the pages say so.
+The server never writes. It opens the store read-only, which works while a
+run is writing, since the store uses SQLite's write-ahead log.
 """
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 import json
 from pathlib import Path
+import sqlite3
 from urllib.parse import parse_qs, unquote, urlparse
-
-import duckdb
 
 from appeals.codebook import build
 from appeals.ingest import dockets
@@ -54,11 +53,7 @@ class Api:
         }
 
     def runs(self, store):
-        rows = store.runs()
-        for r in rows:
-            r['endpoints'] = json.loads(r['endpoints']) if r['endpoints'] else {}
-            r['settings'] = json.loads(r['settings']) if r['settings'] else {}
-        return rows
+        return store.runs()
 
     def run_dockets(self, store, run_id):
         rows = store.rows("""
@@ -111,7 +106,7 @@ class Api:
                           for d in text.documents],
             'reference': {r['field']: json.loads(r['value']) for r in reference},
             'runs': [r['run_id'] for r in runs],
-            'run_tags': {r['run_id']: r['tags'] or [] for r in runs},
+            'run_tags': {r['run_id']: json.loads(r['tags'] or '[]') for r in runs},
         }
 
 
@@ -133,8 +128,8 @@ def make_handler(api):
                 return super().do_GET()
             try:
                 self._api(url)
-            except duckdb.IOException:
-                self._send(HTTPStatus.SERVICE_UNAVAILABLE, {'error': 'A run is writing to the store. Try again when it finishes.'})
+            except sqlite3.OperationalError as error:          # e.g. still locked after the busy timeout
+                self._send(HTTPStatus.SERVICE_UNAVAILABLE, {'error': f'The store is busy ({error}). Try again.'})
             except Exception as error:                       # report, don't crash the server
                 self._send(HTTPStatus.INTERNAL_SERVER_ERROR, {'error': f'{type(error).__name__}: {error}'})
 

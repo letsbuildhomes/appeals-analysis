@@ -83,7 +83,7 @@ class Settings:
 
     @property
     def db(self):
-        return self.data / 'appeals.duckdb'
+        return self.data / 'appeals.sqlite'
 
     @property
     def pdfs(self):

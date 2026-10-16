@@ -189,5 +189,5 @@ def extract_missing(settings, store, log=print):
         pages = extract(settings.pdfs / f'{sha}.pdf', ocr_enabled)
         with store.transaction():
             store.add_pages([(sha, p.page, p.text, p.source, p.status, p.reason, ORIGIN) for p in pages])
-            store.db.execute('UPDATE documents SET pages = ? WHERE sha256 = ?', (len(pages), sha))
+            store.set_document_pages(sha, len(pages))
         log(f'  {n}/{len(todo)} {sha[:12]}: {len(pages)} pages')

@@ -392,6 +392,5 @@ and D5 unless it was dismissed.
   tried, and any endpoint of the Anthropic or OpenAI format can be swapped in
   through `config.toml`.
 - A spending limit for development runs.
-- The storage format (SQLite is the leading option).
 - The reference set: dockets labeled as answers to these question IDs.
   Thresholds are tuned against it.

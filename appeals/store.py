@@ -1,12 +1,16 @@
-"""The store: one DuckDB file for everything except the PDFs themselves.
+"""The store: one SQLite file for everything except the PDFs themselves.
 
 Ingest tables hold what came from the court; run tables hold what the
 extraction graph produced. Every write goes through this class.
+
+The file uses SQLite's write-ahead log, so the dashboard and other readers
+can open it while a run writes. Dates and timestamps are ISO 8601 text
+(timestamps in UTC), and lists and records are JSON text.
 """
 from contextlib import contextmanager
+from datetime import date, datetime, timezone
 import json
-
-import duckdb
+import sqlite3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS listing_entries (
@@ -15,20 +19,22 @@ CREATE TABLE IF NOT EXISTS listing_entries (
     ordinal    INTEGER,   -- position on the page
     media_url  TEXT,
     title      TEXT,
-    posted     DATE,
+    posted     TEXT,      -- YYYY-MM-DD
     division   TEXT,
     docket     TEXT,      -- the listing's docket text, as shown
     PRIMARY KEY (snapshot, page, ordinal)
 );
+CREATE INDEX IF NOT EXISTS listing_entries_media ON listing_entries (media_url);
 CREATE TABLE IF NOT EXISTS downloads (
     media_url  TEXT PRIMARY KEY,
     final_url  TEXT,
     sha256     TEXT,
-    fetched_at TIMESTAMP
+    fetched_at TEXT       -- UTC
 );
+CREATE INDEX IF NOT EXISTS downloads_sha256 ON downloads (sha256);
 CREATE TABLE IF NOT EXISTS documents (
     sha256     TEXT PRIMARY KEY,
-    bytes      BIGINT,
+    bytes      INTEGER,
     pages      INTEGER
 );
 CREATE TABLE IF NOT EXISTS pages (
@@ -47,6 +53,7 @@ CREATE TABLE IF NOT EXISTS document_dockets (
     basis      TEXT,      -- heading | listing
     PRIMARY KEY (sha256, docket)
 );
+CREATE INDEX IF NOT EXISTS document_dockets_docket ON document_dockets (docket);
 CREATE TABLE IF NOT EXISTS document_flags (
     sha256     TEXT,
     flag       TEXT,
@@ -54,32 +61,31 @@ CREATE TABLE IF NOT EXISTS document_flags (
 );
 CREATE TABLE IF NOT EXISTS graphs (
     hash        TEXT PRIMARY KEY,
-    description JSON,
-    created_at  TIMESTAMP DEFAULT current_timestamp
+    description TEXT,                   -- JSON: the pipeline's complete description
+    created_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))   -- millisecond precision
 );
 CREATE TABLE IF NOT EXISTS runs (
     id          TEXT PRIMARY KEY,
     graph_hash  TEXT,
-    endpoints   JSON,
-    settings    JSON,
+    endpoints   TEXT,                   -- JSON: each endpoint's format, address and model, never keys
+    settings    TEXT,                   -- JSON
     dockets     INTEGER,
     status      TEXT,
-    cost_usd    DOUBLE,
-    started_at  TIMESTAMP,
-    finished_at TIMESTAMP,
-    tags        VARCHAR[] DEFAULT []   -- labels given at the start, such as "scratch"
+    cost_usd    REAL,
+    started_at  TEXT,                   -- UTC
+    finished_at TEXT,                   -- UTC
+    tags        TEXT DEFAULT '[]'       -- JSON list of labels given at the start, such as "scratch"
 );
-ALTER TABLE runs ADD COLUMN IF NOT EXISTS tags VARCHAR[] DEFAULT [];
 CREATE TABLE IF NOT EXISTS node_records (
-    key         TEXT PRIMARY KEY,   -- hash of the node, its inputs and the endpoint
+    key         TEXT PRIMARY KEY,       -- hash of the node, its inputs and the endpoint
     docket      TEXT,
     layer       TEXT,
     node        TEXT,
-    value       JSON,
-    exchange    JSON,               -- exact requests and responses, when a model was called
-    cost_usd    DOUBLE,
-    seconds     DOUBLE,
-    created_at  TIMESTAMP DEFAULT current_timestamp
+    value       TEXT,                   -- JSON
+    exchange    TEXT,                   -- JSON: exact requests and responses, when a model was called
+    cost_usd    REAL,
+    seconds     REAL,
+    created_at  TEXT DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))
 );
 CREATE TABLE IF NOT EXISTS run_records (
     run_id      TEXT,
@@ -87,38 +93,53 @@ CREATE TABLE IF NOT EXISTS run_records (
     layer       TEXT,
     node        TEXT,
     key         TEXT,
-    reused      BOOLEAN,
+    reused      INTEGER,                -- 1 when the record came from an earlier run
     PRIMARY KEY (run_id, docket, node)
 );
+CREATE INDEX IF NOT EXISTS run_records_key ON run_records (key);
+CREATE INDEX IF NOT EXISTS run_records_docket ON run_records (docket);
 CREATE TABLE IF NOT EXISTS reference_answers (
     docket      TEXT,
     field       TEXT,
-    value       JSON,
-    quotes      JSON,
+    value       TEXT,                   -- JSON
+    quotes      TEXT,                   -- JSON
     source      TEXT,
     PRIMARY KEY (docket, field)
 );
 
-CREATE OR REPLACE VIEW document_info AS
+-- One row per document: its earliest listing date and title, and the dockets its listing entries name.
+CREATE VIEW IF NOT EXISTS document_info AS
 SELECT d.sha256, d.pages, d.bytes,
-       min(e.posted) AS posted,
-       arg_min(e.title, e.posted) AS title,
-       list(DISTINCT e.docket) FILTER (WHERE e.docket IS NOT NULL) AS listing_dockets
-FROM documents d
-LEFT JOIN downloads w ON w.sha256 = d.sha256
-LEFT JOIN listing_entries e ON e.media_url = w.media_url
-GROUP BY d.sha256, d.pages, d.bytes;
+       (SELECT min(e.posted) FROM downloads w JOIN listing_entries e ON e.media_url = w.media_url
+        WHERE w.sha256 = d.sha256) AS posted,
+       (SELECT e.title FROM downloads w JOIN listing_entries e ON e.media_url = w.media_url
+        WHERE w.sha256 = d.sha256 ORDER BY e.posted NULLS LAST LIMIT 1) AS title,
+       (SELECT json_group_array(DISTINCT e.docket) FROM downloads w JOIN listing_entries e ON e.media_url = w.media_url
+        WHERE w.sha256 = d.sha256 AND e.docket IS NOT NULL) AS listing_dockets
+FROM documents d;
 """
+
+
+def _iso(value):
+    """Dates as YYYY-MM-DD and timestamps as UTC "YYYY-MM-DDTHH:MM:SS.ffffffZ"; anything else unchanged."""
+    if isinstance(value, datetime):
+        utc = (value if value.tzinfo else value.astimezone()).astimezone(timezone.utc)
+        return utc.isoformat(timespec='microseconds').replace('+00:00', 'Z')
+    return value.isoformat() if isinstance(value, date) else value
 
 
 class Store:
     def __init__(self, path, read_only=False):
         self.path = path
-        if not read_only:
+        if read_only:
+            self.db = sqlite3.connect(f'file:{path}?mode=ro', uri=True, isolation_level=None, check_same_thread=False)
+        else:
             path.parent.mkdir(parents=True, exist_ok=True)
-        self.db = duckdb.connect(str(path), read_only=read_only)
-        if not read_only:
-            self.db.execute(SCHEMA)
+            self.db = sqlite3.connect(path, isolation_level=None, check_same_thread=False)
+            self.db.execute('PRAGMA journal_mode = WAL')
+            self.db.execute('PRAGMA synchronous = NORMAL')
+            self.db.executescript(SCHEMA)
+        self.db.execute('PRAGMA busy_timeout = 10000')     # wait for a writer's lock instead of failing
 
     def close(self):
         self.db.close()
@@ -148,10 +169,11 @@ class Store:
     def add_listing_entries(self, entries):
         self.db.executemany(
             'INSERT OR REPLACE INTO listing_entries VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-            [(e.snapshot, e.page, e.ordinal, e.media_url, e.title, e.posted, e.division, e.docket) for e in entries])
+            [(e.snapshot, e.page, e.ordinal, e.media_url, e.title, _iso(e.posted), e.division, e.docket) for e in entries])
 
     def add_download(self, media_url, final_url, sha256, fetched_at):
-        self.db.execute('INSERT OR REPLACE INTO downloads VALUES (?, ?, ?, ?)', (media_url, final_url, sha256, fetched_at))
+        self.db.execute('INSERT OR REPLACE INTO downloads VALUES (?, ?, ?, ?)',
+                        (media_url, final_url, sha256, _iso(fetched_at)))
 
     def add_document(self, sha256, size, pages):
         self.db.execute('INSERT OR REPLACE INTO documents VALUES (?, ?, ?)', (sha256, size, pages))
@@ -159,6 +181,9 @@ class Store:
     def add_pages(self, rows):
         """rows: (sha256, page, text, source, status, reason, origin)"""
         self.db.executemany('INSERT OR REPLACE INTO pages VALUES (?, ?, ?, ?, ?, ?, ?)', rows)
+
+    def set_document_pages(self, sha256, pages):
+        self.db.execute('UPDATE documents SET pages = ? WHERE sha256 = ?', (pages, sha256))
 
     def set_document_dockets(self, sha256, dockets, flags):
         """dockets: [(docket, basis)]; replaces whatever the document had."""
@@ -178,28 +203,34 @@ class Store:
         self.db.execute('INSERT INTO runs (id, graph_hash, endpoints, settings, dockets, status, cost_usd, started_at, '
                         'finished_at, tags) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
                         (run_id, graph_hash, json.dumps(endpoints), json.dumps(settings), dockets, 'running', 0.0,
-                         started_at, None, sorted(set(tags))))
+                         _iso(started_at), None, json.dumps(sorted(set(tags)))))
 
     def finish_run(self, run_id, status, cost_usd, finished_at):
         self.db.execute('UPDATE runs SET status = ?, cost_usd = ?, finished_at = ? WHERE id = ?',
-                        (status, cost_usd, finished_at, run_id))
+                        (status, cost_usd, _iso(finished_at), run_id))
 
     def runs(self, tag=None):
-        """Runs, newest first; only those carrying `tag` when given."""
+        """Runs, newest first, with JSON columns decoded; only those carrying `tag` when given."""
         if tag is None:
-            return self.rows('SELECT * FROM runs ORDER BY started_at DESC')
-        return self.rows('SELECT * FROM runs WHERE list_contains(tags, ?) ORDER BY started_at DESC', (tag,))
+            rows = self.rows('SELECT * FROM runs ORDER BY started_at DESC')
+        else:
+            rows = self.rows('SELECT * FROM runs WHERE EXISTS (SELECT 1 FROM json_each(runs.tags) WHERE value = ?) '
+                             'ORDER BY started_at DESC', (tag,))
+        for r in rows:
+            for column in ('endpoints', 'settings', 'tags'):
+                r[column] = json.loads(r[column]) if r[column] else ([] if column == 'tags' else {})
+        return rows
 
     def delete_runs(self, run_ids):
         """Delete runs and the stored results no remaining run uses. Returns the number of results deleted."""
         if not run_ids:
             return 0
-        ids = list(run_ids)
+        ids = json.dumps(list(run_ids))
         with self.transaction():
-            self.db.execute('DELETE FROM run_records WHERE list_contains(?, run_id)', (ids,))
-            self.db.execute('DELETE FROM runs WHERE list_contains(?, id)', (ids,))
-            orphans = self.value('SELECT count(*) FROM node_records WHERE key NOT IN (SELECT key FROM run_records)')
-            self.db.execute('DELETE FROM node_records WHERE key NOT IN (SELECT key FROM run_records)')
+            self.db.execute('DELETE FROM run_records WHERE run_id IN (SELECT value FROM json_each(?))', (ids,))
+            self.db.execute('DELETE FROM runs WHERE id IN (SELECT value FROM json_each(?))', (ids,))
+            orphans = self.db.execute(
+                'DELETE FROM node_records WHERE key NOT IN (SELECT key FROM run_records)').rowcount
         return orphans
 
     def cached_record(self, key):
@@ -220,4 +251,4 @@ class Store:
 
     def link_record(self, run_id, docket, layer, node, key, reused):
         self.db.execute('INSERT OR REPLACE INTO run_records VALUES (?, ?, ?, ?, ?, ?)',
-                        (run_id, docket, layer, node, key, reused))
+                        (run_id, docket, layer, node, key, int(bool(reused))))

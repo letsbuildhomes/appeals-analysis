@@ -19,7 +19,7 @@ approval to this Court. The appeal is heard de novo. This concludes the matter b
 
 
 def _store(tmp_path):
-    store = Store(tmp_path / 'test.duckdb')
+    store = Store(tmp_path / 'test.sqlite')
     store.add_document('a' * 64, 100, 1)
     store.add_download('https://example/media/1', None, 'a' * 64, None)
     store.add_listing_entries([Entry('snap', 0, 0, 'https://example/media/1', 'Maple Street Duplex',
@@ -47,9 +47,9 @@ def test_a_run_stores_every_layer_and_reuses_unchanged_nodes(tmp_path):
     assert {'input', 'scan', 'plan', 'facts', 'derive', 'answers'} <= layers
     second = asyncio.run(Runner(pipeline, store, settings, FakeDecisions(), FakeReasoning(),
                                 log=lambda *_: None).run(['12-1-20 Vtec'], workers=1))
-    reused = store.value("SELECT bool_and(reused) FROM run_records WHERE run_id = ? AND layer IN ('scan', 'steps') "
+    reused = store.value("SELECT min(reused) FROM run_records WHERE run_id = ? AND layer IN ('scan', 'steps') "
                          "AND node <> 'base'", (second,))
-    assert reused in (True, None)
+    assert reused in (1, None)
 
 
 def test_deleting_runs_keeps_results_other_runs_use(tmp_path):
