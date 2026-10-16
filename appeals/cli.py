@@ -3,6 +3,7 @@ import argparse
 import asyncio
 from datetime import date
 import json
+import os
 import sys
 
 from appeals import config
@@ -149,6 +150,105 @@ def cmd_serve(args):
     serve(_settings(args), host=args.host, port=args.port)
 
 
+def cmd_release(args):
+    from appeals.release.build import BuildError, build
+    from appeals.release.read import Releases
+    settings = _settings(args)
+    store = Store(settings.db, read_only=True)
+    try:
+        meta = build(store, args.run, settings.releases, test=args.test, tags=args.tag or [])
+    except BuildError as error:
+        sys.exit(f'No release built: {error}')
+    p = meta['population']
+    print(f'{p["dockets"]} dockets: {p["in_scope"]} in scope, {p["out_of_scope"]} out of scope, '
+          f'{p["failed"]} failed, {p["not_run"]} not run')
+    if args.publish:
+        Releases(settings.releases).publish(meta['id'])
+        print(f'release {meta["id"]} is now current')
+    else:
+        print(f'publish it with: make publish RELEASE={meta["id"]}')
+
+
+def cmd_releases(args):
+    from appeals.release.read import Releases
+    summaries = Releases(_settings(args).releases).summaries(tag=args.tag)
+    for r in summaries:
+        print(_release_line(r))
+    if not summaries:
+        print('No releases' + (f' tagged {args.tag}' if args.tag else ''))
+
+
+def _release_line(r):
+    p = r['population']
+    tags = f'  [{", ".join(r["tags"])}]' if r['tags'] else ''
+    return (f'{r["id"]}  {r["created_at"][:16].replace("T", " ")} UTC  run {r["run"]}  graph {r["graph_hash"]}  '
+            f'{p["dockets"]:>5} dockets  {p["in_scope"]:>5} in scope{"  current" if r["current"] else ""}{tags}')
+
+
+def cmd_delete_releases(args):
+    from appeals.release.read import Releases
+    if bool(args.release) == bool(args.tag):
+        sys.exit('Give either a release ID or --tag, not both.')
+    releases = Releases(_settings(args).releases)
+    chosen = [r for r in releases.summaries() if r['id'] == args.release] if args.release \
+        else releases.summaries(tag=args.tag)
+    if not chosen:
+        sys.exit(f'No release {args.release}' if args.release else f'No releases tagged {args.tag}')
+    current = [r for r in chosen if r['current']]
+    if current:
+        sys.exit(f'Release {current[0]["id"]} is current; publish another before deleting it.')
+    print(f'Deleting {len(chosen)} release{"s" if len(chosen) != 1 else ""}:')
+    for r in chosen:
+        print('  ' + _release_line(r))
+    if not args.yes and input('Delete? [y/N] ').strip().lower() not in ('y', 'yes'):
+        sys.exit('Nothing deleted.')
+    releases.delete([r['id'] for r in chosen])
+    print(f'Deleted {len(chosen)} release{"s" if len(chosen) != 1 else ""}. Their runs are still in the store.')
+
+
+def cmd_publish(args):
+    from appeals.release.read import Releases
+    try:
+        Releases(_settings(args).releases).publish(args.release)
+    except ValueError as error:
+        sys.exit(str(error))
+    print(f'release {args.release} is now current; running servers serve it from their next request')
+
+
+def _site_options(args, settings):
+    site = settings.site
+    host = args.host or site.get('host', '0.0.0.0')
+    port = args.port or int(site.get('port', 8000))
+    base = site.get('base_path', '/appeals') if args.base_path is None else args.base_path
+    return host, port, base
+
+
+def cmd_site(args):
+    from appeals.release.read import Releases
+    from appeals.site.app import allowed_hosts, serve
+    settings = _settings(args)
+    host, port, base = _site_options(args, settings)
+    hosts = allowed_hosts(settings.site.get('allowed_hosts', []), args.allowed_host or [], host, port)
+    password = args.password if args.password is not None else os.environ.get('SITE_PASSWORD', '')
+    serve(Releases(settings.releases), host, port, base, settings.site.get('title', 'Research data'), hosts, password)
+
+
+def cmd_mcp(args):
+    from appeals.release.read import Releases
+    from appeals.site.mcp import make_server
+    settings = _settings(args)
+    make_server(Releases(settings.releases), name=settings.site.get('title', 'Research data')).run('stdio')
+
+
+def cmd_mcp_check(args):
+    from appeals.site.check import check
+    try:
+        result = check(args.url)
+    except Exception as error:
+        sys.exit(f'MCP check failed: {type(error).__name__}: {error}')
+    print(json.dumps(result, indent=1))
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(prog='appeals', description=__doc__)
     sub = parser.add_subparsers(dest='command', required=True)
@@ -190,6 +290,29 @@ def main(argv=None):
     p = add('serve', cmd_serve, 'serve the dashboard')
     p.add_argument('--host', default='0.0.0.0')
     p.add_argument('--port', type=int, default=8800)
+    p = add('release', cmd_release, 'build a release from a finished run')
+    p.add_argument('run', help='the run ID')
+    p.add_argument('--test', action='store_true', help='allow a scratch, fake-model or unfinished run')
+    p.add_argument('--publish', action='store_true', help='make it the current release')
+    p.add_argument('--tag', action='append', help='label the release, such as "preview"; may be repeated')
+    p = add('releases', cmd_releases, 'list releases, newest first')
+    p.add_argument('--tag', help='only releases with this tag')
+    p = add('delete-releases', cmd_delete_releases, 'delete one release, or every release with a tag')
+    p.add_argument('release', nargs='?', help='the release ID')
+    p.add_argument('--tag', help='delete every release with this tag')
+    p.add_argument('--yes', action='store_true', help='don\'t ask for confirmation')
+    p = add('publish', cmd_publish, 'make a release the current one')
+    p.add_argument('release', help='the release ID')
+    p = add('site', cmd_site, 'serve the public site: dashboard, API and MCP server ([site] in config.toml)')
+    p.add_argument('--host', help='address to listen on, such as a VPN address')
+    p.add_argument('--port', type=int)
+    p.add_argument('--base-path', help='path prefix for every route, such as /appeals; "" for none')
+    p.add_argument('--allowed-host', action='append', help='another Host header the MCP endpoint accepts; may repeat')
+    p.add_argument('--password', help='ask for this password before the dashboard (default: SITE_PASSWORD; '
+                                      'empty for none). /mcp and /healthz stay open')
+    add('mcp', cmd_mcp, 'serve the MCP server on stdin and stdout, for a local client')
+    p = add('mcp-check', cmd_mcp_check, 'check a running MCP endpoint end to end')
+    p.add_argument('url', help='such as http://192.168.88.3:8000/appeals/mcp')
 
     args = parser.parse_args(argv)
     args.func(args)

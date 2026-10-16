@@ -1,0 +1,23 @@
+# The public site (dashboard, API and MCP server) as a systemd user service:
+# started at boot, restarted if it stops. It runs `make site` in the checkout,
+# with SITE_HOST and SITE_PORT from .site-env (ignored by git; copy
+# .site-env.example to start).
+#
+# Install:  mkdir -p ~/.config/systemd/user && cp deploy/appeals-site.service ~/.config/systemd/user/
+#           systemctl --user daemon-reload && systemctl --user enable --now appeals-site
+#           loginctl enable-linger $USER     # keep it running when you're logged out
+# Logs:     journalctl --user -u appeals-site -f
+[Unit]
+Description=Appeals public site and MCP server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/src/appeals-analysis
+EnvironmentFile=-%h/src/appeals-analysis/.site-env
+ExecStart=/usr/bin/make site
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

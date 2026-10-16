@@ -86,3 +86,14 @@ review = 0.5
 final = 0.5
 stay = 0.5
 design = 0.5
+
+# The public site (`make site`): the dashboard, its API and the MCP server, over published releases.
+# Every route sits under base_path, so a reverse proxy forwards /appeals/... unchanged.
+# allowed_hosts are the Host headers the MCP endpoint accepts ("name" or "name:*" for any port);
+# the address the server listens on is added automatically. An empty list turns the check off.
+[site]
+title = "Vermont municipal housing appeals"
+base_path = "/appeals"
+host = "0.0.0.0"
+port = 8000
+allowed_hosts = ["data.letsbuildhomes.org", "192.168.88.3:*", "localhost:*", "127.0.0.1:*"]

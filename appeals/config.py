@@ -80,6 +80,7 @@ class Settings:
     budget_usd: float
     chars_per_token: float
     thresholds: dict
+    site: dict = field(default_factory=dict)
 
     @property
     def db(self):
@@ -92,6 +93,10 @@ class Settings:
     @property
     def listings(self):
         return self.data / 'listings'
+
+    @property
+    def releases(self):
+        return self.data / 'releases'
 
 
 def _endpoint(table):
@@ -116,6 +121,7 @@ def load(config=ROOT / 'config.toml', env=ROOT / '.env', overrides=None):
         budget_usd=float(run['budget_usd']),
         chars_per_token=float(run['chars_per_token']),
         thresholds=dict(raw['thresholds']),
+        site=dict(raw.get('site', {})),
     )
     for name, value in (overrides or {}).items():
         if value is not None:

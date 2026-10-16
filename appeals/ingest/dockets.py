@@ -254,21 +254,30 @@ def render(number, documents):
     return '\n'.join(parts)
 
 
-def docket_text(store, number):
-    """The docket's documents in posting order (then hash), rendered with document and page markers."""
+def docket_documents(store, number):
+    """The docket's documents in posting order (then hash): the order that numbers them in the docket text.
+
+    Each is {n, sha256, title, posted, pages, dockets}, where `dockets` lists every docket the document names.
+    """
     docs = store.rows("""
-        SELECT i.sha256, i.title, i.posted,
+        SELECT i.sha256, i.title, i.posted, i.pages,
                (SELECT json_group_array(docket ORDER BY docket) FROM document_dockets x WHERE x.sha256 = i.sha256)
                AS dockets
         FROM document_dockets dd JOIN document_info i ON i.sha256 = dd.sha256
         WHERE dd.docket = ? ORDER BY i.posted NULLS LAST, i.sha256""", (number,))
+    return [{**doc, 'n': n, 'dockets': json.loads(doc['dockets'] or '[]') or [number]} for n, doc in enumerate(docs, 1)]
+
+
+def docket_text(store, number):
+    """The docket's documents in posting order (then hash), rendered with document and page markers."""
+    docs = docket_documents(store, number)
     if not docs:
         return None
     documents = []
-    for n, doc in enumerate(docs, 1):
+    for doc in docs:
         pages = store.rows('SELECT page, text, source, status FROM pages WHERE sha256 = ? ORDER BY page', (doc['sha256'],))
-        documents.append(DocketDocument(n, doc['sha256'], doc['title'] or '', doc['posted'] or '',
-                                        json.loads(doc['dockets'] or '[]') or [number], pages))
+        documents.append(DocketDocument(doc['n'], doc['sha256'], doc['title'] or '', doc['posted'] or '',
+                                        doc['dockets'], pages))
     return DocketText(number, documents, render(number, documents))
 
 

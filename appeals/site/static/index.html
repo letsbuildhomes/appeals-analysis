@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{TITLE}}</title>
+<link rel="stylesheet" href="{{BASE}}/static/site.css">
+</head>
+<body>
+<header>
+  <h1>{{TITLE}}</h1>
+  <p class="lede" id="what"></p>
+</header>
+<div id="banner" class="banner" hidden></div>
+<main>
+  <section id="release"><p class="muted">Loading…</p></section>
+  <section>
+    <h2>Use it with an AI assistant</h2>
+    <p>The current release is served over MCP at <code id="mcp-url"></code>. Anonymous and read-only.</p>
+    <pre id="mcp-add"></pre>
+    <p class="muted">The assistant can describe every column, explain how any value was produced, run read-only
+      SQL, and read individual dockets with their quotes.</p>
+  </section>
+  <section id="questions"></section>
+  <section id="conventions"></section>
+  <section id="releases"></section>
+</main>
+<script src="{{BASE}}/static/site.js" data-base="{{BASE}}"></script>
+</body>
+</html>

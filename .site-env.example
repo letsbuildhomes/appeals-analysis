@@ -1,0 +1,18 @@
+# Settings for the public site's systemd service (deploy/appeals-site.service).
+# Copy to .site-env (ignored by git) and fill in this machine's values:
+#   cp .site-env.example .site-env
+# The service reads it at start; restart after editing:
+#   systemctl --user restart appeals-site
+
+# The address to listen on. Use this machine's VPN address so only the proxy
+# can reach the site, or 0.0.0.0 to listen on every interface (LAN included).
+# The MCP endpoint automatically accepts this address as a Host header.
+SITE_HOST=10.8.0.2
+
+# The port the reverse proxy forwards /appeals to.
+SITE_PORT=8000
+
+# A shared password for the dashboard (temporary, until the site is fully
+# public). Leave empty for no password. /appeals/mcp and /appeals/healthz
+# stay open either way.
+SITE_PASSWORD=

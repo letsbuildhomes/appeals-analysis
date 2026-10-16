@@ -12,9 +12,9 @@ is in [docs/CONTEXT.md](docs/CONTEXT.md).
 ## What the system does
 
 ```text
-court website ─▶ documents ─▶ page text ─▶ dockets ─▶ extraction graph ─▶ research rows
-                                                          │
-                                                     dashboard
+court website ─▶ documents ─▶ page text ─▶ dockets ─▶ extraction graph ─▶ research rows ─▶ releases
+                                                          │                                     │
+                                                     dashboard                  public site: dashboard · MCP
 ```
 
 ### 1. Documents
@@ -165,6 +165,21 @@ A small web app over the stored runs, with two views:
 
 The dashboard only reads stored data and never changes it.
 
+### 6. Releases and the public site
+
+A finished run is frozen into a **release**: research tables in DuckDB, the
+quotes behind them in a separate file, and a `release.json`. The JSON holds
+the run's graph description, a data dictionary with a profile and query tips
+for every column, the codebook's checked examples, and what changed since the
+last release. The tables are laid out from the codebook's value types, so a
+release follows the codebook with no hand-kept mapping.
+
+The public site serves the current release at `/appeals/`. It has a
+dashboard, which is a placeholder for now, and an MCP server at
+`/appeals/mcp`. Through the MCP server, an AI assistant can query the data,
+read what each column means, and trace any value back through the pipeline.
+[docs/RELEASES.md](docs/RELEASES.md) has the details and the deployment.
+
 ## Using it
 
 Everything runs through `uv` and the `Makefile`; `make help` lists the targets.
@@ -178,6 +193,9 @@ make run MODEL=live DOCKETS="a,b" TAG=scratch   # real calls, tagged; keys from 
 make runs [TAG=scratch]                          # list runs
 make delete-runs TAG=scratch          # or RUN_ID=<id>; also deletes stored results no other run uses
 make serve            # dashboard on port 8800
+make release RUN_ID=<id>              # freeze a finished run into a release
+make publish RELEASE=<id>             # make it the one the public site serves
+make site                             # public site and MCP server on 0.0.0.0:8000 (SITE_HOST, SITE_PORT)
 make test lint
 ```
 
@@ -192,7 +210,10 @@ go in `.env` (never committed) or on the command line (`appeals run --help`).
 | `appeals/graph/` | the building blocks, the executor and the model endpoints; knows nothing about housing |
 | `appeals/codebook/` | the pipeline itself, one file per layer: questions → gates → steps → fields → derived → answers |
 | `appeals/web/` | the dashboard server and its pages |
-| `data/` | the SQLite store (`appeals.sqlite`), PDFs and listing snapshots (not in git) |
+| `appeals/release/` | building releases from runs, reading them, and the guide that describes them |
+| `appeals/site/` | the public site: the MCP server, the read-only API and the dashboard page |
+| `deploy/` | the systemd unit for the public site |
+| `data/` | the SQLite store (`appeals.sqlite`), PDFs, listing snapshots and releases (not in git) |
 
 ## Status
 
@@ -202,6 +223,8 @@ rules. The extraction graph is
 built and checked, and can be inspected in the dashboard. It has been tried
 live on two dockets (Jev for the scan, DeepSeek Flash for the steps), as
 scratch runs. The gate thresholds are untuned placeholders until the
-reference set is relabeled.
+reference set is relabeled. Releases, the public site and the MCP server are
+built and tested on fake-model runs; no release has been published yet,
+since there is no production run.
 [docs/PIPELINE.md](docs/PIPELINE.md) is the design, and
 [docs/CONTEXT.md](docs/CONTEXT.md) explains how we got here.
