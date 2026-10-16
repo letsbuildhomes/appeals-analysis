@@ -1,0 +1,346 @@
+"""The building blocks of the extraction graph.
+
+Every node is a plain declaration: its text, options, condition, template or
+function. The executor has one generic behavior per kind of node, so what a
+node says in the dashboard is all it does.
+
+Layers (a node reads only from earlier layers, except where noted):
+    1 scan    Question, YesNoSet (asked together by the Scan)
+    2 plan    Gate
+    3 steps   Base, Step (a step may chain after earlier steps)
+    4 facts   Field
+    5 derive  Derive (may read earlier derives)
+    6 answers Answer
+"""
+from dataclasses import dataclass, field
+import inspect
+import re
+import textwrap
+from typing import Callable, ClassVar
+
+from appeals.graph import expr as E
+from appeals.graph.values import NOT_STATED, OneOf, Record, ValueType, YesNo
+
+LAYERS = ['input', 'scan', 'plan', 'steps', 'facts', 'derive', 'answers']
+PLACEHOLDER = re.compile(r'\{([A-Z][A-Za-z0-9_]*(?:\.[a-z_]+)?)\}')
+
+
+@dataclass(eq=False)
+class Node:
+    id: str
+    area: str
+    kind: ClassVar[str] = 'node'
+    layer: ClassVar[int] = 0
+
+    def refs(self):
+        """IDs of the nodes this node reads."""
+        return set()
+
+    def describe(self):
+        return {'id': self.id, 'kind': self.kind, 'area': self.area, 'layer': LAYERS[self.layer]}
+
+
+# ---- layer 1: the scan -----------------------------------------------------------
+
+@dataclass(eq=False)
+class Question(Node):
+    """One closed question for the decision model.
+
+    `options` maps each option to its meaning. `options_from`, when given, makes
+    the options per docket: a function of the docket text returning options.
+    """
+    ask: str = ''
+    options: dict = field(default_factory=dict)
+    why: str = ''
+    yes_no: bool = False
+    options_from: Callable | None = None
+    kind: ClassVar[str] = 'question'
+    layer: ClassVar[int] = 1
+
+    def __post_init__(self):
+        if self.yes_no and not self.options:
+            self.options = {'yes': 'Yes.', 'no': 'No.'}
+
+    def p(self, option):
+        return E.P(self, option)
+
+    def is_(self, option):
+        return E.Is(self, option)
+
+    def value_type(self):
+        return OneOf(self.options, not_stated=False)
+
+    def request(self, docket):
+        """This question in the decision model's terms."""
+        if self.yes_no:
+            return {'type': 'yes_no', 'instructions': self.ask,
+                    'criteria': {'true': self.options['yes'], 'false': self.options['no']}}
+        options = self.options_from(docket) if self.options_from else self.options
+        return {'type': 'choice', 'instructions': self.ask, 'criteria': options}
+
+    def describe(self):
+        d = super().describe() | {'ask': self.ask, 'why': self.why,
+                                  'question_type': 'yes/no' if self.yes_no else 'choice'}
+        if self.options_from:
+            d['options'] = {'(per docket)': (self.options_from.__doc__ or '').strip()}
+            d['options_source'] = textwrap.dedent(inspect.getsource(self.options_from))
+        else:
+            d['options'] = self.options
+        return d
+
+
+@dataclass(eq=False)
+class YesNoSet(Node):
+    """One prompt asked as a separate yes/no question per item (shown as one node)."""
+    ask: str = ''
+    items: dict = field(default_factory=dict)
+    why: str = ''
+    kind: ClassVar[str] = 'question set'
+    layer: ClassVar[int] = 1
+
+    def questions(self):
+        return [Question(f'{self.id}.{key}', self.area, ask=f'{self.ask} Item: {meaning}', yes_no=True,
+                         options={'yes': f'Yes: {meaning}', 'no': f'No, not {key}.'}) for key, meaning in self.items.items()]
+
+    def ids(self):
+        return [f'{self.id}.{key}' for key in self.items]
+
+    def p(self, key):
+        """The scan's probability that one item is "yes"."""
+        return E.P(f'{self.id}.{key}', 'yes')
+
+    def describe(self):
+        return super().describe() | {'ask': self.ask, 'why': self.why, 'question_type': f'yes/no ×{len(self.items)}',
+                                     'options': self.items}
+
+
+@dataclass(eq=False)
+class Scan(Node):
+    """Every question, sent to the decision model in one request over the docket text."""
+    questions: list = field(default_factory=list)
+    kind: ClassVar[str] = 'scan'
+    layer: ClassVar[int] = 1
+
+    def flat(self):
+        """Every individual Question, with sets expanded."""
+        out = []
+        for q in self.questions:
+            out.extend(q.questions() if isinstance(q, YesNoSet) else [q])
+        return out
+
+    def describe(self):
+        return super().describe() | {'questions': [q.id for q in self.questions]}
+
+
+# ---- layer 2: the plan -----------------------------------------------------------
+
+@dataclass(eq=False)
+class Gate(Node):
+    """A condition over the scan's answers. It passes or it doesn't."""
+    title: str = ''
+    when: E.Expr = None
+    why: str = ''
+    kind: ClassVar[str] = 'gate'
+    layer: ClassVar[int] = 2
+
+    def refs(self):
+        return self.when.refs()
+
+    def passed(self):
+        return E.Passed(self)
+
+    def describe(self):
+        return super().describe() | {'title': self.title, 'condition': self.when.text(), 'why': self.why}
+
+
+# ---- layer 3: steps --------------------------------------------------------------
+
+@dataclass(eq=False)
+class Base(Node):
+    """The shared start of every reasoning-model call for a docket: framing, docket text, scan claims."""
+    framing: str = ''
+    kind: ClassVar[str] = 'base'
+    layer: ClassVar[int] = 3
+
+    def refs(self):
+        return {'scan'}
+
+    def render(self, docket_text, claims):
+        return (f'{self.framing.strip()}\n\n{docket_text}\n\n<scan>\n'
+                'The decision model\'s first reading of this docket. Each line is a claim to confirm or refute '
+                'from the text, never to repeat without checking. "Fairly confident" and "uncertain" say how sure '
+                'the scan was; a confident claim can still be wrong.\n'
+                f'{claims}\n</scan>')
+
+    def describe(self):
+        return super().describe() | {'framing': self.framing.strip(),
+                                     'includes': ['framing', 'the docket text', 'the scan\'s answers as claims']}
+
+
+@dataclass(eq=False)
+class Step(Node):
+    """One reasoning-model call: a question appended to the Base, answered as JSON of type `returns`.
+
+    `when` is the gate that must pass (None: every docket that proceeds).
+    `only_if`: a further condition on the scan or on earlier steps' answers, checked just before
+    the step would run; when false, the step is skipped.
+    `variants` maps variant names to prompts, chosen by `choose`; otherwise `prompt`.
+    `chain_after`: steps whose exchange stays in context, when they ran.
+    `halt_unless`: a condition on this step's answer; when false, later steps don't run.
+    """
+    title: str = ''
+    when: Gate | None = None
+    only_if: E.Expr | None = None
+    prompt: str = ''
+    variants: dict = field(default_factory=dict)
+    choose: E.Expr | None = None
+    returns: Record = None
+    chain_after: list = field(default_factory=list)
+    halt_unless: E.Expr | None = None
+    confirms: list = field(default_factory=list)
+    kind: ClassVar[str] = 'step'
+    layer: ClassVar[int] = 3
+
+    def templates(self):
+        return self.variants or {'': self.prompt}
+
+    def placeholders(self):
+        return {m for t in self.templates().values() for m in PLACEHOLDER.findall(t)}
+
+    def refs(self):
+        refs = {'base'} | self.placeholders()
+        if self.when:
+            refs.add(self.when.id)
+        if self.choose:
+            refs |= self.choose.refs()
+        if self.only_if:
+            refs |= self.only_if.refs()
+        refs |= {s.id for s in self.chain_after}
+        return refs
+
+    def describe(self):
+        return super().describe() | {
+            'title': self.title,
+            'when': self.when.id if self.when else None,
+            'when_text': self.when.when.text() if self.when else 'every docket that proceeds',
+            'only_if': self.only_if.text() if self.only_if else None,
+            'prompt': self.prompt or None,
+            'variants': self.variants or None,
+            'choose': self.choose.text() if self.choose else None,
+            'returns': self.returns.describe(),
+            'schema': self.returns.schema(),
+            'chain_after': [s.id for s in self.chain_after],
+            'halt_unless': self.halt_unless.text() if self.halt_unless else None,
+            'confirms': self.confirms,
+        }
+
+
+# ---- layer 4: facts --------------------------------------------------------------
+
+@dataclass(eq=False)
+class Field(Node):
+    """One settled value per docket.
+
+    Sources, in order: the step's answer at `path` (when the step ran and its
+    quotes check out), then the scan's most likely answer to `scan`, then "not stated".
+    A yes/no set takes each item from its own step: `steps` maps item keys to steps.
+    `from_docket` instead computes the value from the docket number, in code.
+    `not_stated_if`: a condition on earlier answers that makes the field "not stated"
+    whatever the sources say, such as grounds when no arguments are stated.
+    """
+    code: str = ''
+    label: str = ''
+    type: ValueType = None
+    scan: Question | YesNoSet | None = None
+    step: Step | None = None
+    steps: dict = field(default_factory=dict)
+    path: str | None = None
+    from_docket: Callable | None = None
+    not_stated_if: E.Expr | None = None
+    kind: ClassVar[str] = 'field'
+    layer: ClassVar[int] = 4
+
+    def item_steps(self):
+        """{item key or '': step} for every step this field reads."""
+        return dict(self.steps) if self.steps else ({'': self.step} if self.step else {})
+
+    def refs(self):
+        refs = {s.id for s in self.item_steps().values()}
+        if self.scan:
+            refs.add(self.scan.id)
+        if self.not_stated_if:
+            refs |= self.not_stated_if.refs()
+        return refs
+
+    def describe(self):
+        if self.from_docket:
+            rule = 'computed from the docket number'
+        elif self.steps:
+            rule = ('each item: its step\'s answer with a verified quote when the step ran, '
+                    'else the scan\'s answer at the threshold')
+        elif self.step and self.scan:
+            rule = 'step answer with a verified quote, else the scan\'s most likely answer, else "not stated"'
+        elif self.step:
+            rule = 'step answer with a verified quote, else "not stated"'
+        else:
+            rule = 'the scan\'s most likely answer'
+        if self.not_stated_if:
+            rule += f'; "not stated" when {self.not_stated_if.text()}'
+        d = super().describe() | {
+            'code': self.code, 'label': self.label, 'value_type': self.type.describe(), 'scored': self.type.scored,
+            'from_step': (', '.join(f'{s.id}.{self.path}' for s in self.steps.values()) if self.steps
+                          else f'{self.step.id}.{self.path}' if self.step else None),
+            'from_scan': self.scan.id if self.scan else None,
+            'not_stated_if': self.not_stated_if.text() if self.not_stated_if else None,
+            'rule': rule}
+        if self.from_docket:
+            d['source'] = textwrap.dedent(inspect.getsource(self.from_docket))
+        return d
+
+
+# ---- layer 5: derive -------------------------------------------------------------
+
+@dataclass(eq=False)
+class Derive(Node):
+    """A plain function of settled fields: f({input id: answer}) → answer. Its source is shown in the dashboard."""
+    code: str = ''
+    label: str = ''
+    type: ValueType = None
+    inputs: list = field(default_factory=list)
+    fn: Callable = None
+    kind: ClassVar[str] = 'derive'
+    layer: ClassVar[int] = 5
+
+    def refs(self):
+        return {n.id for n in self.inputs}
+
+    def source(self):
+        return textwrap.dedent(inspect.getsource(self.fn))
+
+    def describe(self):
+        return super().describe() | {'code': self.code, 'label': self.label, 'value_type': self.type.describe(),
+                                     'scored': self.type.scored, 'inputs': [n.id for n in self.inputs],
+                                     'source': self.source()}
+
+
+# ---- layer 6: answers ------------------------------------------------------------
+
+@dataclass(eq=False)
+class Answer(Node):
+    """One research answer: the fields and derived values that make it up."""
+    title: str = ''
+    question: str = ''
+    parts: list = field(default_factory=list)
+    kind: ClassVar[str] = 'answer'
+    layer: ClassVar[int] = 6
+
+    def refs(self):
+        return {n.id for n in self.parts}
+
+    def describe(self):
+        return super().describe() | {'title': self.title, 'question': self.question,
+                                     'parts': [n.id for n in self.parts]}
+
+
+__all__ = ['Node', 'Question', 'YesNoSet', 'Scan', 'Gate', 'Base', 'Step', 'Field', 'Derive', 'Answer',
+           'LAYERS', 'NOT_STATED', 'YesNo', 'OneOf', 'Record']

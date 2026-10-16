@@ -1,0 +1,222 @@
+"""The Pipeline: collects the nodes, infers the edges, checks the graph and describes it.
+
+Edges are never declared. They come from what each node reads (`refs()`),
+which is exactly what the executor reads, so the drawing can't drift from the
+behavior. `describe()` is the complete specification: prompts, options,
+conditions, thresholds and derive source code. Its hash identifies the pipeline.
+"""
+from collections import defaultdict, deque
+import hashlib
+import json
+
+from appeals.graph.nodes import LAYERS, Base, Derive, Field, Gate, Question, Step, YesNoSet
+
+AREAS = {
+    'scope': 'Scope',
+    'A': 'A · Which decisions',
+    'B': 'B · Who appeals',
+    'C': 'C · Grounds',
+    'D': 'D · The court',
+    'E': 'E · How long',
+    'F': 'F · Cost to housing',
+}
+
+
+class GraphError(Exception):
+    pass
+
+
+class Pipeline:
+    def __init__(self, name, scan, gates, base, steps, fields, derives, answers, proceed, thresholds, in_scope=None):
+        self.name = name
+        self.scan = scan
+        self.gates = gates
+        self.base = base
+        self.steps = steps            # in execution order
+        self.fields = fields
+        self.derives = derives
+        self.answers = answers
+        self.proceed = proceed        # expression: does a docket go on to the reasoning steps?
+        self.in_scope = in_scope      # derive ID that is True for dockets in scope; the row blanks the rest
+        self.thresholds = dict(thresholds)
+        self.nodes = {}
+        for node in [scan, *scan.questions, *gates, base, *steps, *fields, *derives, *answers]:
+            if node.id in self.nodes:
+                raise GraphError(f'duplicate node ID {node.id}')
+            self.nodes[node.id] = node
+        self.edges = self._edges()
+        problems = self.check()
+        if problems:
+            raise GraphError('the graph does not build:\n  ' + '\n  '.join(problems))
+
+    # ---- edges -----------------------------------------------------------------
+
+    def _node_for(self, ref):
+        """A reference to a set item ("C5.traffic") is an edge from the set ("C5")."""
+        if ref in self.nodes:
+            return ref
+        stem = ref.split('.')[0]
+        return stem if stem in self.nodes else None
+
+    def _edges(self):
+        edges, seen = [], set()
+        for node in self.nodes.values():
+            for ref in sorted(node.refs()):
+                source = self._node_for(ref)
+                if source is None or source == node.id:
+                    continue
+                kind = self._edge_kind(self.nodes[source], node)
+                if (source, node.id) not in seen:
+                    seen.add((source, node.id))
+                    edges.append({'from': source, 'to': node.id, 'kind': kind})
+        for question in self.scan.questions:
+            edges.append({'from': question.id, 'to': 'scan', 'kind': 'asked'})
+        return edges
+
+    @staticmethod
+    def _edge_kind(source, target):
+        if isinstance(source, Step) and isinstance(target, Step):
+            return 'chain' if source in target.chain_after else 'condition'
+        if isinstance(target, (Gate, Step)) and isinstance(source, (Question, YesNoSet, Gate)):
+            return 'condition'
+        if isinstance(source, Base):
+            return 'base'
+        return 'data'
+
+    # ---- checks ----------------------------------------------------------------
+
+    def check(self):
+        problems = []
+        for node in self.nodes.values():
+            for ref in node.refs():
+                if self._node_for(ref) is None:
+                    problems.append(f'{node.id} refers to unknown {ref}')
+        layer = {nid: n.layer for nid, n in self.nodes.items()}
+        for e in self.edges:
+            a, b = layer[e['from']], layer[e['to']]
+            same_layer_ok = (e['kind'] in ('chain', 'asked', 'base') or isinstance(self.nodes[e['to']], Derive)
+                             or isinstance(self.nodes[e['from']], Step) and isinstance(self.nodes[e['to']], Step))
+            if a > b or (a == b and not same_layer_ok):
+                problems.append(f'{e["from"]} ({LAYERS[a]}) feeds {e["to"]} ({LAYERS[b]}): data must flow down the layers')
+        try:
+            self.order()
+        except GraphError as error:
+            problems.append(str(error))
+        reaches = self._reaches_answer()
+        for node in self.nodes.values():
+            if isinstance(node, (Question, YesNoSet, Field, Derive, Step)) and node.id not in reaches:
+                problems.append(f'{node.id} reaches no Answer')
+        position = {s.id: i for i, s in enumerate(self.steps)}
+        for step in self.steps:
+            for ref in step.refs():
+                if ref in position and position[ref] >= position[step.id]:
+                    problems.append(f'{step.id} reads {ref}, which runs after it')
+        for f in self.fields:
+            for step in f.item_steps().values():
+                try:
+                    step.returns.at(f.path)
+                except KeyError:
+                    problems.append(f'{f.id} reads {step.id}.{f.path}, which the step does not return')
+        if self.in_scope is not None and self.in_scope not in {d.id for d in self.derives}:
+            problems.append(f'in_scope names {self.in_scope}, which is not a derived value')
+        for name in self._thresholds_used():
+            if name not in self.thresholds:
+                problems.append(f'threshold {name} is used but not set in config.toml')
+        return problems
+
+    def _reaches_answer(self):
+        forward = defaultdict(set)
+        for e in self.edges:
+            if e['kind'] != 'asked':
+                forward[e['from']].add(e['to'])
+        reached, queue = set(), deque(a.id for a in self.answers)
+        backward = defaultdict(set)
+        for a, targets in forward.items():
+            for b in targets:
+                backward[b].add(a)
+        while queue:
+            nid = queue.popleft()
+            if nid in reached:
+                continue
+            reached.add(nid)
+            queue.extend(backward[nid])
+        return reached
+
+    def _thresholds_used(self):
+        names = set()
+
+        def walk(expr):
+            if expr is None:
+                return
+            if type(expr).__name__ == 'Threshold':
+                names.add(expr.name)
+            for value in vars(expr).values():
+                for item in value if isinstance(value, (list, tuple)) else [value]:
+                    if hasattr(item, 'evaluate'):
+                        walk(item)
+
+        for gate in self.gates:
+            walk(gate.when)
+        for step in self.steps:
+            walk(step.only_if)
+            walk(step.choose)
+        for f in self.fields:
+            walk(f.not_stated_if)
+        walk(self.proceed)
+        if self.steps:
+            names |= {'check', 'sure'}                # steps word the scan's claims by them
+        return names
+
+    def order(self):
+        """Node IDs in an order where every node comes after what it reads."""
+        indegree = {nid: 0 for nid in self.nodes}
+        forward = defaultdict(list)
+        for e in self.edges:
+            if e['kind'] == 'asked':
+                continue
+            forward[e['from']].append(e['to'])
+            indegree[e['to']] += 1
+        queue = deque(sorted((n for n, d in indegree.items() if d == 0), key=lambda n: self.nodes[n].layer))
+        out = []
+        while queue:
+            nid = queue.popleft()
+            out.append(nid)
+            for target in forward[nid]:
+                indegree[target] -= 1
+                if indegree[target] == 0:
+                    queue.append(target)
+        if len(out) != len(self.nodes):
+            raise GraphError('the graph has a cycle among: ' + ', '.join(n for n in self.nodes if n not in out))
+        return out
+
+    # ---- description -----------------------------------------------------------
+
+    def describe(self):
+        body = {
+            'name': self.name,
+            'layers': LAYERS[1:],
+            'areas': AREAS,
+            'thresholds': self.thresholds,
+            'proceed': self.proceed.text(),
+            'in_scope': self.in_scope,
+            'step_order': [s.id for s in self.steps],
+            'nodes': [n.describe() for n in self.nodes.values()],
+            'edges': self.edges,
+        }
+        return {'hash': _hash(body), **body}
+
+    def hash(self):
+        return self.describe()['hash']
+
+    def summary(self):
+        kinds = defaultdict(int)
+        for n in self.nodes.values():
+            kinds[n.kind] += 1
+        questions = len(self.scan.flat())
+        return (f'{self.name}: {questions} decision-model questions in one scan, {len(self.gates)} gates, '
+                f'{len(self.steps)} reasoning steps, {len(self.fields)} fields, {len(self.derives)} derived, '
+                f'{len(self.answers)} answers; {len(self.edges)} edges; every question and field reaches an answer.')
+
+
+def _hash(body):
+    return hashlib.sha256(json.dumps(body, sort_keys=True, default=str).encode()).hexdigest()[:16]
