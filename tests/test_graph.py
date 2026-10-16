@@ -217,8 +217,8 @@ def test_duration_takes_the_tightest_of_several_open_starts():
 
 def test_flagged_items_get_a_prompt_for_how_sure_the_scan_was():
     pipeline = build(THRESHOLDS)
-    scan = {'S1': {'yes': 1.0}, 'S2': {'application for permission': 1.0}, 'S3': {'build a new structure': 1.0},
-            'S4': {'yes': 1.0}, 'S5': {'adds': 1.0},
+    scan = {'S1': {'municipal permit application': 1.0}, 'S2': {'build a new structure': 1.0},
+            'S3': {'yes': 1.0}, 'S4': {'adds': 1.0},
             'C5.traffic': {'yes': 0.9, 'no': 0.1}, 'C5.density': {'yes': 0.45, 'no': 0.55},
             'C5.character': {'yes': 0.2, 'no': 0.8}}
     steps = {s['step']: s for s in layers.plan(pipeline, scan)['steps']}
@@ -233,13 +233,22 @@ def test_flagged_items_get_a_prompt_for_how_sure_the_scan_was():
 
 def test_an_out_of_scope_row_keeps_only_its_scope_values():
     pipeline = build(THRESHOLDS)
-    facts = layers.resolve(pipeline, {'S1': {'yes': 1.0}, 'S2': {'enforcement or violation notice': 1.0},
+    facts = layers.resolve(pipeline, {'S1': {'municipal enforcement': 1.0},
                                       'B1': {'approved': 0.9, 'denied': 0.1}}, {}, '12-1-20 Vtec')
     derived = layers.derive(pipeline, facts)
     assert derived['in_scope'] is False and facts['town_decision']['answer'] == 'approved'      # the trace keeps it
     out = layers.row(pipeline, '12-1-20 Vtec', facts, derived)
-    assert out['action_kind'] == 'enforcement or violation notice' and out['in_scope'] is False
+    assert out['proceeding'] == 'municipal enforcement' and out['in_scope'] is False
     assert out['town_decision'] == 'out of scope' and out['last_permission'] == 'out of scope'
+
+
+def test_a_docket_with_several_proceedings_counts_when_one_is_a_municipal_permit():
+    pipeline = build(THRESHOLDS)
+    scan = {'S1': {'several, including a municipal permit application': 0.9, 'Act 250 permit': 0.1},
+            'S2': {'build a new structure': 1.0}, 'S3': {'yes': 1.0}, 'S4': {'adds': 1.0}}
+    assert layers.plan(pipeline, scan)['gates']['scope']['passed']
+    derived = layers.derive(pipeline, layers.resolve(pipeline, scan, {}, '12-1-20 Vtec'))
+    assert derived['in_scope'] is True
 
 
 def test_dates_must_be_real_and_plausible():

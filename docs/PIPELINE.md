@@ -12,7 +12,7 @@ is not extracted.
 
 | | Research question | Answered by |
 |---|---|---|
-| Scope | Is this docket a municipal appeal about new housing? | S1–S5 → X1 |
+| Scope | Is this docket a municipal appeal about new housing? | S1–S4 → X1 |
 | A | Which town decisions about new housing get appealed: when the appeal was filed, in which town, how many units and lots, and what kind of permission | A1–A7 |
 | B | Who appeals, and against what: whether the town approved or denied, who the appellants are, and whether they had lawyers | B1–B5 → X6 |
 | C | On what grounds: whether the appeal turns on judgment-based standards, and which issues were raised | C1–C5 |
@@ -36,7 +36,7 @@ govern, so they travel with every run's graph description and every release:
   as evidence, closed answers, date precision, units added, actors, how the
   scan and the steps settle an answer, and what the source can't show.
 - **Rulings about one answer** are `notes` on its field, derived value or
-  answer: after-the-fact permits (S3), deemed approvals (B1), groups of
+  answer: after-the-fact permits (S2), deemed approvals (B1), groups of
   neighbors (B3, X6), procedural dismissals (C1), the end of the case (D2),
   stays and design changes the court imposed (F1, F5), unit changes (X3) and
   durations (X4).
@@ -179,14 +179,24 @@ Every question that could be silent includes "not stated" as an answer.
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| S1 | Is the decision under appeal by a municipal body or officer (board, commission, zoning administrator)? | yes · no · not stated | Scan (Choice) | X1 |
-| S2 | What kind of municipal action is under appeal? | application for permission · enforcement or violation notice · bylaw or policy · other | Scan (Choice) | X1 |
-| S3 | What would the permission allow physically? | build a new structure · place a structure · convert or renovate an existing building · create building lots · authorize something already built · no physical change · not stated | Scan (Choice) | X1 |
-| S4 | Will the structure or lots be used for housing? | yes · no · not stated | Scan (Choice) | X1 |
-| S5 | Does the project add dwelling units, replace existing ones, or neither? | adds · replaces · neither · not stated | Scan (Choice) | X1 |
+| S1 | What kind of proceeding is this docket? | municipal permit application · several, including a municipal permit application · municipal enforcement · municipal bylaw or policy · other municipal decision · Act 250 permit · ANR stormwater permit · ANR wastewater permit · other state permit or decision · state enforcement · other · not stated | Scan (Choice) | X1 |
+| S2 | What would the permission allow physically? | build a new structure · place a structure · convert or renovate an existing building · create building lots · authorize something already built · no physical change · not stated | Scan (Choice) | X1 |
+| S3 | Will the structure or lots be used for housing? | yes · no · not stated | Scan (Choice) | X1 |
+| S4 | Does the project add dwelling units, replace existing ones, or neither? | adds · replaces · neither · not stated | Scan (Choice) | X1 |
 
-**In scope (X1)** = S1 yes ∧ S2 application ∧ S4 yes ∧ (S5 adds or replaces ∨
-S3 creates lots) ∧ S3 is not "already built" or "no physical change".
+**In scope (X1)** = S1 is a municipal permit application, alone or with other
+decisions in the docket ∧ S3 yes ∧ (S4 adds or replaces ∨ S2 creates lots) ∧
+S2 is not "already built" or "no physical change".
+
+S1 is one question about the whole proceeding rather than "is it municipal?"
+and "what kind of municipal action?" asked separately. A docket is one
+proceeding, so its kinds exclude each other, and the out-of-scope kinds are
+kept: every row says what its docket is, including Act 250 and state permit
+appeals. Stormwater and wastewater permits from the Agency of Natural
+Resources have their own answers because they are of interest beyond this
+study. The kind of municipal permission (subdivision, site plan and so on) is
+not part of S1: one decision often grants several, so it is asked as a set
+(A7).
 
 ### A · Which decisions get appealed
 
@@ -256,7 +266,7 @@ Thresholds are *to set* per question from the reference set.
 
 | Gate | Condition | Passes to |
 |---|---|---|
-| Scope | P(in scope) from S1–S5. At or above the high threshold: continue. At or below the low threshold: stop. Between them: run L1 first. | Base and all steps / L1 / stop |
+| Scope | P(in scope) from S1–S4. At or above the high threshold: continue. At or below the low threshold: stop. Between them: run L1 first. | Base and all steps / L1 / stop |
 | Counts | A4, A5 or A6 stated, or F2/F3 is more or fewer | L6 |
 | Discretion | C1 yes and (C2 or C3 at or above threshold) | L7 |
 | Review | D1 is not "not stated" | L9 |
@@ -303,7 +313,7 @@ scope, the remaining steps are skipped.
 
 | Step | Gate | Only if | Asks for | Follows |
 |---|---|---|---|---|
-| L1a–e Scope | scope borderline | — | S1, S2, S3, S4, S5, one at a time; each halts the docket when it rules scope out | the scope step before it |
+| L1a–d Scope | scope borderline | — | S1, S2, S3, S4, one at a time; each halts the docket when it rules scope out | the scope step before it |
 | L2a Filing date | — | — | the filing date as a document states it | — |
 | L2b Earliest event | — | L2a not stated | the earliest dated event showing the appeal existed | L2a |
 | L3 Town decision | — | — | B1 | — |
@@ -342,7 +352,7 @@ and D5 unless it was dismissed.
 
 | ID | Field | From |
 |---|---|---|
-| X1 | In scope | S1–S5 (L1's answers when it ran) |
+| X1 | In scope | S1–S4 (L1's answers when it ran) |
 | X2 | Whether the court ended somewhere different from the town | D3, D4 and F2, against B1 |
 | X3 | Change in units added: against the town (F4 − B5) and against the application (F4 − A4, or A5 when the appeal covered only part); F2 and F3 give the direction when counts aren't stated | A4, A5, B5, F2, F3, F4 |
 | X4 | Duration in days, exact or at least, with each end recorded as closed or open (see the rulings above). Start: A1 when stated to the day, else the earliest of the latest possible days of A1, A2 and the docket number. End: E1's earliest possible day, else E2's | A1, A2, E1, E2 |

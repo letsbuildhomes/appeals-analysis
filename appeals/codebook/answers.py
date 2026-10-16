@@ -15,12 +15,12 @@ def example(question, sql):
 
 
 scope = Answer('answer_scope', 'scope', title='Scope', question='Is this docket a municipal appeal about new housing?',
-               parts=[X.X1, F.municipal_body, F.action_kind, F.physical_change, F.housing_use, F.units_effect],
+               parts=[X.X1, F.proceeding, F.physical_change, F.housing_use, F.units_effect],
                examples=[
                    example('How many dockets were studied, how many are in scope, and how many failed?', """
                        SELECT status, in_scope, count(*) AS dockets FROM dockets GROUP BY ALL ORDER BY ALL"""),
-                   example('Why are dockets out of scope? (the kind of municipal action, among complete dockets)', """
-                       SELECT action_kind, count(*) AS dockets FROM dockets
+                   example('What are the out-of-scope dockets? (the kind of proceeding, among complete dockets)', """
+                       SELECT proceeding, count(*) AS dockets FROM dockets
                        WHERE status = 'complete' AND NOT in_scope GROUP BY 1 ORDER BY 2 DESC""")])
 
 which = Answer('answer_A', 'A', title='Which decisions get appealed',

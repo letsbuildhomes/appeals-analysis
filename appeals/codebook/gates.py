@@ -2,14 +2,15 @@
 
 Threshold values live in config.toml under [thresholds].
 """
-from appeals.codebook.questions import A4, A5, A6, C1, C2, C3, D1, D2, F1, F2, F3, F5, S1, S2, S3, S4, S5
+from appeals.codebook.questions import A4, A5, A6, C1, C2, C3, D1, D2, F1, F2, F3, F5, S1, S2, S3, S4
 from appeals.graph.expr import Max, T
 from appeals.graph.nodes import Gate
 
-# Probability that the docket is a municipal appeal about new housing, from S1–S5.
-IN_SCOPE = (S1.p('yes') * S2.p('application for permission') * S4.p('yes')
-            * (1 - S3.p('authorize something already built') - S3.p('no physical change'))
-            * Max(S5.p('adds') + S5.p('replaces'), S3.p('create building lots')))
+# Probability that the docket is a municipal appeal about new housing, from S1–S4.
+IN_SCOPE = ((S1.p('municipal permit application') + S1.p('several, including a municipal permit application'))
+            * S3.p('yes')
+            * (1 - S2.p('authorize something already built') - S2.p('no physical change'))
+            * Max(S4.p('adds') + S4.p('replaces'), S2.p('create building lots')))
 
 scope = Gate('scope', 'scope', title='In scope',
     when=IN_SCOPE >= T.scope_high,

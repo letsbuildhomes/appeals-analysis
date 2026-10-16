@@ -13,25 +13,34 @@ NS = 'The documents do not establish it.'
 # ---- Scope ---------------------------------------------------------------------------
 
 S1 = Question('S1', 'scope',
-    ask='Is the decision being appealed in this docket a decision of a municipal body or officer, such as a town '
-        'development review board, planning commission, zoning board of adjustment or zoning administrator?',
-    options={'yes': 'The appealed decision was made by a municipal body or officer.',
-             'no': 'The appealed decision was made by someone else, such as a state agency or an Act 250 commission, '
-                   'or the proceeding is not an appeal of a decision.',
+    ask='What kind of proceeding is this docket? Answer for the decision appealed in this docket.',
+    options={'municipal permit application': 'An appeal of a decision by a municipal body or officer (such as a '
+                 'development review board, planning commission, zoning board of adjustment or zoning '
+                 'administrator) on an application for a permit or approval, such as a zoning permit, '
+                 'subdivision, site plan or conditional use approval.',
+             'several, including a municipal permit application': 'The docket covers more than one decision, and one '
+                 'of them is a municipal decision on a permit application, such as a municipal appeal heard together '
+                 'with an Act 250 or state permit appeal of the same project.',
+             'municipal enforcement': 'A municipal notice of violation, enforcement action, or decision whether to '
+                 'enforce.',
+             'municipal bylaw or policy': 'The adoption or validity of a municipal bylaw, ordinance, plan or policy.',
+             'other municipal decision': 'Another decision of a municipal body or officer.',
+             'Act 250 permit': 'An Act 250 land use permit decision by a District Commission or the District '
+                 'Coordinator.',
+             'ANR stormwater permit': 'A stormwater permit decision by the Agency of Natural Resources (Department of '
+                 'Environmental Conservation).',
+             'ANR wastewater permit': 'A wastewater system or potable water supply permit decision by the Agency of '
+                 'Natural Resources (Department of Environmental Conservation).',
+             'other state permit or decision': 'Another permit or decision of a state agency, such as a wetland or '
+                 'water quality permit.',
+             'state enforcement': 'An enforcement action or order brought by a state agency or the Natural Resources '
+                 'Board.',
+             'other': 'Something else, including a proceeding that is not an appeal of a decision.',
              NOT_STATED: NS},
-    why='The study covers appeals of town land-use decisions only.')
+    why='The study covers appeals of municipal decisions on applications for permission. The other kinds show what '
+        'the rest of the court\'s docket is, and the stormwater and wastewater permits are of separate interest.')
 
 S2 = Question('S2', 'scope',
-    ask='What kind of municipal action is under appeal in this docket?',
-    options={'application for permission': 'A decision on an application for a permit or approval, such as a '
-                                           'zoning permit, subdivision, site plan or conditional use approval.',
-             'enforcement or violation notice': 'A notice of violation, an enforcement action, or a decision whether '
-                                                'to enforce.',
-             'bylaw or policy': 'The adoption or validity of a bylaw, ordinance, plan or policy.',
-             'other': 'Something else.'},
-    why='Only decisions on applications for permission can concern new housing being built.')
-
-S3 = Question('S3', 'scope',
     ask='Physically, what would the permission at issue allow?',
     options={'build a new structure': 'Constructing a new building or structure.',
              'place a structure': 'Placing a structure, such as a mobile home.',
@@ -42,14 +51,14 @@ S3 = Question('S3', 'scope',
              NOT_STATED: NS},
     why='Scope comes from what would be built, placed, converted or subdivided.')
 
-S4 = Question('S4', 'scope',
+S3 = Question('S3', 'scope',
     ask='Will the structure, building or lots at issue be used for housing (dwelling units where people live)?',
     options={'yes': 'The documents say the structure or lots are for housing.',
              'no': 'The use is not housing, such as commercial, industrial or accessory use.',
              NOT_STATED: NS},
     why='New housing must be explicit in the documents.')
 
-S5 = Question('S5', 'scope',
+S4 = Question('S4', 'scope',
     ask='Does the project add dwelling units, replace existing dwelling units one for one, or neither?',
     options={'adds': 'It adds one or more dwelling units.',
              'replaces': 'It replaces existing dwelling units, such as rebuilding a house or replacing a mobile home.',
@@ -239,5 +248,5 @@ F5 = Question('F5', 'F',
     why='Design changes the court imposed, short of denial.')
 
 
-ALL = [S1, S2, S3, S4, S5, A1, A3, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, C5, D1, D2, D3, D4, D5,
+ALL = [S1, S2, S3, S4, A1, A3, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, C5, D1, D2, D3, D4, D5,
        F1, F2, F3, F5]

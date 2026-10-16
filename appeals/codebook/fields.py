@@ -27,17 +27,17 @@ def docket_number_filing(number):
 
 
 # ---- Scope ---------------------------------------------------------------------------
-municipal_body = Field('municipal_body', 'scope', code='S1', label='Appeal of a municipal body or officer',
-                       type=_choice(Q.S1), scan=Q.S1, step=L.L1a, path='S1')
-action_kind = Field('action_kind', 'scope', code='S2', label='Kind of municipal action',
-                    type=_choice(Q.S2), scan=Q.S2, step=L.L1b, path='S2')
-physical_change = Field('physical_change', 'scope', code='S3', label='What the permission allows',
-                        type=_choice(Q.S3), scan=Q.S3, step=L.L1c, path='S3',
+proceeding = Field('proceeding', 'scope', code='S1', label='Kind of proceeding',
+                   type=_choice(Q.S1), scan=Q.S1, step=L.L1a, path='S1',
+                   notes=['Answered for every docket, so out-of-scope dockets say what they are.',
+                          '"Several, including a municipal permit application" counts as in scope.'])
+physical_change = Field('physical_change', 'scope', code='S2', label='What the permission allows',
+                        type=_choice(Q.S2), scan=Q.S2, step=L.L1b, path='S2',
                         notes=["'Authorize something already built' (after-the-fact permits) and 'no physical change' are out of scope."])
-housing_use = Field('housing_use', 'scope', code='S4', label='Used for housing',
-                    type=_choice(Q.S4), scan=Q.S4, step=L.L1d, path='S4')
-units_effect = Field('units_effect', 'scope', code='S5', label='Adds or replaces units',
-                     type=_choice(Q.S5), scan=Q.S5, step=L.L1e, path='S5')
+housing_use = Field('housing_use', 'scope', code='S3', label='Used for housing',
+                    type=_choice(Q.S3), scan=Q.S3, step=L.L1c, path='S3')
+units_effect = Field('units_effect', 'scope', code='S4', label='Adds or replaces units',
+                     type=_choice(Q.S4), scan=Q.S4, step=L.L1d, path='S4')
 
 # ---- A · Which decisions -----------------------------------------------------------------
 filing_date = Field('filing_date', 'A', code='A1', label='Filing date', type=DateValue(),
@@ -136,7 +136,7 @@ design_change = Field('design_change', 'F', code='F5', label='The size or design
                       step=L.L11b, path='description',
                       notes=['Free text from the reasoning model, describing the change; never scored.'])
 
-ALL = [municipal_body, action_kind, physical_change, housing_use, units_effect,
+ALL = [proceeding, physical_change, housing_use, units_effect,
        filing_date, earliest_event, docket_filing, municipality, units_added_proposed, appeal_partial,
        units_added_under_appeal, housing_lots, permission_kinds,
        town_decision, appellants_named, appellants, appellant_lawyers,

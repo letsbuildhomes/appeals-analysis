@@ -11,7 +11,7 @@ the scan's answer.
 import re
 
 from appeals.codebook import gates as G
-from appeals.codebook.questions import NOT_STATED, A7, B1, C5, D3, D4, D5, S1, S2, S3, S4, S5
+from appeals.codebook.questions import NOT_STATED, A7, B1, C5, D3, D4, D5, S1, S2, S3, S4
 from appeals.graph.expr import If, T
 from appeals.graph.expr import StepAnswer as A
 from appeals.graph.nodes import Base, Step
@@ -57,34 +57,31 @@ Decide from the documents. {question} {QUOTE_IT}"""}
 
 # ---- Scope: one chain, halting as soon as the docket is out ------------------------------
 
-L1a = Step('L1a', 'scope', title='Scope: municipal decision', when=G.scope_check,
+MUNICIPAL_PERMIT = ['municipal permit application', 'several, including a municipal permit application']
+
+L1a = Step('L1a', 'scope', title='Scope: kind of proceeding', when=G.scope_check,
     prompt=f"""The decision model was unsure whether this docket is a municipal appeal about new housing.
 {{S1}}
 {QUOTE_IT}""",
-    returns=Record(S1=_choice(S1)), halt_unless=A('L1a', 'S1').is_('yes'), confirms=['S1'])
+    returns=Record(S1=_choice(S1)), halt_unless=A('L1a', 'S1').in_(MUNICIPAL_PERMIT), confirms=['S1'])
 
-L1b = Step('L1b', 'scope', title='Scope: kind of action', when=G.scope_check, after=L1a,
+L1b = Step('L1b', 'scope', title='Scope: physical change', when=G.scope_check, after=L1a,
     prompt=f"""{{S2}}
 {QUOTE_IT}""",
-    returns=Record(S2=_choice(S2)), halt_unless=A('L1b', 'S2').is_('application for permission'), confirms=['S2'])
+    returns=Record(S2=_choice(S2)),
+    halt_unless=~A('L1b', 'S2').in_(['authorize something already built', 'no physical change']), confirms=['S2'])
 
-L1c = Step('L1c', 'scope', title='Scope: physical change', when=G.scope_check, after=L1b,
+L1c = Step('L1c', 'scope', title='Scope: housing use', when=G.scope_check, after=L1b,
     prompt=f"""{{S3}}
 {QUOTE_IT}""",
-    returns=Record(S3=_choice(S3)),
-    halt_unless=~A('L1c', 'S3').in_(['authorize something already built', 'no physical change']), confirms=['S3'])
+    returns=Record(S3=_choice(S3)), halt_unless=A('L1c', 'S3').is_('yes'), confirms=['S3'])
 
-L1d = Step('L1d', 'scope', title='Scope: housing use', when=G.scope_check, after=L1c,
+L1d = Step('L1d', 'scope', title='Scope: dwelling units', when=G.scope_check, after=L1c,
     prompt=f"""{{S4}}
 {QUOTE_IT}""",
-    returns=Record(S4=_choice(S4)), halt_unless=A('L1d', 'S4').is_('yes'), confirms=['S4'])
-
-L1e = Step('L1e', 'scope', title='Scope: dwelling units', when=G.scope_check, after=L1d,
-    prompt=f"""{{S5}}
-{QUOTE_IT}""",
-    returns=Record(S5=_choice(S5)),
-    halt_unless=A('L1e', 'S5').in_(['adds', 'replaces']) | A('L1c', 'S3').is_('create building lots'),
-    confirms=['S5'])
+    returns=Record(S4=_choice(S4)),
+    halt_unless=A('L1d', 'S4').in_(['adds', 'replaces']) | A('L1b', 'S2').is_('create building lots'),
+    confirms=['S4'])
 
 
 # ---- A · Filing date ---------------------------------------------------------------------
@@ -306,7 +303,7 @@ L11b = Step('L11b', 'F', title='The size or design change', when=G.design, after
     returns=Record(description=Quoted(Text())), confirms=[])
 
 
-ORDER = [L1a, L1b, L1c, L1d, L1e,
+ORDER = [L1a, L1b, L1c, L1d,
          L2a, L2b,
          L3, *KINDS.values(),
          L4a, L4b,

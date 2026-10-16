@@ -14,8 +14,7 @@ from appeals.graph.values import (NOT_STATED, Boolean, Count, CountsBy, DateValu
 
 
 def in_scope(v):
-    return (v['municipal_body'] == 'yes'
-            and v['action_kind'] == 'application for permission'
+    return (v['proceeding'] in L.MUNICIPAL_PERMIT
             and v['housing_use'] == 'yes'
             and v['physical_change'] not in ('authorize something already built', 'no physical change')
             and (v['units_effect'] in ('adds', 'replaces') or v['physical_change'] == 'create building lots'))
@@ -113,8 +112,8 @@ def appellant_mix(v):
 
 
 X1 = Derive('in_scope', 'scope', code='X1', label='In scope', type=Boolean(),
-            inputs=[F.municipal_body, F.action_kind, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
-            notes=["True only for an appeal of a municipal body's decision on an application for permission, for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change."])
+            inputs=[F.proceeding, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
+            notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change."])
 X2 = Derive('court_changed_outcome', 'D', code='X2', label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
             inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome,
             notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".'])
