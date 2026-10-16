@@ -142,6 +142,9 @@ def cmd_score(args):
 
 
 def cmd_serve(args):
+    if args.reload:
+        from appeals.web import reload
+        return reload.run(['serve', '--host', args.host, '--port', str(args.port), '--no-reload'])
     from appeals.web.server import serve
     serve(_settings(args), host=args.host, port=args.port)
 
@@ -284,6 +287,8 @@ def main(argv=None):
     p = add('serve', cmd_serve, 'serve the dashboard')
     p.add_argument('--host', default='0.0.0.0')
     p.add_argument('--port', type=int, default=8800)
+    p.add_argument('--no-reload', dest='reload', action='store_false',
+                   help='don\'t restart when the code changes (it does by default)')
     p = add('release', cmd_release, 'build a release from a finished run')
     p.add_argument('run', help='the run ID')
     p.add_argument('--test', action='store_true', help='allow a scratch, fake-model or unfinished run')

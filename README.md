@@ -193,7 +193,7 @@ make run MODEL=fake LIMIT=40          # try the graph with made-up answers: no A
 make run MODEL=live DOCKETS="a,b" TAG=scratch   # real calls, tagged; keys from .env (see .env.example)
 make runs [TAG=scratch]                          # list runs
 make delete-runs TAG=scratch          # or RUN_ID=<id>; also deletes stored results no other run uses
-make serve            # dashboard on port 8800
+make serve            # dashboard on port 8800; restarts itself when the code changes
 make release RUN_ID=<id>              # freeze a finished run into a release
 make publish RELEASE=<id>             # make it the one the public site serves
 make site                             # public site and MCP server on 0.0.0.0:8000 (SITE_HOST, SITE_PORT)

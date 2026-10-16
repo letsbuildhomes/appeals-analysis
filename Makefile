@@ -56,7 +56,7 @@ delete-runs:     ## delete runs and results no other run uses: make delete-runs 
 score:           ## compare a run with the reference answers: make score RUN_ID=<id>
 	$(RUN) appeals score $(RUN_ID)
 
-serve:           ## serve the dashboard on 0.0.0.0:$(PORT)
+serve:           ## serve the dashboard on 0.0.0.0:$(PORT); restarts itself when the code changes
 	$(RUN) appeals serve --port $(PORT)
 
 release:         ## build a release from a finished run: make release RUN_ID=<id> [TAG=preview]
