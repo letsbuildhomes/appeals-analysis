@@ -63,8 +63,12 @@ permission_kinds = Field('permission_kinds', 'A', code='A7', label='Kinds of per
 
 # ---- B · Who appeals ---------------------------------------------------------------------
 town_decision = Field('town_decision', 'B', code='B1', label='Town\'s decision', type=_choice(Q.B1),
-                      scan=Q.B1, step=L.L3, path='decision',
+                      scan=Q.B1, step=L.L3a, path='decision',
                       notes=['One answer for the whole decision: the outcomes are exclusive. A deemed approval counts as approved.'])
+town_decision_date = Field('town_decision_date', 'B', code='B1', label='Date of the town\'s decision',
+                           type=DateValue(), step=L.L3b, path='decision_date',
+                           notes=['The date of the municipal decision appealed in this docket; the written decision\'s date when the vote and the written decision differ.',
+                                  'Starts the duration when no exact filing date is stated (X4).'])
 appellants_named = Field('appellants_named', 'B', code='B2', label='All appellants named', type=_choice(Q.B2),
                          scan=Q.B2)
 appellants = Field('appellants', 'B', code='B3', label='Appellants', type=ListOf(L.APPELLANT, not_stated=True),
@@ -139,7 +143,7 @@ design_change = Field('design_change', 'F', code='F5', label='The size or design
 ALL = [proceeding, physical_change, housing_use, units_effect,
        filing_date, earliest_event, docket_filing, municipality, units_added_proposed, appeal_partial,
        units_added_under_appeal, housing_lots, permission_kinds,
-       town_decision, appellants_named, appellants, appellant_lawyers,
+       town_decision, town_decision_date, appellants_named, appellants, appellant_lawyers,
        units_added_town_approved,
        arguments_stated, disputes_application, challenges_validity, principal_issue, issues_raised,
        review_standard, final_decision, how_ended, court_result, dismissal_basis,

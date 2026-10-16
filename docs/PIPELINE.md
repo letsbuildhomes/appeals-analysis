@@ -17,7 +17,7 @@ is not extracted.
 | B | Who appeals, and against what: whether the town approved or denied, who the appellants are, and whether they had lawyers | B1–B5 → X6 |
 | C | On what grounds: whether the appeal turns on judgment-based standards, and which issues were raised | C1–C5 |
 | D | What the court does: how it heard the appeal, and how the docket ended | D1–D5 → X2 |
-| E | How long: days from the appeal's filing to the court's first decision that leaves nothing pending | A1/A2, E1/E2 → X4 |
+| E | How long: days from the appeal's filing (or the town's decision, when no filing date is stated) to the court's first decision that leaves nothing pending | A1/A2, B1 date, E1/E2 → X4 |
 | F | What the appeal cost the housing: stays, unit changes and design changes the court imposed, and where permission ended up | F1–F5 → X3, X5 |
 
 Out of scope by decision:
@@ -214,7 +214,7 @@ not part of S1: one decision often grants several, so it is asked as a set
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| B1 | What did the municipal decision appealed to this court decide? When several municipal bodies decided in turn, the last one. | approved · approved with conditions · approved in part (and denied in part) · denied · not stated | Scan (Choice); confirmed by L3 | X2, X5, B |
+| B1 | What did the municipal decision appealed to this court decide? When several municipal bodies decided in turn, the last one. And its date. | approved · approved with conditions · approved in part (and denied in part) · denied · not stated → date + precision | Scan (Choice); confirmed by L3a; date from L3b | X2, X4, X5, B |
 | B2 | Are all appellants named, rather than "X, et al."? | yes · no | Scan (Choice); context for L4 | X6 |
 | B3 | For each appellant: who are they? | applicant or owner · individual neighbor · group of neighbors · other organization · municipality · state agency · other · not stated | L4 (LLM value) | X6 |
 | B4 | For each appellant: were they represented? | represented by a lawyer · self-represented · not stated | L4 (LLM value) | X6 |
@@ -316,7 +316,8 @@ scope, the remaining steps are skipped.
 | L1a–d Scope | scope borderline | — | S1, S2, S3, S4, one at a time; each halts the docket when it rules scope out | the scope step before it |
 | L2a Filing date | — | — | the filing date as a document states it | — |
 | L2b Earliest event | — | L2a not stated | the earliest dated event showing the appeal existed | L2a |
-| L3 Town decision | — | — | B1 | — |
+| L3a Town decision | — | — | B1 | — |
+| L3b Town decision date | — | — | the date of that decision (the written decision's, when the vote differs) | L3a |
 | L3 per kind | — | that A7 kind flagged | whether that kind of permission is at issue | — |
 | L4a Appellants | — | — | each appellant's name and role (B2 says whether the list can be complete) | — |
 | L4b Lawyers | — | — | for each appellant, represented or self-represented | L4a |
@@ -355,7 +356,7 @@ and D5 unless it was dismissed.
 | X1 | In scope | S1–S4 (L1's answers when it ran) |
 | X2 | Whether the court ended somewhere different from the town | D3, D4 and F2, against B1 |
 | X3 | Change in units added: against the town (F4 − B5) and against the application (F4 − A4, or A5 when the appeal covered only part); F2 and F3 give the direction when counts aren't stated | A4, A5, B5, F2, F3, F4 |
-| X4 | Duration in days, exact or at least, with each end recorded as closed or open (see the rulings above). Start: A1 when stated to the day, else the earliest of the latest possible days of A1, A2 and the docket number. End: E1's earliest possible day, else E2's | A1, A2, E1, E2 |
+| X4 | Duration in days, exact or at least, with each end recorded as closed or open and whether it is inferred. Start: A1 when stated to the day; else the town's decision (B1's date) when stated to the day and not after the latest possible filing day, as a closed start marked inferred; else the earliest of the latest possible days of A1, A2 and the docket number. End: E1's earliest possible day, else E2's | A1, A2, B1 date, E1, E2 |
 | X5 | Last observed permission: the court's result, or else the town's decision | D4, B1 |
 | X6 | Appellant mix, folding groups of neighbors into neighbors; the count is unknown when B2 is no | B2–B4 |
 

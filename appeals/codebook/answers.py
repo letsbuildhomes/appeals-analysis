@@ -41,7 +41,7 @@ which = Answer('answer_A', 'A', title='Which decisions get appealed',
 
 who = Answer('answer_B', 'B', title='Who appeals, and against what',
              question='Whether the town approved or denied, who the appellants are, whether they had lawyers.',
-             parts=[F.town_decision, X.X6, F.appellants_named,
+             parts=[F.town_decision, F.town_decision_date, X.X6, F.appellants_named,
                     F.appellants, F.appellant_lawyers, F.units_added_town_approved],
              examples=[
                  example('Who appeals which town decisions? (appeals with at least one neighbor appellant)', """
@@ -80,7 +80,7 @@ court = Answer('answer_D', 'D', title='What the court does',
                        WHERE c.source = 'step' GROUP BY 1 ORDER BY 2 DESC""")])
 
 how_long = Answer('answer_E', 'E', title='How long',
-                  question='Days from filing to the court\'s first decision that leaves nothing pending.',
+                  question='Days from filing (or the town\'s decision, when no filing date is stated) to the court\'s first decision that leaves nothing pending.',
                   parts=[X.X4, F.final_decision_date, F.latest_order_date],
                   examples=[
                       example('How long do appeals take? (median days by filing year; exact durations and lower '

@@ -103,10 +103,16 @@ The municipal decision under appeal does not count, since it came before the app
 
 # ---- B · The town's decision, then the kinds of permission at issue ----------------------
 
-L3 = Step('L3', 'B', title='Town\'s decision',
+L3a = Step('L3a', 'B', title='Town\'s decision',
     prompt=f"""{{B1}}
 {QUOTE_IT}""",
     returns=Record(decision=_choice(B1)), confirms=['B1'])
+
+L3b = Step('L3b', 'B', title='Date of the town\'s decision', after=L3a,
+    prompt="""Give the date of that municipal decision, the one appealed in this docket, as precisely as stated
+(YYYY-MM-DD, YYYY-MM or YYYY), with a quote. When the documents give both the date the body voted and the date
+it issued its written decision, give the written decision's date. If no document dates it, answer "not stated".""",
+    returns=Record(decision_date=Quoted(DateValue())), confirms=[])
 
 KINDS = {key: Step(f'L3_{_slug(key)}', 'A', title=f'Permission: {key}',
     only_if=A7.p(key) >= T.check, choose=_bucket(A7.p(key)),
@@ -305,7 +311,7 @@ L11b = Step('L11b', 'F', title='The size or design change', when=G.design, after
 
 ORDER = [L1a, L1b, L1c, L1d,
          L2a, L2b,
-         L3, *KINDS.values(),
+         L3a, L3b, *KINDS.values(),
          L4a, L4b,
          L5a, L5b, L5c, L5d, L5e, L5f,
          L6a, L6b, L6c, L6d, L6e, L6f,

@@ -99,7 +99,7 @@ def test_plan_skips_gated_steps():
     assert plan['proceeds'] is True
     runs = {s['step']: s['runs'] for s in plan['steps']}
     assert runs['L1a'] is False          # scope confidently in: no scope check
-    assert runs['L2a'] and runs['L3'] and runs['L4a']
+    assert runs['L2a'] and runs['L3a'] and runs['L3b'] and runs['L4a']
     depends = {s['step'] for s in plan['steps'] if s.get('depends')}
     assert {'L2b', 'L5b', 'L5e', 'L5f'} <= depends          # decided by earlier answers, when the docket runs
 
@@ -195,7 +195,8 @@ def test_set_items_come_from_their_own_steps():
 
 def _duration(**dates):
     from appeals.codebook.derived import duration
-    names = ('filing_date', 'earliest_event', 'docket_filing', 'final_decision_date', 'latest_order_date')
+    names = ('filing_date', 'earliest_event', 'docket_filing', 'town_decision_date', 'final_decision_date',
+             'latest_order_date')
     return duration({name: dates.get(name, NOT_STATED) for name in names})
 
 
@@ -204,7 +205,7 @@ def test_duration_uses_the_latest_possible_start_and_marks_open_bounds():
     assert exact['kind'] == 'exact' and exact['days'] == 192
     year_only = _duration(docket_filing='2015', final_decision_date='2016-03-01')
     assert year_only['kind'] == 'at least' and year_only['days'] == 61          # from 2015-12-31
-    assert year_only['start'] == {'date': '2015-12-31', 'bound': 'open', 'from': 'docket_filing'}
+    assert year_only['start'] == {'date': '2015-12-31', 'bound': 'open', 'from': 'docket_filing', 'inferred': False}
     assert _duration(docket_filing='2015', final_decision_date='2015-09-10')['kind'] == 'unknown'
     open_end = _duration(filing_date='2015-03-02', latest_order_date='2015-04-01')
     assert open_end['kind'] == 'at least' and open_end['end']['bound'] == 'open'
@@ -213,6 +214,19 @@ def test_duration_uses_the_latest_possible_start_and_marks_open_bounds():
 def test_duration_takes_the_tightest_of_several_open_starts():
     d = _duration(earliest_event='2018-12-04', docket_filing='2018-11', final_decision_date='2019-05-31')
     assert d['start']['date'] == '2018-11-30' and d['days'] == 182
+
+
+def test_duration_starts_at_the_town_decision_when_no_exact_filing_date():
+    tuggle = _duration(earliest_event='2019-05-31', docket_filing='2018-11', town_decision_date='2018-10-11',
+                       final_decision_date='2019-05-31')
+    assert tuggle['kind'] == 'exact' and tuggle['days'] == 232
+    assert tuggle['start'] == {'date': '2018-10-11', 'bound': 'closed', 'from': 'town_decision_date', 'inferred': True}
+    filed = _duration(filing_date='2018-11-05', town_decision_date='2018-10-11', final_decision_date='2019-05-31')
+    assert filed['start']['from'] == 'filing_date' and not filed['start']['inferred']
+    month_only = _duration(docket_filing='2018-11', town_decision_date='2018-10', final_decision_date='2019-05-31')
+    assert month_only['start']['from'] == 'docket_filing'                    # a town decision to the month isn't used
+    too_late = _duration(docket_filing='2018-11', town_decision_date='2019-01-15', final_decision_date='2019-05-31')
+    assert too_late['start']['from'] == 'docket_filing'                       # after the filing: not this appeal's decision
 
 
 def test_flagged_items_get_a_prompt_for_how_sure_the_scan_was():

@@ -58,13 +58,19 @@ def date_range(value):
 def duration(v):
     """Days from filing to the end of the case, exact or at least.
 
-    Every start is the latest day the appeal could have been filed. A filing date stated to the
-    day is a closed start. A month or year, the earliest dated event and the docket number's
-    month or year only bound the filing from above, so they are open starts, and the earliest
-    of them is used. The end is the first day the first final decision could fall on: closed
-    when stated to the day. Without a final decision, the latest order is an open end, since
-    the case went on. Any open end makes the duration "at least"; a start on or after the end
-    leaves it unknown.
+    The start, in order of preference:
+    1. A filing date stated to the day: closed.
+    2. The town's decision, stated to the day: closed, and marked inferred. The appeal can't
+       be filed before it, and the permit is in doubt from then on, so it stands in for the
+       filing; it lengthens the duration by the days until the appeal was filed. It is not
+       used when it falls after the latest day the appeal could have been filed.
+    3. Otherwise the latest day the appeal could have been filed: a filing month or year,
+       the earliest dated event and the docket number's month or year bound the filing from
+       above, so they are open starts, and the earliest of them is used.
+    The end is the first day the first final decision could fall on: closed when stated to
+    the day. Without a final decision, the latest order is an open end, since the case went
+    on. Any open end makes the duration "at least"; a start on or after the end leaves it
+    unknown.
     """
     starts = []
     for name in ('filing_date', 'earliest_event', 'docket_filing'):
@@ -72,16 +78,24 @@ def duration(v):
         if known:
             first, last, one_day = known
             starts.append({'date': last.isoformat(), 'bound': 'closed' if name == 'filing_date' and one_day else 'open',
-                           'from': name})
+                           'from': name, 'inferred': False})
     closed = [s for s in starts if s['bound'] == 'closed']
-    start = closed[0] if closed else min(starts, key=lambda s: s['date'], default=None)
+    latest = min((s['date'] for s in starts), default=None)
+    town = date_range(v['town_decision_date'])
+    if closed:
+        start = closed[0]
+    elif town and town[2] and (latest is None or town[0].isoformat() <= latest):
+        start = {'date': town[0].isoformat(), 'bound': 'closed', 'from': 'town_decision_date', 'inferred': True}
+    else:
+        start = min(starts, key=lambda s: s['date'], default=None)
     end = None
     for name in ('final_decision_date', 'latest_order_date'):
         known = date_range(v[name])
         if known:
             first, last, one_day = known
             end = {'date': first.isoformat(),
-                   'bound': 'closed' if name == 'final_decision_date' and one_day else 'open', 'from': name}
+                   'bound': 'closed' if name == 'final_decision_date' and one_day else 'open', 'from': name,
+                   'inferred': False}
             break
     if start is None or end is None or end['date'] <= start['date']:
         return {'kind': 'unknown', 'days': NOT_STATED, 'start': start or NOT_STATED, 'end': end or NOT_STATED}
@@ -124,7 +138,8 @@ X3 = Derive('unit_change', 'F', code='X3', label='Change in units added',
                     F.units_added_under_appeal, F.units_vs_town, F.units_vs_application], fn=unit_change,
             notes=['Measured two ways: against what the town approved (vs_town) and against what the application proposed, or the part under appeal (vs_application). Positive means the court allowed more units.',
                    "The directions come from the scan and stand in when the counts aren't stated."])
-DATE_BOUND = Record(date=DateValue(), bound=OneOf({'closed': 'Exact.', 'open': 'A bound only.'}), **{'from': Text()})
+DATE_BOUND = Record(date=DateValue(), bound=OneOf({'closed': 'Exact.', 'open': 'A bound only.'}), **{'from': Text()},
+                    inferred=Boolean())
 X4 = Derive('duration', 'E', code='X4', label='Duration in days',
             type=Record(kind=OneOf({'exact': 'Both ends are exact dates.',
                                    'at least': 'An end is only a bound, so the case lasted at least this many days.',
@@ -132,11 +147,13 @@ X4 = Derive('duration', 'E', code='X4', label='Duration in days',
                                   not_stated=False),
                         days=Count(),
                         start=OrNotStated(DATE_BOUND), end=OrNotStated(DATE_BOUND)),
-            inputs=[F.filing_date, F.earliest_event, F.docket_filing, F.final_decision_date, F.latest_order_date],
+            inputs=[F.filing_date, F.earliest_event, F.docket_filing, F.town_decision_date,
+                    F.final_decision_date, F.latest_order_date],
             fn=duration,
             notes=['A duration is exact or a lower bound ("at least"). Keep them apart: averaging the two together understates durations.',
                    'A month or year counts as its latest possible day at the start and its earliest possible day at the end. The duration is unknown when an end is missing or the start is not before the end.',
-                   'The end is never extended to today.'])
+                   'The end is never extended to today.',
+                   "Without a filing date stated to the day, the duration starts at the town's decision when that is dated to the day: a closed start marked inferred (start.inferred). It lengthens the duration by the days until the appeal was filed, usually under 30, the appeal period. It is used even when the appeal was dismissed as untimely, since the permit was in doubt from the town's decision; filter on dismissal_basis to leave those out."])
 X5 = Derive('last_permission', 'F', code='X5', label='Last observed permission',
             type=OneOf({'allowed': 'The project may go ahead as proposed.',
                         'allowed with conditions': 'The project may go ahead with conditions.',
