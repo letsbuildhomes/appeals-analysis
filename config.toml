@@ -1,6 +1,7 @@
-# Settings for the pipeline. No secrets here: each endpoint names the
-# environment variable its key is read from (set it in .env or the shell).
-# Command-line options override these values.
+# Settings for the pipeline. Command-line options override these values.
+# Each model is named "provider/model". The provider's address, the environment
+# variable its key is read from (set it in .env or the shell), its rate limits
+# and its prices are in providers/<provider>.json.
 
 [paths]
 data = "data"                              # store, PDFs and listing snapshots
@@ -12,58 +13,15 @@ pause_seconds = 2.0
 
 # The decision model answers closed questions with probabilities.
 [decision]
-format = "typesafe"
-base_url = "https://api.typesafe.ai/v1"
-model = "jev-1.14.0"
-key_env = "TYPESAFE_API_KEY"
-concurrent = 16
-per_minute = 600
-input_per_mtok = 0.042
+model = "typesafe/jev-1.14.0"
 long_context_tokens = 30000                # dockets over this many estimated tokens use long-context mode
 
 # The reasoning model answers each step's question as JSON.
-# format is "anthropic" (Messages API) or "openai" (Chat Completions); any
-# compatible provider works with its own base_url.
 [reasoning]
-format = "openai"
-base_url = "https://api.deepseek.com"
-model = "deepseek-flash"
-key_env = "OPENAI_API_KEY"
-concurrent = 32
-per_minute = 1000
+model = "deepseek/deepseek-flash"
 max_output_tokens = 16000                  # includes a thinking model's hidden reasoning
 json_repairs = 2                           # times a malformed reply is sent back for correction
 truncation_retries = 2                     # times a reply cut off at max_output_tokens is sent again unchanged
-# Prices in dollars per million tokens, from https://api-docs.deepseek.com/quick_start/pricing
-# (checked 2026-10-16). These are the peak prices; [reasoning.off_peak] below has the rest.
-# A cache write is billed as an ordinary cache-miss input token.
-input_per_mtok = 0.30
-output_per_mtok = 1.20
-cache_read_per_mtok = 0.006
-cache_write_per_mtok = 0.0
-
-# DeepSeek: "Peak hours are 01:00 - 04:00 and 06:00 - 10:00 UTC, Monday through Friday, excluding
-# Chinese public holidays. All other hours are off-peak, including weekends and Chinese public
-# holidays in full." Each call is priced by the time it was sent. Make-up working days that fall
-# on a weekend count as off-peak, since the rule names Monday to Friday.
-# Add each year's holidays when the State Council publishes them (usually in November);
-# `make doctor` warns when the current year is missing, and missing days are priced as peak.
-[reasoning.off_peak]
-input_per_mtok = 0.15
-output_per_mtok = 0.60
-cache_read_per_mtok = 0.003
-cache_write_per_mtok = 0.0
-peak_hours_utc = [[1, 4], [6, 10]]
-peak_weekdays = [1, 2, 3, 4, 5]            # ISO weekdays: Monday is 1
-holidays = [                               # 2026 State Council calendar
-  2026-01-01, 2026-01-02, 2026-01-03,
-  2026-02-15, 2026-02-16, 2026-02-17, 2026-02-18, 2026-02-19, 2026-02-20, 2026-02-21, 2026-02-22, 2026-02-23,
-  2026-04-04, 2026-04-05, 2026-04-06,
-  2026-05-01, 2026-05-02, 2026-05-03, 2026-05-04, 2026-05-05,
-  2026-06-19, 2026-06-20, 2026-06-21,
-  2026-09-25, 2026-09-26, 2026-09-27,
-  2026-10-01, 2026-10-02, 2026-10-03, 2026-10-04, 2026-10-05, 2026-10-06, 2026-10-07,
-]
 
 [run]
 workers = 24

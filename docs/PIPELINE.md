@@ -354,8 +354,8 @@ and D5 unless it was dismissed.
 - The thresholds for each gate, and the scope gate's high and low thresholds.
 - The long-context threshold, in measured tokens.
 - The reasoning model. DeepSeek Flash is in use for now; others will be
-  tried, and any endpoint of the Anthropic or OpenAI format can be swapped in
-  through `config.toml`.
+  tried: any model reached through the Anthropic or OpenAI API can be added
+  as a file in `providers/` and chosen in `config.toml`.
 - A spending limit for development runs.
 - The reference set: dockets labeled as answers to these question IDs.
   Thresholds are tuned against it.

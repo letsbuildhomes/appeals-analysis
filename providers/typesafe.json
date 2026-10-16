@@ -1,0 +1,12 @@
+{
+  "kind": "typesafe",
+  "api": "typesafe",
+  "base_url": "https://api.typesafe.ai/v1",
+  "key_env": "TYPESAFE_API_KEY",
+  "concurrent": 16,
+  "per_minute": 600,
+  "notes": "Prices are dollars per million input tokens; output is not billed.",
+  "models": {
+    "jev-1.14.0": {"input": 0.042}
+  }
+}

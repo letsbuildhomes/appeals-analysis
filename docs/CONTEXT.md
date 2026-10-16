@@ -156,7 +156,8 @@ reproduction) solved problems this rewrite deliberately doesn't have.
   of finished results (output snapshots, an MCP server for querying them,
   and a public data dashboard) uses DuckDB, and is designed separately.
 - **The reasoning model is not fixed.** DeepSeek Flash is in use for now;
-  others will be tried through `config.toml`.
+  others will be tried by adding them in `providers/` and choosing them in
+  `config.toml`.
 
 ## Open decisions
 

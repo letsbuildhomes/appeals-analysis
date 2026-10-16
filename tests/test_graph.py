@@ -3,13 +3,14 @@ import asyncio
 import pytest
 
 from appeals.codebook import build
-from appeals.config import Endpoint
+from appeals.config import Reasoning
 from appeals.graph import expr as E
 from appeals.graph import layers
 from appeals.graph.endpoints import ReasoningModel, parse_json
 from appeals.graph.nodes import Answer, Field, Gate, Question, Scan
 from appeals.graph.pipeline import GraphError, Pipeline
 from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record
+from appeals.providers import unpriced
 
 THRESHOLDS = {'scope_high': 0.7, 'scope_low': 0.2, 'counts': 0.5, 'discretion': 0.5, 'review': 0.5,
               'final': 0.5, 'stay': 0.5, 'design': 0.5, 'check': 0.3, 'sure': 0.8}
@@ -102,7 +103,7 @@ class _Docket:
 
 class _Scripted(ReasoningModel):
     def __init__(self, replies):
-        super().__init__(Endpoint(format='test', base_url='', model='m', key_env='', json_repairs=2, per_minute=0))
+        super().__init__(Reasoning(unpriced('m', api='test')))
         self.replies = list(replies)
         self.seen = []
 

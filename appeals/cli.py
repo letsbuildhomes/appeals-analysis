@@ -14,11 +14,8 @@ def _settings(args):
     overrides = {
         'workers': getattr(args, 'workers', None),
         'budget_usd': getattr(args, 'budget', None),
-        'reasoning.format': getattr(args, 'reasoning_format', None),
-        'reasoning.base_url': getattr(args, 'reasoning_base_url', None),
         'reasoning.model': getattr(args, 'reasoning_model', None),
         'reasoning.key': getattr(args, 'reasoning_key', None),
-        'decision.base_url': getattr(args, 'decision_base_url', None),
         'decision.model': getattr(args, 'decision_model', None),
         'decision.key': getattr(args, 'decision_key', None),
     }
@@ -32,11 +29,10 @@ def cmd_doctor(args):
         note = '' if ok else ('  (needed only to OCR new scanned pages)' if tool == 'tesseract' else '  (required)')
         print(f'{"ok " if ok else "-- "} {tool}{note}')
     for name in ('decision', 'reasoning'):
-        endpoint = getattr(settings, name)
-        print(f'{"ok " if endpoint.key else "-- "} {name} key ({endpoint.key_env}) for {endpoint.format} {endpoint.model}')
-        year = date.today().year
-        if not endpoint.holidays_cover(year):
-            print(f'-- {name} off-peak calendar lists no holidays for {year}; those days are priced as peak')
+        model = getattr(settings, name).model
+        print(f'{"ok " if model.key else "-- "} {name} key ({model.provider.key_env}) for {model.ref}')
+        for warning in model.provider.warnings(date.today()):
+            print(f'-- {model.provider.id}: {warning}')
 
 
 def cmd_ingest(args):
@@ -85,7 +81,7 @@ def cmd_run(args):
     if args.model == 'fake':
         decision, reasoning = endpoints.FakeDecisions(), endpoints.FakeReasoning()
     else:
-        decision, reasoning = endpoints.decision_model(settings.decision), endpoints.reasoning_model(settings.reasoning)
+        decision, reasoning = endpoints.decision_model(settings.decision.model), endpoints.reasoning_model(settings.reasoning)
     numbers = _pick_dockets(store, args)
     runner = Runner(pipeline, store, settings, decision, reasoning)
     run_id = asyncio.run(runner.run(numbers, workers=settings.workers, tags=args.tag or []))
@@ -275,10 +271,8 @@ def main(argv=None):
     p.add_argument('--budget', type=float)
     p.add_argument('--tag', action='append', help='label the run, such as "scratch"; may be repeated')
     for name in ('reasoning', 'decision'):
-        for key in ('format', 'base-url', 'model', 'key'):
-            if name == 'decision' and key == 'format':
-                continue
-            p.add_argument(f'--{name}-{key}')
+        p.add_argument(f'--{name}-model', help='"provider/model", from a file in providers/')
+        p.add_argument(f'--{name}-key', help='the API key, instead of the provider\'s environment variable')
     p = add('runs', cmd_runs, 'list runs, newest first')
     p.add_argument('--tag', help='only runs with this tag')
     p = add('delete-runs', cmd_delete_runs, 'delete one run, or every run with a tag')

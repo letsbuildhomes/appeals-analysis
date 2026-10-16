@@ -199,8 +199,13 @@ make site                             # public site and MCP server on 0.0.0.0:80
 make test lint
 ```
 
-Endpoints, workers, the budget and gate thresholds are in `config.toml`; keys
-go in `.env` (never committed) or on the command line (`appeals run --help`).
+The models, workers, the budget and gate thresholds are in `config.toml`, which
+names each model as `provider/model`. Each provider has a file in `providers/`
+with its address, the environment variable its key is read from, its rate
+limits and its models' prices; its `kind` names the code in
+`appeals/providers/` that reads the file and prices calls, so a provider with
+unusual pricing (such as DeepSeek's peak hours) gets its own kind. Keys go in
+`.env` (never committed) or on the command line (`appeals run --help`).
 
 ## Where things are
 
@@ -208,6 +213,7 @@ go in `.env` (never committed) or on the command line (`appeals run --help`).
 |---|---|
 | `appeals/ingest/` | listing, PDFs, page text, dockets |
 | `appeals/graph/` | the building blocks, the executor and the model endpoints; knows nothing about housing |
+| `appeals/providers/`, `providers/` | model providers: the code for each kind, and one file per provider with its models and prices |
 | `appeals/codebook/` | the pipeline itself, one file per layer: questions → gates → steps → fields → derived → answers |
 | `appeals/web/` | the dashboard server and its pages |
 | `appeals/release/` | building releases from runs, reading them, and the guide that describes them |

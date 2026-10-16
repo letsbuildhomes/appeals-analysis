@@ -9,7 +9,8 @@ up to `json_repairs` times, and every attempt is kept in the exchange.
 
 Clients: TypeSafe (decision), Anthropic (Messages API) and OpenAI (Chat
 Completions) for reasoning, and Fake versions of both for tests and previews.
-Keys stay in memory; nothing here logs them.
+A client speaks its API; the model's provider reads the token usage and
+prices the call (appeals/providers). Keys stay in memory; nothing here logs them.
 """
 import asyncio
 from dataclasses import dataclass
@@ -21,6 +22,7 @@ import time
 import httpx
 
 from appeals.graph.values import NOT_STATED, make_rng
+from appeals.providers import unpriced
 
 
 class BudgetReached(Exception):
@@ -82,30 +84,30 @@ async def post_json(client, url, headers, body, attempts=5):
 class TypeSafeDecisions:
     """TypeSafe's System One API (Jev): closed questions answered with probabilities."""
 
-    def __init__(self, endpoint):
-        self.endpoint = endpoint
-        self.limiter = Limiter(endpoint.concurrent, endpoint.per_minute)
+    def __init__(self, model):
+        self.model = model
+        self.limiter = Limiter(model.provider.concurrent, model.provider.per_minute)
         self.client = httpx.AsyncClient(timeout=600)
 
     def identity(self):
-        return self.endpoint.public()
+        return self.model.identity()
 
     async def ask(self, state, questions, long_context=False):
         """questions: {id: {'type': 'choice'|'yes_no', 'instructions', 'criteria'}}"""
-        body = {'model': self.endpoint.model, 'state': state, 'questions': {
+        body = {'model': self.model.name, 'state': state, 'questions': {
             qid: {'type': 'noul' if q['type'] == 'yes_no' else q['type'], 'instructions': q['instructions'],
                   'criteria': q['criteria']} for qid, q in questions.items()}}
-        headers = {'Authorization': f'Bearer {self.endpoint.key}'}
+        headers = {'Authorization': f'Bearer {self.model.key}'}
         if long_context:
             headers['TypeSafe-Danger-Zone-Long-Context'] = 'true'
         async with self.limiter:
-            data = await post_json(self.client, f'{self.endpoint.base_url.rstrip("/")}/systemone', headers, body)
+            sent_at = datetime.now(timezone.utc)
+            data = await post_json(self.client, f'{self.model.provider.base_url.rstrip("/")}/systemone', headers, body)
         answers = {qid: self._distribution(questions[qid], data['answers'][qid]) for qid in questions}
-        tokens = (data.get('usage') or {}).get('input_tokens', 0)
-        cost = tokens * self.endpoint.input_per_mtok / 1e6
+        charge = self.model.charge(self.model.usage(data.get('usage')), sent_at)
         exchange = {'request': {**body, 'state': f'[docket text, {len(state)} characters]'},
-                    'long_context': long_context, 'response': data, 'usage': data.get('usage')}
-        return Reply(answers, exchange, cost)
+                    'long_context': long_context, 'response': data, 'usage': data.get('usage'), 'priced': charge.basis}
+        return Reply(answers, exchange, charge.usd)
 
     @staticmethod
     def _distribution(question, answer):
@@ -139,10 +141,11 @@ class FakeDecisions:
                                'response': 'fake'}, 0.0)
 
 
-def decision_model(endpoint):
-    if endpoint.format == 'typesafe':
-        return TypeSafeDecisions(endpoint)
-    raise ValueError(f'unknown decision model format {endpoint.format!r}')
+def decision_model(model):
+    """The client for a decision model (a providers.Model), chosen by its provider's API."""
+    if model.provider.api == 'typesafe':
+        return TypeSafeDecisions(model)
+    raise ValueError(f'{model.ref}: no decision-model client for the {model.provider.api!r} API')
 
 
 # ---- reasoning model ---------------------------------------------------------------------
@@ -181,13 +184,15 @@ def repair_message(errors):
 class ReasoningModel:
     """Shared behavior: build the conversation, ask, validate, send back errors, retry."""
 
-    def __init__(self, endpoint):
-        self.endpoint = endpoint
-        self.limiter = Limiter(endpoint.concurrent, endpoint.per_minute)
+    def __init__(self, settings):
+        """settings: config.Reasoning, the model and how steps use it."""
+        self.settings = settings
+        self.model = settings.model
+        self.limiter = Limiter(self.model.provider.concurrent, self.model.provider.per_minute)
         self.client = httpx.AsyncClient(timeout=900)
 
     def identity(self):
-        return self.endpoint.public()
+        return self.model.identity()
 
     async def ask(self, system, base, history, prompt, returns):
         """history: earlier (prompt, reply) pairs kept in context (chained steps).
@@ -207,8 +212,8 @@ class ReasoningModel:
                 truncations += 1
                 attempts.append({'reply': text, 'usage': usage, 'truncated': True,
                                  'errors': [f'the reply ran out of output tokens '
-                                            f'({self.endpoint.max_output_tokens} allowed)']})
-                if truncations > self.endpoint.truncation_retries:
+                                            f'({self.settings.max_output_tokens} allowed)']})
+                if truncations > self.settings.truncation_retries:
                     return Reply(None, self._exchange(system, history, question, attempts), cost,
                                  error=f'ran out of output tokens {truncations} times')
                 continue
@@ -221,7 +226,7 @@ class ReasoningModel:
             if not errors:
                 return Reply(value, self._exchange(system, history, question, attempts), cost)
             repairs += 1
-            if repairs > self.endpoint.json_repairs:
+            if repairs > self.settings.json_repairs:
                 return Reply(None, self._exchange(system, history, question, attempts), cost,
                              error=f'no valid reply after {len(attempts)} attempts')
             turns += [{'role': 'assistant', 'text': text}, {'role': 'user', 'text': repair_message(errors)}]
@@ -230,12 +235,11 @@ class ReasoningModel:
         return {'model': self.identity(), 'system': system, 'history': [{'prompt': p, 'reply': r} for p, r in history],
                 'prompt': question, 'attempts': attempts}
 
-    def _cost(self, usage, sent_at, tokens_in, tokens_out, cache_read=0, cache_write=0):
-        """The call's cost at the prices in force when it was sent; the rate used is added to `usage`."""
-        rate, p = self.endpoint.prices(sent_at)
-        usage['priced'] = {'sent_at': sent_at.isoformat(), 'rate': rate}
-        return (tokens_in * p['input_per_mtok'] + tokens_out * p['output_per_mtok']
-                + cache_read * p['cache_read_per_mtok'] + cache_write * p['cache_write_per_mtok']) / 1e6
+    def _cost(self, usage, sent_at):
+        """The call's cost, priced by the model's provider; how it was priced is added to `usage`."""
+        charge = self.model.charge(self.model.usage(usage), sent_at)
+        usage['priced'] = charge.basis
+        return charge.usd
 
     async def _complete(self, system, base, history, turns):
         """One request. Returns (text, usage, cost, truncated), where truncated means the output limit was hit."""
@@ -258,16 +262,15 @@ class AnthropicReasoning(ReasoningModel):
                 pending = []
             else:
                 messages.append({'role': 'assistant', 'content': turn['text']})
-        body = {'model': self.endpoint.model, 'max_tokens': self.endpoint.max_output_tokens, 'system': system,
+        body = {'model': self.model.name, 'max_tokens': self.settings.max_output_tokens, 'system': system,
                 'messages': messages}
-        headers = {'x-api-key': self.endpoint.key, 'anthropic-version': '2023-06-01'}
+        headers = {'x-api-key': self.model.key, 'anthropic-version': '2023-06-01'}
         async with self.limiter:
             sent_at = datetime.now(timezone.utc)
-            data = await post_json(self.client, f'{self.endpoint.base_url.rstrip("/")}/v1/messages', headers, body)
+            data = await post_json(self.client, f'{self.model.provider.base_url.rstrip("/")}/v1/messages', headers, body)
         text = ''.join(block.get('text', '') for block in data.get('content', []) if block.get('type') == 'text')
         u = dict(data.get('usage') or {})
-        cost = self._cost(u, sent_at, u.get('input_tokens', 0), u.get('output_tokens', 0),
-                          u.get('cache_read_input_tokens', 0), u.get('cache_creation_input_tokens', 0))
+        cost = self._cost(u, sent_at)
         return text, u, cost, data.get('stop_reason') == 'max_tokens'
 
 
@@ -291,17 +294,15 @@ class OpenAIReasoning(ReasoningModel):
                 pending = []
             else:
                 messages.append({'role': 'assistant', 'content': turn['text']})
-        body = {'model': self.endpoint.model, 'messages': messages, 'max_tokens': self.endpoint.max_output_tokens}
-        headers = {'Authorization': f'Bearer {self.endpoint.key}'}
+        body = {'model': self.model.name, 'messages': messages, 'max_tokens': self.settings.max_output_tokens}
+        headers = {'Authorization': f'Bearer {self.model.key}'}
         async with self.limiter:
             sent_at = datetime.now(timezone.utc)
-            data = await post_json(self.client, f'{self.endpoint.base_url.rstrip("/")}/chat/completions', headers, body)
+            data = await post_json(self.client, f'{self.model.provider.base_url.rstrip("/")}/chat/completions', headers, body)
         choice = data['choices'][0] if data.get('choices') else {}
         text = (choice.get('message') or {}).get('content') or ''
         u = dict(data.get('usage') or {})
-        cached = ((u.get('prompt_tokens_details') or {}).get('cached_tokens')
-                  or u.get('prompt_cache_hit_tokens', 0))            # DeepSeek's name for it
-        cost = self._cost(u, sent_at, u.get('prompt_tokens', 0) - cached, u.get('completion_tokens', 0), cached)
+        cost = self._cost(u, sent_at)
         return text, u, cost, choice.get('finish_reason') == 'length'
 
 
@@ -313,9 +314,8 @@ class FakeReasoning(ReasoningModel):
     """
 
     def __init__(self):
-        from appeals.config import Endpoint
-        super().__init__(Endpoint(format='fake', base_url='', model='fake-reasoning', key_env='', json_repairs=2,
-                                  concurrent=64, per_minute=0))
+        from appeals.config import Reasoning
+        super().__init__(Reasoning(unpriced('fake-reasoning')))
 
     async def _complete(self, system, base, history, turns):
         question = turns[0]['text']
@@ -363,9 +363,11 @@ def _example(schema, rng, passages):
     return None
 
 
-def reasoning_model(endpoint):
-    if endpoint.format == 'anthropic':
-        return AnthropicReasoning(endpoint)
-    if endpoint.format == 'openai':
-        return OpenAIReasoning(endpoint)
-    raise ValueError(f'unknown reasoning model format {endpoint.format!r}')
+def reasoning_model(settings):
+    """The client for the reasoning model in `settings` (config.Reasoning), chosen by its provider's API."""
+    api = settings.model.provider.api
+    if api == 'anthropic':
+        return AnthropicReasoning(settings)
+    if api == 'openai':
+        return OpenAIReasoning(settings)
+    raise ValueError(f'{settings.model.ref}: no reasoning-model client for the {api!r} API')
