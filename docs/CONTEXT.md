@@ -6,6 +6,8 @@ grew a large framework, layers of versioning, and labeling rules written case
 by case. This repository keeps what was learned and leaves the rest behind.
 This page is the part worth knowing. The [README](../README.md) says what we're
 building, and [PIPELINE.md](PIPELINE.md) gives the current design in detail.
+[IMPROVING.md](IMPROVING.md) is the log of improvement passes against the answer
+key: read it before changing the pipeline, and add to it after a pass.
 
 ## How the user works
 
