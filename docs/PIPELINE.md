@@ -270,7 +270,7 @@ decision model before they were built, against a temporary 46-docket answer key.
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
 | G1 | Do the documents say what the appellant argued? (`arguments_stated`) | yes · no (no makes G2 and G4 "not stated") | Scan (Choice); confirmed by L7a | — |
-| G2 | For each of seven kinds of judgment standard, how far did the docket get with it? Kinds: character and fit (character of the area; scale, design or appearance; scenic effects) · historic · neighbor effects (nuisance; privacy, light, air) · traffic and services (traffic, access, street layout; schools, fire, municipal water and sewer) · water and environment (water supply, wastewater, stormwater, flooding, natural resources) · site design (landscaping, screening, buffers, open space, planned-development design criteria, only where argued about itself) · dimensional relief (variances and waivers) (`judgment_grounds`, `judgment_results`, `judgment_conditions`, `relief_kind`) | not at issue · raised only · taken up · decided, disputed · decided, not disputed · set aside → result (met · met with conditions · partly met · not met), whether the dispute was about a condition, and for dimensional relief which kind (statutory variance · bylaw waiver · planned-development modification) | Scan (Choice ×7); each kind with a 0.3 or higher chance of being at issue followed up by its own L8 step | `judgment_central`, `judgment_at_issue`, `what_was_central` |
+| G2 | For each of seven kinds of judgment standard, how far did the docket get with it? Kinds: character and fit (character of the area; scale, design or appearance; scenic effects) · historic · neighbor effects (nuisance; privacy, light, air) · traffic and services (traffic, access, street layout; schools, fire, municipal water and sewer) · water and environment (water supply, wastewater, stormwater, flooding, natural resources) · site design (landscaping, screening, buffers, open space, planned-development design criteria, only where argued about itself) · dimensional relief (variances and waivers) (`judgment_grounds`, `judgment_results`, `judgment_conditions`, `relief_kind`) | not at issue · raised only · taken up · decided, disputed · decided, not disputed · set aside → result (met · met with conditions · partly met · not met), whether the dispute was about a condition, and for dimensional relief which kind (statutory variance · bylaw waiver · planned-development modification) | Scan (Choice ×7); each kind with a 0.3 or higher chance of being at issue followed up by its own L8 conversation: the level, then the result if decided, then the condition if decided and disputed (otherwise not decided and no) | `judgment_central`, `judgment_at_issue`, `what_was_central` |
 | G3 | For each of nine other kinds of question, how far did the docket get with it? Kinds: measurable rules (setbacks, height, lot size and frontage, density, parking) · allowed use and defined terms (including how a rule is measured, when that is disputed) · nonconforming uses and structures · municipal process (notice, hearing, completeness, defects in the town's decision) · who can appeal (standing, timeliness, jurisdiction) · earlier permits and approvals (vested rights, unappealed permits, repeat applications, compliance) · property rights (title, easements, covenants) · constitutional and equitable claims (vagueness, takings, fair housing, estoppel) · other permits (Act 250, state wastewater or stormwater) (`other_questions`) | the same six levels as G2 | Scan (Choice ×9); each kind with a 0.5 or higher chance of being at issue followed up by its own L9 step | `what_was_central` |
 | G4 | Did a party challenge a condition attached to the permit, arguing whether it should be imposed or how strict? (`conditions_challenged`, `conditions_challenged_by`, `conditions_outcome`) | yes · no → for each challenged condition (up to 5): what it requires, who challenged it, what the court did | Scan (Choice); confirmed by L7b, then L7c–e | — |
 
@@ -372,7 +372,10 @@ records the stop reason the API reported.
 
 Steps are numbered by chain, in the order the chains run, and lettered by
 their order within the chain: L5 is the court's chain, L5a to L5f. A step that
-is asked once per flagged item is named after its item, as in L3_variance.
+is asked once per flagged item is named after its item, as in L3_variance, and
+says so in its `set_item` (K1, "variance"): the steps settling one scan set's
+items are a family, which the graph draws as one box. A family's step may
+start a short conversation of follow-ups, as L8_water does with L8_water_result.
 
 Every question, gate, step, fact and derived value names one **topic**, from
 the ordered list in `appeals/codebook/topics.py`, such as "Units added" or
@@ -420,7 +423,9 @@ can't tell doesn't take a docket out of the study.
 | L7c Which conditions | grounds | L7b yes | each challenged condition, described in a few words | L7b |
 | L7d Who challenged, per condition | grounds | — | for each of the first 5 conditions L7c listed, one call: who challenged it | L7c |
 | L7e The court's ruling, per condition | grounds | — | for each of the first 5 conditions, one call: upheld, struck, changed, added, refused or not decided | L7c |
-| L8 per kind of judgment standard | grounds | L7a yes and that G2 kind flagged | G2 for that kind: level, result and whether about a condition | — |
+| L8 per kind of judgment standard | grounds | L7a yes and that G2 kind flagged | G2 for that kind: its level, quoted | — |
+| L8_…_result | grounds | that kind decided (disputed or not) | the court's result: met, met with conditions, partly met or not met | L8 for that kind |
+| L8_…_condition | grounds | that kind "decided, disputed" | whether the dispute was about a condition | L8_…_result |
 | L8_relief_kind | grounds | L8_relief at a level above "not at issue" | which kind of dimensional relief | L8_relief |
 | L9 per other kind of question | — | that G3 kind flagged (every docket that proceeds, arguments stated or not) | G3 for that kind: its level | — |
 | L10 Review standard | review | — | the passage establishing how the court heard the appeal | — |

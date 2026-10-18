@@ -139,15 +139,17 @@ judgment_grounds = Field('judgment_grounds', topics.GROUNDS, label='Judgment sta
                          type=_per_group(OneOf(Q.LEVELS, not_stated=True)), scan=Q.G2, steps=L.GROUND_STEPS,
                          path='level', not_stated_if=NO_ARGUMENTS, notes=GROUND_NOTES)
 judgment_results = Field('judgment_results', topics.GROUNDS, label='Judgment standards: the court\'s result',
-                         type=_per_group(OneOf(L.RESULTS, not_stated=True)), steps=L.GROUND_STEPS, path='result',
-                         vouched_by='level', not_stated_if=NO_ARGUMENTS,
+                         type=_per_group(OneOf(L.RESULTS, not_stated=True)), steps=L.GROUND_RESULTS, path='result',
+                         vouched_by='level', vouchers=L.GROUND_STEPS, if_skipped='not decided', not_stated_if=NO_ARGUMENTS,
                          notes=['"Not stated" for a kind that got no follow-up (the scan saw it as not at issue).',
                                 '"Met with conditions" only when a condition is aimed at that kind of standard.'])
 judgment_conditions = Field('judgment_conditions', topics.GROUNDS, label='Judgment standards: dispute about a condition',
-                            type=_per_group(YesNo(not_stated=True)), steps=L.GROUND_STEPS, path='condition',
-                            vouched_by='level', not_stated_if=NO_ARGUMENTS,
-                            notes=['Whether the dispute over that kind of standard was about a condition the '
-                                   'municipality attached, or one a party asked the court to add, change or remove.'])
+                            type=_per_group(YesNo(not_stated=True)), steps=L.GROUND_CONDITIONS, path='condition',
+                            vouched_by='level', vouchers=L.GROUND_STEPS, if_skipped='no', not_stated_if=NO_ARGUMENTS,
+                            notes=['Whether the dispute the court ruled on for that kind of standard was about a '
+                                   'condition the municipality attached, or one a party asked the court to add, change '
+                                   'or remove.',
+                                   'Asked only when the level is "decided, disputed"; any other level reads "no".'])
 relief_kind = Field('relief_kind', topics.GROUNDS, label='Kind of dimensional relief', type=OneOf(L.RELIEF_KINDS),
                     step=L.L8_relief_kind, path='kind', not_stated_if=NO_ARGUMENTS,
                     notes=['Only "statutory variance" is a variance in the legal sense (24 V.S.A. § 4469). Counts of '

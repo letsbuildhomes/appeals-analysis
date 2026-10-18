@@ -133,12 +133,28 @@ class Pipeline:
             for_each = any(s.for_each for s in f.item_steps().values())
             if for_each != bool(f.per_item):
                 problems.append(f'{f.id}: a field reads a for-each step exactly when it has per_item')
-            for step in f.item_steps().values():
-                for path in filter(None, [f.path, f.vouched_by]):
+            for key, step in f.item_steps().items():
+                for path, holder in ((f.path, step), (f.vouched_by, f.vouchers.get(key, step))):
+                    if not path:
+                        continue
                     try:
-                        step.returns.at(path)
+                        holder.returns.at(path)
                     except KeyError:
-                        problems.append(f'{f.id} reads {step.id}.{path}, which the step does not return')
+                        problems.append(f'{f.id} reads {holder.id}.{path}, which the step does not return')
+        settled = {}
+        for step in self.steps:
+            if step.set_item is None:
+                continue
+            source, key = step.set_item
+            if not isinstance(source, (YesNoSet, ChoiceSet)) or key not in source.items:
+                problems.append(f'{step.id} settles {getattr(source, "id", source)}.{key}, which is not an item of a scan set')
+            elif (source.id, key) in settled:
+                problems.append(f'{step.id} and {settled[source.id, key]} both settle {source.id}.{key}')
+            else:
+                settled[source.id, key] = step.id
+            if step.after is not None:
+                problems.append(f'{step.id} settles a set item but follows {step.after.id}: a family\'s steps start '
+                                'their own conversations')
         if self.in_scope is not None and self.in_scope not in {d.id for d in self.derives}:
             problems.append(f'in_scope names {self.in_scope}, which is not a derived value')
         for name in self._thresholds_used():

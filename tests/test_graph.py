@@ -7,7 +7,7 @@ from appeals.config import Reasoning
 from appeals.graph import expr as E
 from appeals.graph import layers
 from appeals.graph.endpoints import Completion, ReasoningModel, parse_json
-from appeals.graph.nodes import Field, Gate, Question, Scan
+from appeals.graph.nodes import Field, Gate, Question, Scan, Step, YesNoSet
 from appeals.graph.pipeline import GraphError, Pipeline
 from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record, YesNo
 from appeals.providers import unpriced
@@ -90,6 +90,27 @@ def test_every_node_names_a_known_topic():
     _tiny()
     with pytest.raises(GraphError, match="Q1 names no known topic"):
         _tiny(topics={})
+
+
+def _family(*items):
+    """A pipeline whose steps each settle the given item of a two-item scan set."""
+    s = YesNoSet('K', 'A', ask='{item}?', items={'a': 'a', 'b': 'b'})
+    steps = [Step(f'S{i}', 'A', title=key, set_item=(s, key), prompt='?', returns=Record(x=Quoted(YesNo())))
+             for i, key in enumerate(items)]
+    fields = [Field(f'f{i}', 'A', label='f', type=YesNo(), step=step, path='x') for i, step in enumerate(steps)]
+    return Pipeline('tiny', Scan('scan', None, questions=[s]), [], _base(), steps,
+                    [Field('k', 'A', label='k', type=YesNo(), scan=s, steps={}), *fields], [], E.Const(True),
+                    {'check': 0.3, 'sure': 0.6}, topics={'A': 'A'})
+
+
+def test_a_step_settles_one_item_of_a_scan_set():
+    description = _family('a', 'b').describe()
+    assert {n['id']: n['set_item'] for n in description['nodes'] if n['kind'] == 'step'} == {
+        'S0': {'set': 'K', 'item': 'a'}, 'S1': {'set': 'K', 'item': 'b'}}
+    with pytest.raises(GraphError, match='S0 settles K.c, which is not an item of a scan set'):
+        _family('c')
+    with pytest.raises(GraphError, match='S1 and S0 both settle K.a'):
+        _family('a', 'a')
 
 
 def test_a_chain_keeps_its_whole_line_in_context_but_draws_one_edge_per_step():
@@ -224,25 +245,40 @@ def test_each_kind_of_judgment_standard_comes_from_its_own_step():
     scan = {'G1': {'yes': 0.9, 'no': 0.1},
             'G2.character': {'decided, disputed': 0.9, 'not at issue': 0.1},
             'G2.traffic': {'decided, not disputed': 0.95, 'not at issue': 0.05}}
-    steps = _facts(L7a={'stated': _quoted('yes')},
-                   L8_character={'level': _quoted('decided, not disputed'), 'result': 'met', 'condition': 'no'})
+    steps = _facts(L7a={'stated': _quoted('yes')}, L8_character={'level': _quoted('decided, not disputed')},
+                   L8_character_result={'result': 'met'})
+    steps['L8_character_condition'] = {'skipped': 'condition not met: …'}
     facts = layers.resolve(pipeline, scan, steps)
     grounds, results = facts['judgment_grounds'], facts['judgment_results']
     assert grounds['answer']['character'] == 'decided, not disputed' and grounds['source']['character'] == 'step'
     assert grounds['answer']['traffic'] == 'decided, not disputed' and grounds['source']['traffic'] == 'scan'
     assert grounds['conflicts'] == ['character']
     assert results['answer']['character'] == 'met' and results['answer']['traffic'] == NOT_STATED
+    conditions = facts['judgment_conditions']['answer']
+    assert conditions['character'] == 'no' and conditions['traffic'] == NOT_STATED
     derived = layers.derive(pipeline, facts)
     assert derived['judgment_central'] == 'no' and derived['judgment_at_issue'] == 'yes'
+
+
+def test_a_result_skipped_for_an_undecided_level_is_not_decided():
+    pipeline = build(THRESHOLDS)
+    steps = _facts(L7a={'stated': _quoted('yes')}, L8_site={'level': _quoted('set aside')})
+    steps['L8_site_result'] = {'skipped': 'condition not met: …'}
+    steps['L8_site_condition'] = {'skipped': 'condition not met: …'}
+    facts = layers.resolve(pipeline, {'G1': {'yes': 0.9}, 'G2.site': {'set aside': 0.8}}, steps)
+    assert facts['judgment_results']['answer']['site'] == 'not decided'
+    assert facts['judgment_conditions']['answer']['site'] == 'no'
 
 
 def test_a_result_without_a_verified_level_is_not_used():
     pipeline = build(THRESHOLDS)
     unverified = {'answer': 'decided, disputed', 'quotes': [{'doc': 1, 'page': 1, 'quote': 'x', 'verified': False}]}
     steps = _facts(L7a={'stated': _quoted('yes')},
-                   L8_water={'level': unverified, 'result': 'not met', 'condition': 'yes'})
+                   L8_water={'level': unverified}, L8_water_result={'result': 'not met'},
+                   L8_water_condition={'condition': 'yes'})
     facts = layers.resolve(pipeline, {'G1': {'yes': 0.9}, 'G2.water': {'decided, disputed': 0.8}}, steps)
     assert facts['judgment_results']['answer']['water'] == NOT_STATED
+    assert facts['judgment_conditions']['answer']['water'] == NOT_STATED
     assert facts['judgment_grounds']['answer']['water'] == 'decided, disputed'        # the scan's answer
     assert layers.derive(pipeline, facts)['judgment_central'] == 'yes'
 

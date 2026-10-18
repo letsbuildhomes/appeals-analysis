@@ -148,6 +148,7 @@ KIND_WORDING = {
              'conditional use, variance, or zoning or building permit approval)',
 }
 KINDS = {key: Step(f'L3_{_slug(key)}', topics.KINDS, title=f'Permission: {key}',
+    set_item=(K1, key), short_title=key,
     only_if=K1.p(key) >= T.check, choose=_bucket(K1.p(key)),
     variants=_variants(f'{KIND_WORDING.get(key, meaning)} is at issue in this appeal',
                        f'Is {KIND_WORDING.get(key, meaning)} part of the municipal decision being appealed?'),
@@ -318,12 +319,16 @@ L7e = Step('L7e', topics.GROUNDS, title='What the court did with each condition'
     prompt=f'What did the court do with this condition: {{item}}? {QUOTE_IT}',
     returns=Record(outcome=Quoted(OneOf(OUTCOMES))))
 
-# Each kind of judgment standard the scan flags: one call, independent of the others.
+# Each kind of judgment standard the scan flags: a chain of up to three calls, independent of the other kinds.
+# How far it got comes first; the result only for a decided level; whether the dispute was about a condition
+# only for "decided, disputed". A skipped result is "not decided" and a skipped condition "no" (see fields.py).
 RESULTS = {'met': 'The court found the project meets the standard.',
            'met with conditions': 'Met, and the permit carries a condition aimed at this standard.',
            'partly met': 'Granted in part and denied in part, such as for some lots and not others.',
            'not met': 'The court found the project does not meet the standard.',
            'not decided': 'The level is not a decided level.'}
+DECIDED_RESULTS = {k: v for k, v in RESULTS.items() if k != 'not decided'}
+DECIDED = ['decided, disputed', 'decided, not disputed']
 DECIDED_OR_OPEN = ['raised only', 'taken up', 'decided, disputed', 'decided, not disputed', 'set aside']
 QUOTE_LEVEL = 'Quote the passage that best shows the level: for "decided, disputed", the dispute or the ruling.'
 
@@ -346,20 +351,32 @@ def _group_prompt(key, scan):
         'appealing a denial on it; a finding the court made only because it runs through every criterion is not '
         f'disputed. {FURTHEST}',
         'A dispute over a condition counts under the group whose standard the condition serves (a challenged phasing '
-        'deadline justified by the burden on municipal services is traffic and services), with the condition answer '
-        '"yes".',
-        'Also give the result (for a decided level; otherwise "not decided"), and whether the dispute was about a '
-        'condition the municipality attached or one a party asked the court to add, change or remove.',
+        'deadline justified by the burden on municipal services is traffic and services).',
         QUOTE_LEVEL)
 
 
 GROUP_SCAN = {key: _scan_level(f'G2.{key}', 'standard') for key in GROUPS}
 GROUND_STEPS = {key: Step(f'L8_{key}', topics.GROUNDS, title=f'Grounds: {GROUP_NAMES[key]}', when=G.grounds,
+    set_item=(G2, key), short_title=GROUP_NAMES[key],
     only_if=STATED & (G2.applies(key) >= T.check),
     choose=If(G2.applies(key) >= T.sure, 'scan fairly confident', 'scan uncertain'),
     variants={name: _group_prompt(key, scan) for name, scan in GROUP_SCAN[key].items()},
-    returns=Record(level=Quoted(OneOf(LEVELS, not_stated=False)), result=OneOf(RESULTS, not_stated=False),
-                   condition=YesNo(not_stated=False)))
+    returns=Record(level=Quoted(OneOf(LEVELS, not_stated=False))))
+    for key in GROUPS}
+
+GROUND_RESULTS = {key: Step(f'L8_{key}_result', topics.GROUNDS, title=f'Grounds: {GROUP_NAMES[key]}, result',
+    short_title='result',
+    when=G.grounds, after=GROUND_STEPS[key], only_if=A(f'L8_{key}', 'level').in_(DECIDED),
+    prompt='What did the court decide about whether the project meets this kind of standard?',
+    returns=Record(result=OneOf(DECIDED_RESULTS, not_stated=False)))
+    for key in GROUPS}
+
+GROUND_CONDITIONS = {key: Step(f'L8_{key}_condition', topics.GROUNDS, title=f'Grounds: {GROUP_NAMES[key]}, condition',
+    short_title='condition',
+    when=G.grounds, after=GROUND_RESULTS[key], only_if=A(f'L8_{key}', 'level').is_('decided, disputed'),
+    prompt='Was the dispute over this kind of standard about a condition the municipality attached, or one a party '
+           'asked the court to add, change or remove?',
+    returns=Record(condition=YesNo(not_stated=False)))
     for key in GROUPS}
 
 RELIEF_KINDS = {'statutory variance': 'A variance under 24 V.S.A. § 4469 and the bylaw\'s variance criteria '
@@ -367,7 +384,8 @@ RELIEF_KINDS = {'statutory variance': 'A variance under 24 V.S.A. § 4469 and th
                 'bylaw waiver': 'A waiver of a dimensional requirement that the town\'s bylaw allows (24 V.S.A. § 4414(8)).',
                 'planned development modification': 'A change to dimensional standards approved as part of a planned unit '
                                                     'or residential development (24 V.S.A. § 4417).'}
-L8_relief_kind = Step('L8_relief_kind', topics.GROUNDS, title='Kind of dimensional relief', when=G.grounds,
+L8_relief_kind = Step('L8_relief_kind', topics.GROUNDS, title='Kind of dimensional relief', short_title='kind',
+    when=G.grounds,
     after=GROUND_STEPS['relief'], only_if=A('L8_relief', 'level').in_(DECIDED_OR_OPEN),
     prompt='Which kind of dimensional relief was this? Answer from the name and the test the documents use, with a '
            'quote.',
@@ -393,6 +411,7 @@ def _other_prompt(key, scan):
 
 OTHER_SCAN = {key: _scan_level(f'G3.{key}', 'question') for key in OTHER_KINDS}
 OTHER_STEPS = {key: Step(f'L9_{key}', topics.GROUNDS, title=f'Other question: {OTHER_NAMES[key]}',
+    set_item=(G3, key), short_title=OTHER_NAMES[key],
     only_if=G3.applies(key) >= T.other_check,
     choose=If(G3.applies(key) >= T.sure, 'scan fairly confident', 'scan uncertain'),
     variants={name: _other_prompt(key, scan) for name, scan in OTHER_SCAN[key].items()},
@@ -443,6 +462,8 @@ ORDER = [L1a, L1b, L1c, L1d,
          L4a, L4b,
          L5a, L5b, L5c, L5d, L5e, L5f,
          L6a, L6b, L6c, L6d, L6e, L6f,
-         L7a, L7b, L7c, L7d, L7e, *GROUND_STEPS.values(), L8_relief_kind, *OTHER_STEPS.values(),
+         L7a, L7b, L7c, L7d, L7e,
+         *(s for k in GROUND_STEPS for s in (GROUND_STEPS[k], GROUND_RESULTS[k], GROUND_CONDITIONS[k])),
+         L8_relief_kind, *OTHER_STEPS.values(),
          L10,
          L11a, L11b, L12a, L12b]

@@ -279,10 +279,14 @@ def _resolve_set(f, scan, steps):
     for key in (f.scan.items if f.scan else f.steps):
         scan_answer = _set_scan_answer(f, scan, key)
         step = f.steps.get(key)
-        value = steps.get(step.id, {}).get('answer') if step else None
+        record = steps.get(step.id, {}) if step else {}
+        value = record.get('answer')
         item = _at(value, f.path)
-        if f.vouched_by:                      # a plain value resting on a quoted answer in the same step
-            voucher = _at(value, f.vouched_by)
+        if f.vouched_by:                      # a plain value resting on a quoted answer, in this step or an earlier one
+            vouching = f.vouchers.get(key, step)
+            voucher = _at(steps.get(vouching.id, {}).get('answer'), f.vouched_by) if vouching else None
+            if item is None and f.if_skipped is not None and str(record.get('skipped', '')).startswith('condition'):
+                item = f.if_skipped
             item = {'answer': item, 'quotes': voucher['quotes']} if item is not None and _quoted_ok(voucher) else None
         offered = _offers_none_found(step, f.path) and not f.vouched_by
         if _quoted_ok(item, offered):

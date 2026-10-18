@@ -15,7 +15,7 @@ const COLUMN_OF = { question: 0, 'question set': 0, 'choice set': 0, gate: 1, st
 const LINES = ['data', 'condition', 'chain'];
 const KINDS = ['scan', ...LINES];             // drawn: 'scan' is a scan answer feeding a fact directly
 const LEFT = 24, HEAD = 40, ROW_HEAD = 34, ROW_GAP = 10;
-const CHIP_W = 156, CHIP_GAP = 6, BOX_PAD = 10, BOX_HEAD = 30;
+const CHIP_W = 156, FOLLOW_W = 70, CHIP_GAP = 6, BOX_PAD = 10, BOX_HEAD = 30;
 const FAR = 0.55;                               // below this zoom, boxes show only their name, larger
 
 let graph, current, model, drawn = null, run = null, docket = null, records = null, selected = null;
@@ -98,11 +98,17 @@ function parentOf(n) {
   return n.chain_after?.length ? n.chain_after[n.chain_after.length - 1] : null;   // pipelines stored before `after`
 }
 
-// A step's own name within its set: "Grounds: traffic and services" → "traffic and services".
-function itemName(step) {
-  const title = step.title || step.id;
-  return title.includes(': ') ? title.slice(title.indexOf(': ') + 2) : title;
+// A step's name inside its family's box, where the box says the rest: "water and environment", "result".
+function shortName(step) { return step.short_title || step.title || step.id; }
+
+// What a family's steps share at the start of their IDs ("L8_"), to name the box by.
+function commonStart(ids) {
+  let start = ids[0];
+  for (const id of ids) while (!id.startsWith(start)) start = start.slice(0, -1);
+  return start;
 }
+
+function hasFollowUps(g) { return g.lanes.some(l => l.length > 1); }
 
 function buildModel() {
   const byId = Object.fromEntries(graph.nodes.filter(n => n.kind !== 'answer').map(n => [n.id, n]));
@@ -113,16 +119,21 @@ function buildModel() {
     if (parent) (children[parent] = children[parent] || []).push(id);
   }
 
-  // Groups: a chain of steps in one conversation, or a set of one-per-item steps (L3_…, L8_…), drawn as one box.
+  // Groups: a chain of steps in one conversation, or a family of steps that each settle one item of a scan set
+  // (their set_item), drawn as one box. A family's step may start a short conversation of its own (L8_water,
+  // then L8_water_result, …): a lane.
   const groups = {}, groupOf = {};
   for (const id of order) {
     if (parentOf(byId[id])) continue;
-    const set = id.match(/^(L\d+)_/);
-    if (set && !children[id]) {
-      const gid = `set:${set[1]}`;
-      const g = groups[gid] = groups[gid] || { id: gid, kind: 'set', label: set[1], steps: [] };
-      g.steps.push(id);
-      groupOf[id] = gid;
+    const item = byId[id].set_item;
+    if (item) {
+      const gid = `set:${item.set}`;
+      const g = groups[gid] = groups[gid] || { id: gid, kind: 'set', over: item.set, steps: [], lanes: [] };
+      const lane = [];
+      const walk = s => { lane.push(s); groupOf[s] = gid; (children[s] || []).forEach(walk); };
+      walk(id);
+      g.steps.push(...lane);
+      g.lanes.push(lane);
     } else if (children[id]) {
       const gid = `chain:${id}`;
       const g = groups[gid] = { id: gid, kind: 'chain', label: /^L\d+[a-z]$/.test(id) ? id.slice(0, -1) : id, steps: [] };
@@ -131,10 +142,7 @@ function buildModel() {
     }
   }
   for (const g of Object.values(groups)) {
-    if (g.kind !== 'set') continue;
-    const titles = g.steps.map(s => byId[s].title || '');
-    const common = titles.every(t => t.includes(': ') && t.split(': ')[0] === titles[0].split(': ')[0]) ? titles[0].split(': ')[0] : '';
-    g.title = common;
+    if (g.kind === 'set') g.label = commonStart(g.lanes.map(l => l[0]));
   }
   // What a line is drawn between: a step in a set is drawn as its set.
   const shown = id => (groupOf[id]?.startsWith('set:') ? groupOf[id] : id);
@@ -183,7 +191,13 @@ function buildModel() {
 function cardHeight() { return records ? 96 : 66; }
 function chipHeight() { return records ? 46 : 30; }
 
+// A set whose items are short conversations draws one row per item: its first step, then its follow-ups.
 function setSize(g) {
+  if (hasFollowUps(g)) {
+    const most = Math.max(...g.lanes.map(l => l.length)) - 1, rows = g.lanes.length;
+    return { width: BOX_PAD * 2 + CHIP_W + most * (CHIP_GAP + FOLLOW_W),
+      height: BOX_HEAD + BOX_PAD + rows * chipHeight() + (rows - 1) * CHIP_GAP };
+  }
   const cols = Math.min(2, g.steps.length), rows = Math.ceil(g.steps.length / cols);
   return { width: BOX_PAD * 2 + cols * CHIP_W + (cols - 1) * CHIP_GAP,
     height: BOX_HEAD + BOX_PAD + rows * chipHeight() + (rows - 1) * CHIP_GAP };
@@ -481,21 +495,30 @@ function chainBox(g, box) {
 }
 
 function setBox(g, box) {
-  const ch = chipHeight();
-  const chips = g.steps.map((sid, i) => {
+  const ch = chipHeight(), lanes = hasFollowUps(g);
+  const chip = (sid, x, y, w, name, follow) => {
     const n = model.byId[sid], state = overlay(n);
     return el('div', {
-      class: `chip${state.off ? ' off' : ''}`, 'data-id': sid,
-      style: `left:${BOX_PAD + (i % 2) * (CHIP_W + CHIP_GAP)}px;top:${BOX_HEAD + Math.floor(i / 2) * (ch + CHIP_GAP)}px;width:${CHIP_W}px;height:${ch}px`,
+      class: `chip${follow ? ' follow' : ''}${state.off ? ' off' : ''}`, 'data-id': sid,
+      style: `left:${x}px;top:${y}px;width:${w}px;height:${ch}px`,
       title: `${sid} · ${n.title}`,
       onclick: e => { e.stopPropagation(); select(sid); },
-    }, el('div', { class: 'chip-name' }, state.dot ? el('i', { class: `dot ${state.dot}` }) : null, itemName(n)),
+    }, el('div', { class: 'chip-name' }, state.dot ? el('i', { class: `dot ${state.dot}` }) : null, name),
     records ? el('div', { class: 'chip-value' }, state.chip || '') : null);
-  });
+  };
+  const chips = lanes
+    ? g.lanes.flatMap((lane, i) => {
+      const y = BOX_HEAD + i * (ch + CHIP_GAP);
+      return lane.map((sid, j) => (j === 0 ? chip(sid, BOX_PAD, y, CHIP_W, shortName(model.byId[sid]), false)
+        : chip(sid, BOX_PAD + CHIP_W + CHIP_GAP + (j - 1) * (FOLLOW_W + CHIP_GAP), y, FOLLOW_W, shortName(model.byId[sid]), true)));
+    })
+    : g.steps.map((sid, i) => chip(sid, BOX_PAD + (i % 2) * (CHIP_W + CHIP_GAP), BOX_HEAD + Math.floor(i / 2) * (ch + CHIP_GAP),
+      CHIP_W, shortName(model.byId[sid]), false));
   return el('div', {
     class: 'box set', 'data-id': g.id, style: `left:${box.x}px;top:${box.y}px;width:${box.w}px;height:${box.h}px`,
     onclick: () => select(g.id), onmouseenter: () => hover(g.id, true), onmouseleave: () => hover(g.id, false),
-  }, el('div', { class: 'box-head' }, el('span', { class: 'id' }, `${g.label}_…`), g.title ? `${g.title} · ` : '', 'one call per flagged item'),
+  }, el('div', { class: 'box-head' }, el('span', { class: 'id' }, `${g.label}…`),
+    `${lanes ? 'one conversation' : 'one call'} per flagged ${g.over} item`),
   chips);
 }
 
@@ -848,7 +871,7 @@ function ref(id, { row = false } = {}) {
   const n = model.byId[id] || model.groups[id];
   const name = n ? displayName(n) : '';
   return el('button', { class: `ref${row ? ' row' : ''}`, title: name, onclick: () => select(id, true) },
-    el('i', { class: `kdot ${KIND_COLOR[n?.kind] || ''}` }), el('code', {}, n ? (n.kind === 'set' ? `${n.label}_…` : code(n)) : id),
+    el('i', { class: `kdot ${KIND_COLOR[n?.kind] || ''}` }), el('code', {}, n ? (n.kind === 'set' ? `${n.label}…` : code(n)) : id),
     row && name !== (n && code(n)) ? el('span', {}, name) : null);
 }
 
@@ -858,7 +881,9 @@ function refs(ids) {
 
 // What a person would call the box: a question's question, a step's or a gate's title, a fact's label.
 function displayName(n) {
-  if (n.kind === 'set') return n.title ? `${n.title}, one call per flagged item` : 'One call per flagged item';
+  if (n.kind === 'set') {
+    return `${hasFollowUps(n) ? 'One conversation' : 'One call'} per flagged ${n.over} item`;
+  }
   if (n.kind === 'base') return 'The base prompt';
   if (n.kind === 'question' || n.kind === 'question set' || n.kind === 'choice set') return questionPart(n.ask);
   return n.title || n.label || n.id;
@@ -905,7 +930,7 @@ function showPanel(id) {
       el('div', { class: 'p-kicker' }, el('i', { class: `kdot ${KIND_COLOR[n.kind]}` }), KIND_NAMES[n.kind],
         topicOf(id) ? el('span', {}, ` · ${topicOf(id)}`) : null),
       el('h2', {}, displayName(n)),
-      n.kind !== 'base' ? el('div', { class: 'p-meta' }, el('code', {}, n.kind === 'set' ? `${n.label}_…` : code(n)), meta ? ` · ${meta}` : '') : null),
+      n.kind !== 'base' ? el('div', { class: 'p-meta' }, el('code', {}, n.kind === 'set' ? `${n.label}…` : code(n)), meta ? ` · ${meta}` : '') : null),
     ...(renderers[n.kind] || (() => []))(n),
   ].flat(Infinity).filter(Boolean));
   panel.scrollTop = 0;
@@ -1057,14 +1082,19 @@ const renderers = {
   },
   set(g) {
     const first = model.byId[g.steps[0]];
-    return [el('p', { class: 'lead' }, `One reasoning call for each item the scan flags, independent of the others. Choose an item for its prompt${records ? ' and reply' : ''}.`),
-      props([['Runs when', first.when ? [ref(first.when), expression(first.when_text)] : first.when_text, true]]),
-      section('Items', el('div', { class: 'conn-list' }, g.steps.map(sid => {
+    const lead = hasFollowUps(g)
+      ? `A short conversation for each item of ${g.over} the scan flags, independent of the others: its first call, then follow-ups that run only when an earlier answer calls for them.`
+      : `One reasoning call for each item of ${g.over} the scan flags, independent of the others.`;
+    return [el('p', { class: 'lead' }, `${lead} Choose a step for its prompt${records ? ' and reply' : ''}.`),
+      props([['Items of', ref(g.over)],
+        ['Runs when', first.when ? [ref(first.when), expression(first.when_text)] : first.when_text, true]]),
+      section('Items', el('div', { class: 'conn-list' }, g.lanes.flatMap(lane => lane.map((sid, j) => {
         const s = model.byId[sid], state = overlay(s);
-        return el('button', { class: `ref row${state.off ? ' off' : ''}`, onclick: () => select(sid, true) },
-          el('i', { class: `dot ${state.dot || 'none'}` }), el('code', {}, sid), el('span', {}, itemName(s)),
+        return el('button', { class: `ref row${j ? ' follow' : ''}${state.off ? ' off' : ''}`, onclick: () => select(sid, true) },
+          el('i', { class: `dot ${state.dot || 'none'}` }), el('code', {}, sid),
+          el('span', {}, shortName(s)),
           records ? el('span', { class: 'ref-aside' }, state.chip || '') : null);
-      })), { aside: String(g.steps.length) }),
+      }))), { aside: String(g.lanes.length) }),
       connections(g.id)];
   },
   step(n) {
@@ -1082,6 +1112,7 @@ const renderers = {
     const out = [state];
     if (ran && r.answer) out.push(section('Answer', answerView(r.answer)));
     out.push(section('How it runs', props([
+      ['Settles', n.set_item ? [ref(n.set_item.set), el('code', {}, n.set_item.item)] : null],
       ['Runs when', n.when ? [ref(n.when), expression(n.when_text)] : n.when_text, true],
       ['Only if', expression(n.only_if), true],
       ['Variant', n.choose ? expression(n.choose) : null, true],

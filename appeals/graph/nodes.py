@@ -244,6 +244,10 @@ class Step(Node):
     verified quote, at most `limit` times, with `{item}` in the prompt replaced by `item`
     filled from that item's answer, such as "{name} ({role})". Each iteration starts from the
     same context and doesn't see the others. No step may follow a for-each step.
+    `set_item`: (scan set, item key) when the step settles one item of a scan set, such as (G2, 'water');
+    the steps settling one set's items are a family, asked the same way and independent of each other.
+    `short_title`: the step's name where its family or chain already says the rest, such as "water and
+    environment" for "Grounds: water and environment", or "result" for a follow-up.
     """
     title: str = ''
     when: Gate | None = None
@@ -258,6 +262,8 @@ class Step(Node):
     for_each: tuple | None = None
     item: str = ''
     limit: int | None = None
+    set_item: tuple | None = None
+    short_title: str = ''
     kind: ClassVar[str] = 'step'
     layer: ClassVar[int] = 3
 
@@ -306,6 +312,8 @@ class Step(Node):
             'confirms': self.confirms,
             'for_each': (f'{self.for_each[0].id}.{self.for_each[1]}' if self.for_each else None),
             'item': self.item or None, 'limit': self.limit,
+            'set_item': {'set': self.set_item[0].id, 'item': self.set_item[1]} if self.set_item else None,
+            'short_title': self.short_title or None,
         }
 
 
@@ -323,7 +331,10 @@ class Field(Node):
     field's list entries; `path` then names the quoted answer that must check out.
     `vouched_by`: for a value at `path` that is not quoted itself, the path of the quoted answer
     in the same step that must check out before the value is used, such as a result that rests
-    on the ruling quoted for the level.
+    on the ruling quoted for the level. `vouchers` maps item keys to the steps holding that quoted
+    answer, when it is another step (one earlier in the chain); by default it is the item's own step.
+    `if_skipped`: the value when the item's step was skipped because its condition was not met, provided
+    its voucher checks out, such as "not decided" for a result asked only of a decided level.
     `not_stated_if`: a condition on earlier answers that makes the field "not stated"
     whatever the sources say, such as grounds when no arguments are stated.
     `scan_if_unsure`: when the step answers "not stated", keep the scan's answer instead, such as for scope,
@@ -339,6 +350,8 @@ class Field(Node):
     from_docket: Callable | None = None
     per_item: Callable | None = None
     vouched_by: str | None = None
+    vouchers: dict = field(default_factory=dict)
+    if_skipped: str | None = None
     not_stated_if: E.Expr | None = None
     scan_if_unsure: bool = False
     notes: list = field(default_factory=list)
@@ -350,7 +363,7 @@ class Field(Node):
         return dict(self.steps) if self.steps else ({'': self.step} if self.step else {})
 
     def refs(self):
-        refs = {s.id for s in self.item_steps().values()}
+        refs = {s.id for s in self.item_steps().values()} | {s.id for s in self.vouchers.values()}
         if self.scan:
             refs.add(self.scan.id)
         if self.not_stated_if:
@@ -366,8 +379,12 @@ class Field(Node):
         elif self.steps:
             fallback = ('else the scan\'s most likely answer' if isinstance(self.scan, ChoiceSet)
                         else 'else the scan\'s answer at the threshold' if self.scan else 'else "not stated"')
-            quoted = f'when its {self.vouched_by} has a verified quote' if self.vouched_by else 'with a verified quote'
+            voucher = (f'when {", ".join(s.id for s in self.vouchers.values())}.{self.vouched_by} has a verified quote'
+                       if self.vouchers else f'when its {self.vouched_by} has a verified quote')
+            quoted = voucher if self.vouched_by else 'with a verified quote'
             rule = f'each item: its step\'s answer {quoted} when the step ran, {fallback}'
+            if self.if_skipped is not None:
+                rule += f'; "{self.if_skipped}" when the step was skipped because its condition was not met'
         elif self.step and self.scan:
             rule = 'step answer with a verified quote, else the scan\'s most likely answer, else "not stated"'
         elif self.step:
@@ -381,7 +398,9 @@ class Field(Node):
             'from_step': (', '.join(f'{s.id}.{self.path}' for s in self.steps.values()) if self.steps
                           else f'{self.step.id}.{self.path}' if self.step else None),
             'from_scan': self.scan.id if self.scan else None,
-            'vouched_by': self.vouched_by,
+            'vouched_by': (', '.join(f'{s.id}.{self.vouched_by}' for s in self.vouchers.values())
+                           if self.vouchers else self.vouched_by),
+            'if_skipped': self.if_skipped,
             'not_stated_if': self.not_stated_if.text() if self.not_stated_if else None,
             'scan_if_unsure': self.scan_if_unsure,
             'rule': rule, 'notes': self.notes}
