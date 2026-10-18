@@ -13,13 +13,10 @@ IN_SCOPE = ((S1.p('municipal permit application') + S1.p('several, including a m
             * (1 - S2.p('authorize something already built') - S2.p('no physical change'))
             * Max(S4.p('adds') + S4.p('replaces'), S2.p('create building lots')))
 
-scope = Gate('scope', topics.SCOPE, title='In scope',
-    when=IN_SCOPE >= T.scope_high,
-    why='Confidently a municipal appeal about new housing: go on to the reasoning steps.')
-
-scope_check = Gate('scope_check', topics.SCOPE, title='Scope unclear',
-    when=(IN_SCOPE > T.scope_low) & (IN_SCOPE < T.scope_high),
-    why='Between the thresholds: L1 checks scope with quotes before anything else runs.')
+scope = Gate('scope', topics.SCOPE, title='Possibly in scope',
+    when=IN_SCOPE > T.scope,
+    why='Possibly a municipal appeal about new housing: go on to the reasoning steps, where L1 checks scope with '
+        'quotes before anything else runs. Low on purpose: the scan misses real cases, and L1 stops the rest.')
 
 counts = Gate('counts', topics.UNITS, title='Any count in play',
     when=(U1.p('yes') >= T.counts) | (U2.p('yes') >= T.counts) | (U3.p('yes') >= T.counts)
@@ -47,7 +44,7 @@ design = Gate('design', topics.STAY_DESIGN, title='Design change likely',
     when=D2.p('yes') >= T.design,
     why='Confirm and describe the court-imposed change.')
 
-ALL = [scope, scope_check, counts, grounds, review, final, stay, design]
+ALL = [scope, counts, grounds, review, final, stay, design]
 
 # Whether a docket goes on to the reasoning steps at all.
-PROCEED = scope.passed() | scope_check.passed()
+PROCEED = scope.passed()

@@ -86,11 +86,28 @@ class _InScope(FakeDecisions):
         return reply
 
 
+class _InScopeReasoning(FakeReasoning):
+    """Made-up answers, except that the scope checks (L1) answer with each question's first option: in scope."""
+
+    async def _complete(self, system, base, history, turns):
+        import json
+        from appeals.codebook import questions as Q
+        reply = await super()._complete(system, base, history, turns)
+        question = turns[0]['text']
+        scope = [q for q in (Q.S1, Q.S2, Q.S3, Q.S4) if q.ask in question]
+        if not scope or not reply.text.endswith('}'):
+            return reply
+        answer = json.loads(reply.text)
+        key = next(iter(answer))
+        answer[key]['answer'] = next(iter(scope[0].options))
+        return reply.__class__(json.dumps(answer), reply.usage, reply.cost, reply.stop, reply.truncated)
+
+
 def test_a_chained_request_replays_the_earlier_requests_exactly(tmp_path):
     import json
     store = _store(tmp_path)
     settings = replace(config.load(), data=tmp_path, budget_usd=1.0)
-    runner = Runner(build(settings.thresholds), store, settings, _InScope(), FakeReasoning(), log=lambda *_: None)
+    runner = Runner(build(settings.thresholds), store, settings, _InScope(), _InScopeReasoning(), log=lambda *_: None)
     run_id = asyncio.run(runner.run(['12-1-20 Vtec'], workers=1))
     rows = store.db.execute('SELECT n.exchange FROM run_records r JOIN node_records n ON n.key = r.key '
                             'WHERE r.run_id = ? AND n.exchange IS NOT NULL', (run_id,)).fetchall()

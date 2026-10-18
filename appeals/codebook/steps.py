@@ -75,23 +75,25 @@ def _variants(claim, question):
 MUNICIPAL_PERMIT = ['municipal permit application', 'several, including a municipal permit application']
 # A step that can't tell ("not stated") doesn't end the chain: the scope fields then keep the scan's answer.
 
-L1a = Step('L1a', topics.SCOPE, title='Scope: kind of proceeding', when=G.scope_check,
+# Every docket that proceeds is checked, however sure the scan was: the answer key found confident scans that were
+# out of scope, such as an Act 250 docket decided with the town's appeal of the same project.
+L1a = Step('L1a', topics.SCOPE, title='Scope: kind of proceeding',
     prompt=_paragraphs(
-        'The scan was unsure whether this docket is in the study: an appeal of a municipal decision on an application '
-        'for new housing. This question and the ones after it check that.',
+        'First, check that this docket is in the study: an appeal of a municipal decision on an application for new '
+        'housing. This question and the ones after it check that.',
         '{S1}', QUOTE_IT),
     returns=Record(proceeding=_choice(S1)), halt_unless=A('L1a', 'proceeding').in_([*MUNICIPAL_PERMIT, NOT_STATED]))
 
-L1b = Step('L1b', topics.SCOPE, title='Scope: physical change', when=G.scope_check, after=L1a,
+L1b = Step('L1b', topics.SCOPE, title='Scope: physical change', after=L1a,
     prompt=_paragraphs('{S2}', QUOTE_IT),
     returns=Record(change=_choice(S2)),
     halt_unless=~A('L1b', 'change').in_(['authorize something already built', 'no physical change']))
 
-L1c = Step('L1c', topics.SCOPE, title='Scope: housing use', when=G.scope_check, after=L1b,
+L1c = Step('L1c', topics.SCOPE, title='Scope: housing use', after=L1b,
     prompt=_paragraphs('{S3}', QUOTE_IT),
     returns=Record(housing=_choice(S3)), halt_unless=A('L1c', 'housing').in_(['yes', 'group or care housing', NOT_STATED]))
 
-L1d = Step('L1d', topics.SCOPE, title='Scope: dwelling units', when=G.scope_check, after=L1c,
+L1d = Step('L1d', topics.SCOPE, title='Scope: dwelling units', after=L1c,
     prompt=_paragraphs('{S4}', QUOTE_IT),
     returns=Record(units=_choice(S4)),
     halt_unless=A('L1d', 'units').in_(['adds', 'replaces', NOT_STATED]) | A('L1b', 'change').is_('create building lots'))

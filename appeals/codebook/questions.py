@@ -56,10 +56,13 @@ S2 = Question('S2', topics.SCOPE,
 S3 = Question('S3', topics.SCOPE,
     ask='Will the structure, building or lots at issue be used for housing, where people live?',
     options={'yes': 'The documents say the structure or lots are for housing in dwelling units, such as houses or '
-                    'apartments.',
+                    'apartments. Lots in a residential district count unless the documents show another use, and a '
+                    'project that is mostly another use counts if it adds at least one dwelling unit.',
              'group or care housing': 'Residents will live there, but in rooms or beds rather than dwelling units, '
                                       'such as assisted living, a nursing home, a dormitory or a group home.',
-             'no': 'The use is not housing, such as commercial, industrial or accessory use.',
+             'no': 'The use is not housing, such as commercial, industrial or accessory use. Seasonal camps, '
+                   'recreational vehicles and condominium hotels are not housing unless the documents describe them as '
+                   'year-round dwellings.',
              NOT_STATED: NS},
     why='New housing must be explicit in the documents. Group and care housing is kept apart so it can be counted or '
         'left out.')

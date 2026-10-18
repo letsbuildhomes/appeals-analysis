@@ -12,7 +12,7 @@ from appeals.graph.pipeline import GraphError, Pipeline
 from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record, YesNo
 from appeals.providers import unpriced
 
-THRESHOLDS = {'scope_high': 0.7, 'scope_low': 0.2, 'counts': 0.5, 'grounds': 0.3, 'other_check': 0.5,
+THRESHOLDS = {'scope': 0.05, 'counts': 0.5, 'grounds': 0.3, 'other_check': 0.5,
               'review': 0.5, 'final': 0.5, 'stay': 0.5, 'design': 0.5, 'check': 0.3, 'sure': 0.6}
 
 
@@ -129,7 +129,7 @@ def test_plan_skips_gated_steps():
     plan = layers.plan(pipeline, scan)
     assert plan['proceeds'] is True
     runs = {s['step']: s['runs'] for s in plan['steps']}
-    assert runs['L1a'] is False          # scope confidently in: no scope check
+    assert runs['L1a'] is True           # every docket that goes on is checked for scope, however sure the scan
     assert runs['L2a'] and runs['L3a'] and runs['L3b'] and runs['L4a']
     depends = {s['step'] for s in plan['steps'] if s.get('depends')}
     assert {'L2b', 'L5b', 'L5e', 'L5f'} <= depends          # decided by earlier answers, when the docket runs

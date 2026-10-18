@@ -181,7 +181,7 @@ and "Feeds" the derived values that read them.
 |---|---|---|---|---|
 | S1 | What kind of proceeding is this docket? | municipal permit application · several, including a municipal permit application · municipal enforcement · municipal bylaw or policy · other municipal decision · Act 250 permit · ANR stormwater permit · ANR wastewater permit · other state permit or decision · state enforcement · other · not stated | Scan (Choice) | `in_scope` |
 | S2 | What would the permission allow physically? | build a new structure · place a structure · convert or renovate an existing building · create building lots · authorize something already built · no physical change · not stated | Scan (Choice) | `in_scope` |
-| S3 | Will the structure or lots be used for housing? | yes (dwelling units) · group or care housing (assisted living, nursing homes, dormitories, group homes) · no · not stated | Scan (Choice) | `in_scope` |
+| S3 | Will the structure or lots be used for housing? | yes (dwelling units; lots in a residential district unless shown otherwise; a mostly other project that adds a unit) · group or care housing (assisted living, nursing homes, dormitories, group homes) · no (including seasonal camps, RVs and condominium hotels unless described as year-round dwellings) · not stated | Scan (Choice) | `in_scope` |
 | S4 | Does the project add dwelling units (or, for group or care housing, residents' rooms or beds), replace existing ones, or neither? | adds · replaces · neither · not stated | Scan (Choice) | `in_scope` |
 
 **In scope (`in_scope`)** = S1 is a municipal permit application, alone or with other
@@ -321,7 +321,7 @@ Thresholds are *to set* per question from the reference set.
 
 | Gate | Condition | Passes to |
 |---|---|---|
-| Scope | P(in scope) from S1–S4. At or above the high threshold: continue. At or below the low threshold: stop. Between them: run L1 first. | Base and all steps / L1 / stop |
+| Scope | P(in scope) from S1–S4 above a low threshold (0.05): continue, with L1 checking scope first. At or below it: stop. The answer key found real cases scanned as low as 0.09, and confident scans that were out of scope, so the threshold is low and every docket that continues is checked. | L1, then all steps / stop |
 | Counts | U1, U2 or U3 stated, or U4/U5 is more or fewer | L6 |
 | Grounds | G1 yes at or above `grounds` (0.3, low so dockets with arguments are rarely skipped) | L7, L8 |
 | Review | C1 is not "not stated" | L10 |
@@ -404,7 +404,7 @@ can't tell doesn't take a docket out of the study.
 
 | Step | Gate | Only if | Asks for | Follows |
 |---|---|---|---|---|
-| L1a–d Scope | scope borderline | — | S1, S2, S3, S4, one at a time; each halts the docket when it rules scope out | the scope step before it |
+| L1a–d Scope | scope | — | S1, S2, S3, S4, one at a time; each halts the docket when it rules scope out | the scope step before it |
 | L2a Filing date | — | — | the filing date as a document states it | — |
 | L2b Earliest event | — | L2a not stated | the earliest dated event showing the appeal existed | L2a |
 | L3a Town decision | — | — | T1 | — |
@@ -476,7 +476,7 @@ it was dismissed.
 
 ## To set
 
-- The thresholds for each gate, and the scope gate's high and low thresholds.
+- The thresholds for each gate.
 - The long-context threshold, in measured tokens.
 - The reasoning model. DeepSeek Flash is in use for now; others will be
   tried: any model reached through the Anthropic or OpenAI API can be added
