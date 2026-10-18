@@ -30,6 +30,23 @@ Rules learned the hard way:
 - **Fix the key's consistency in code** where a codebook rule decides it (such as results "not decided" for a
   standard not decided), rather than with another agent pass.
 
+## Building or extending the key
+
+What worked when labeling, from the October 2026 grounds keys and this key:
+- **Generate the labeling prompt from the codebook,** so the key and the pipeline can't drift apart; edge cases
+  are the only hand-written definitions, and every one that settles a definition belongs in the codebook too.
+- **Probe, review once, then label the rest.** Label 8 to 10 dockets, have a stronger model review them, and
+  revise the prompt once if any correction is major (one that moves scope, a level across a line that matters,
+  or a decided value). One revision round was enough every time.
+- **One subagent per docket,** reading only the prompt and that docket's text, so facts don't leak between
+  dockets. Name each docket's siblings in its task. At most 20 subagents run at once; keep a queue.
+- **A quote for every answer, checked in code,** with the same normalization as the pipeline. Quotes make
+  reviews fast and settle most disagreements.
+- **A `doubts` field.** Labelers use it honestly, and it predicts where the key is weakest.
+- **Draw by stratum with a fixed seed,** and report hand-picked hard cases apart from the random draw. Dockets
+  chosen because a scan flagged something bias the key toward that thing.
+- **Leave out the longest texts,** and dockets that share a decision with one already drawn.
+
 ## The answer key
 
 64 dockets drawn from the baseline scan (run `20261018-200655-2c93`) by stratum: sure in scope, the check band,

@@ -126,13 +126,12 @@ README, so it can be swapped out.
 
 ## The reference set
 
-The prototype has 76 hand-checked dockets, 40 of them in scope, split into
-development and held-back sets. They are labeled in the prototype's own
-format, which doesn't match the questions here, and its 16 newest labels
-were never approved. They live in the old project under `reference/`. They
-will need relabeling as answers to this project's question IDs before the
-gate thresholds can be tuned. The case selection, their texts and the second
-readings are still useful. Held-back dockets must stay out of development.
+The answer key in `data/answer-keys/full-2026-10/` (64 dockets, labeled by
+model agents and corrected by adjudication) is what the pipeline is scored
+against; [IMPROVING.md](IMPROVING.md) describes it and its caveats. The
+prototype's 76 hand-checked dockets in the old project's `reference/` are
+history: labeled in the prototype's own format and not used here.
+Held-back dockets must stay out of development.
 
 ## What's in the old project, for reference
 
