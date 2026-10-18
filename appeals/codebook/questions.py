@@ -99,8 +99,9 @@ K1 = YesNoSet('K1', topics.KINDS,
     ask='Is this kind of municipal permission at issue in this appeal?',
     items={'subdivision': 'subdivision approval', 'site plan': 'site plan approval',
            'planned development': 'planned unit development or master plan approval',
-           'conditional use': 'conditional use approval', 'variance': 'a variance (the statutory variance; a waiver is "other")',
-           'zoning permit': 'a zoning or building permit', 'other': 'another kind of permission'},
+           'conditional use': 'conditional use approval', 'variance': 'a variance (the statutory variance, not a waiver)',
+           'zoning permit': 'a zoning or building permit',
+           'other': 'another kind of permission, such as a waiver'},
     why='What kind of approval was appealed.')
 
 
@@ -204,8 +205,9 @@ OTHER_LEVELS = {
 OTHER_KINDS = {
     'measurable': 'whether the project meets a rule with a measurable test, such as a setback, height limit, minimum '
                   'lot size or frontage, density limit or required number of parking spaces. If only the measuring '
-                  'method is disputed, the method is allowed use and defined terms and compliance here is "decided, '
-                  'disputed", even if the figures under the adopted method are agreed. Not: a variance or waiver from '
+                  'method is disputed, the method itself is a question of what the rule\'s words mean, and whether '
+                  'the project meets the rule is still "decided, disputed" here, even if the figures under the adopted '
+                  'method are agreed. Not: a variance or waiver from '
                   'such a rule, what the rule\'s words mean, or a number set by an earlier permit\'s condition (earlier permits '
                   'and approvals)',
     'meaning': 'what the words of the bylaw or a permit mean: whether the proposed use is allowed in the zoning district '
@@ -292,6 +294,8 @@ C3 = Question('C3', topics.COURT,
 C4 = Question('C4', topics.COURT,
     ask='If the court decided the appeal on its merits, what did it do with the application?',
     options={'granted': 'Granted or approved it.', 'granted with conditions': 'Granted or approved it with conditions.',
+             'granted in part': 'Granted part of it and denied part, including granting one permission and denying '
+                                'another.',
              'denied': 'Denied it.', 'sent back': 'Sent it back (remanded) to the municipality.',
              NOT_STATED: 'Not decided on the merits, or not stated.'},
     why='Compared with the town\'s decision, shows whether the appeal changed the outcome.')

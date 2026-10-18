@@ -270,7 +270,7 @@ L6e = Step('L6e', topics.UNITS, title='Units added: town approved', when=G.count
 
 # The scan's two comparisons of the court's result belong with the court's count, not the town's.
 L6f = Step('L6f', topics.UNITS, title='Units added: court approved', when=G.counts, after=L6e,
-    only_if=A('L5c', 'result').in_(['granted', 'granted with conditions', 'denied']),
+    only_if=A('L5c', 'result').in_(['granted', 'granted with conditions', 'granted in part', 'denied']),
     prompt=_paragraphs('{U4}', '{U5}', 'How many new dwelling units did the court\'s decision ending this docket '
                                        'approve? If the court denied the application, the answer is 0, with a quote of '
                                        f'the denial. {PART_ONLY}', UNITS_ADDED),

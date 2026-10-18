@@ -151,11 +151,13 @@ Quotes cite `document n` and `page n`.
 | 99th percentile | about 220k | about 55k |
 | Longest | about 420k | about 105k |
 
-Token figures assume 4 characters per token. A docket over the decision
-model's standard per-question context (32k tokens for Jev 1.14, roughly
-120k characters with room for the questions) is sent in long-context mode
-(up to 262k tokens). The long-context threshold is *to set*, from measured
-token counts.
+Token figures assume 4 characters per token. Jev 1.14 averaged 4.0 on 33
+long dockets, but individual dockets ranged from 3.7 to 4.3. A docket must
+fit the decision model's standard per-question context (32k tokens for Jev
+1.14: the docket plus any one question, the largest about 550 tokens). A
+docket estimated at over 28,000 tokens (about 112k characters) is sent in
+long-context mode (up to 262k tokens) instead. The margin covers a ratio
+down to about 3.6; at 30,000, a 120k-character docket was rejected.
 
 ## The extraction graph
 
@@ -281,7 +283,7 @@ decision model before they were built, against a temporary 46-docket answer key.
 | C1 | How did the court hear the appeal? (`review_standard`) | de novo · on the town's record · not stated | Scan (Choice); quoted by L10 | — |
 | C2 | Does a decision leave nothing pending in this docket? (`final_decision`) | yes · no | Scan (Choice); confirmed by L5 | `duration` |
 | C3 | If so, how did the docket end? (`how_ended`) | decided on the merits · dismissed · settled · withdrawn · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome` |
-| C4 | If decided on the merits, what did the court do with the application? (`court_result`) | granted · granted with conditions · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome`, `last_permission` |
+| C4 | If decided on the merits, what did the court do with the application? (`court_result`) | granted · granted with conditions · granted in part (and denied in part) · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome`, `last_permission` |
 | C5 | If dismissed, on what basis? (`dismissal_basis`) | standing · timeliness · jurisdiction · mootness · other · not stated | Scan (Choice); confirmed by L5 | — |
 | `final_decision_date` | Date of the court's first decision leaving nothing pending | date + precision | L5e (chained after L5a) | `duration` |
 | `latest_order_date` | If no decision ends the docket: date of the latest order | date + precision | L5f | `duration` |

@@ -111,7 +111,7 @@ class YesNoSet(Node):
 
     def questions(self):
         return [Question(f'{self.id}.{key}', self.topic, ask=f'{self.ask} Item: {meaning}', yes_no=True,
-                         options={'yes': f'Yes: {meaning}', 'no': f'No, not {key}.'}) for key, meaning in self.items.items()]
+                         options={'yes': f'Yes: {meaning}', 'no': f'No: not {meaning}'}) for key, meaning in self.items.items()]
 
     def ids(self):
         return [f'{self.id}.{key}' for key in self.items]

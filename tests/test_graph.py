@@ -563,3 +563,12 @@ def test_dates_must_be_real_and_plausible():
     assert 'not a calendar date' in kind.validate('2019-02-30', 'd')[0]
     assert 'not a calendar date' in kind.validate('2019-13', 'd')[0]
     assert 'expected YYYY' in kind.validate('31/05/2019', 'd')[0]
+
+
+def test_a_court_upholding_a_partial_approval_did_not_change_the_outcome():
+    from appeals.codebook.derived import court_changed_outcome, last_permission
+    v = {'town_decision': 'approved in part', 'how_ended': 'decided on the merits', 'court_result': 'granted in part',
+         'units_vs_town': 'same'}
+    assert court_changed_outcome(v) == 'no'
+    assert last_permission(v) == 'allowed in part'
+    assert court_changed_outcome(v | {'court_result': 'granted'}) == 'yes'

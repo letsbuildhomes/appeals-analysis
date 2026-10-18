@@ -24,7 +24,8 @@ def in_scope(v):
 def court_changed_outcome(v):
     town, ended, result = v['town_decision'], v['how_ended'], v['court_result']
     if ended == 'decided on the merits':
-        same = {('approved', 'granted'), ('approved with conditions', 'granted with conditions'), ('denied', 'denied')}
+        same = {('approved', 'granted'), ('approved with conditions', 'granted with conditions'),
+                ('approved in part', 'granted in part'), ('denied', 'denied')}
         if (town, result) in same and v['units_vs_town'] in ('same', NOT_STATED):
             return 'no'
         return 'yes' if town != NOT_STATED and result != NOT_STATED else NOT_STATED
@@ -107,8 +108,10 @@ def duration(v):
 
 def last_permission(v):
     result = v['court_result']
-    if result in ('granted', 'granted with conditions', 'denied'):
-        return {'granted': 'allowed', 'granted with conditions': 'allowed with conditions', 'denied': 'denied'}[result]
+    court = {'granted': 'allowed', 'granted with conditions': 'allowed with conditions', 'granted in part': 'allowed in part',
+             'denied': 'denied'}
+    if result in court:
+        return court[result]
     return {'approved': 'allowed', 'approved with conditions': 'allowed with conditions', 'denied': 'denied',
             'approved in part': 'allowed in part'}.get(v['town_decision'], NOT_STATED)
 

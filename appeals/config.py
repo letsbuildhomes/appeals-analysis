@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 class Decision:
     """The decision model and how the scan uses it."""
     model: Model
-    long_context_tokens: int = 30000          # dockets over this many estimated tokens use long-context mode
+    long_context_tokens: int = 28000          # dockets over this many estimated tokens use long-context mode
 
 
 @dataclass(frozen=True)
