@@ -244,18 +244,21 @@ def test_each_kind_of_judgment_standard_comes_from_its_own_step():
     pipeline = build(THRESHOLDS)
     scan = {'G1': {'yes': 0.9, 'no': 0.1},
             'G2.character': {'decided, disputed': 0.9, 'not at issue': 0.1},
-            'G2.traffic': {'decided, not disputed': 0.95, 'not at issue': 0.05}}
+            'G2.traffic': {'decided, not disputed': 0.95, 'not at issue': 0.05},
+            'G2.water': {'not at issue': 0.9, 'decided, disputed': 0.1}}
     steps = _facts(L7a={'stated': _quoted('yes')}, L8_character={'level': _quoted('decided, not disputed')},
                    L8_character_result={'result': 'met'})
     steps['L8_character_condition'] = {'skipped': 'condition not met: …'}
+    steps['L8_water_result'] = {'skipped': 'condition not met: …'}       # as a run records it: its level never ran
     facts = layers.resolve(pipeline, scan, steps)
     grounds, results = facts['judgment_grounds'], facts['judgment_results']
     assert grounds['answer']['character'] == 'decided, not disputed' and grounds['source']['character'] == 'step'
     assert grounds['answer']['traffic'] == 'decided, not disputed' and grounds['source']['traffic'] == 'scan'
     assert grounds['conflicts'] == ['character']
-    assert results['answer']['character'] == 'met' and results['answer']['traffic'] == NOT_STATED
+    assert results['answer']['character'] == 'met' and results['answer']['traffic'] == NOT_STATED   # decided, no follow-up
+    assert results['answer']['water'] == 'not decided'           # the scan reads it as not at issue: no result to ask
     conditions = facts['judgment_conditions']['answer']
-    assert conditions['character'] == 'no' and conditions['traffic'] == NOT_STATED
+    assert conditions['character'] == 'no' and conditions['traffic'] == 'no' and conditions['water'] == 'no'
     derived = layers.derive(pipeline, facts)
     assert derived['judgment_central'] == 'no' and derived['judgment_at_issue'] == 'yes'
 
@@ -429,7 +432,7 @@ def test_a_kind_of_judgment_standard_is_followed_up_when_it_may_be_at_issue():
     assert _runs(pipeline, scan, 'L8_character', stated) == (True, 'scan fairly confident')
     assert _runs(pipeline, scan, 'L8_traffic', stated) == (True, 'scan uncertain')
     assert _runs(pipeline, scan, 'L8_historic', stated)[0] is False
-    assert _runs(pipeline, scan, 'L8_character', {'L7a': {'stated': {'answer': 'no', 'quotes': []}}})[0] is False
+    assert _runs(pipeline, scan, 'L8_character', {'L7a': {'stated': {'answer': 'no', 'quotes': []}}})[0] is True  # not L7a's call
     prompt = layers.render_prompt(pipeline, pipeline.nodes['L8_character'], 'scan fairly confident', scan)
     assert prompt.startswith('The kind of standard: the character of the area')
     assert ('The scan judged that this docket dealt with this kind of standard, most likely at the level '
@@ -590,3 +593,29 @@ def test_group_or_care_housing_is_in_scope():
     assert in_scope(v)
     assert not in_scope(v | {'housing_use': 'no'})
 
+
+
+def test_one_wrong_no_from_the_arguments_step_does_not_blank_the_grounds():
+    pipeline = build(THRESHOLDS)
+    scan = {'G1': {'yes': 0.9, 'no': 0.1}, 'G2.character': {'decided, disputed': 0.9, 'not at issue': 0.1}}
+    found = _facts(L7a={'stated': _quoted('no')}, L8_character={'level': _quoted('decided, disputed')})
+    assert layers.resolve(pipeline, scan, found)['judgment_grounds']['answer']['character'] == 'decided, disputed'
+    nothing = _facts(L7a={'stated': _quoted('no')}, L8_character={'level': _quoted('not at issue')})
+    assert layers.resolve(pipeline, scan, nothing)['judgment_grounds']['answer'] == NOT_STATED
+
+
+class _TwoPages:
+    pages = {1: 'approving Appellee-\n\nApplicants Gary and Gloria Geddes’ subdivision. Such a condition would go beyond',
+             2: 'the scope of this proceeding.'}
+
+    def page_text(self, doc, page):
+        return self.pages.get(page) if doc == 1 else None
+
+
+def test_a_quote_may_cross_a_line_break_hyphen_or_run_onto_the_next_page():
+    quotes = {'a': {'doc': 1, 'page': 1, 'quote': "Appellee-Applicants Gary and Gloria Geddes' subdivision"},
+              'b': {'doc': 1, 'page': 1, 'quote': 'would go beyond the scope of this proceeding'},
+              'c': {'doc': 1, 'page': 1, 'quote': 'words that appear on no page at all'}}
+    checked, n, verified = layers.verify_quotes(quotes, _TwoPages())
+    assert (n, verified) == (3, 2)
+    assert checked['a']['verified'] and checked['b']['verified'] and not checked['c']['verified']

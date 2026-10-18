@@ -11,7 +11,7 @@ from appeals.codebook import topics
 from appeals.graph.expr import StepAnswer as A
 from appeals.graph.expr import T
 from appeals.graph.nodes import Field
-from appeals.graph.values import NONE_FOUND, NOT_STATED, Count, DateValue, ListOf, Name, OneOf, Record, Text, YesNo
+from appeals.graph.values import NONE_FOUND, NOT_STATED, Count, DateValue, ListOf, OneOf, Record, Text, YesNo
 from appeals.ingest.dockets import filing_period
 
 
@@ -63,10 +63,11 @@ municipality = Field('municipality', topics.TOWN, label='Municipality', type=L.T
                             'now its own city or town goes under its own name when the documents use it, whenever the '
                             'decision was made: "Essex Junction", a village of Essex until 2022, but "Essex" when the '
                             'documents say only Essex.'])
-place_within_town = Field('place_within_town', topics.TOWN, label='Place within the town', type=Name(),
+place_within_town = Field('place_within_town', topics.TOWN, label='Place within the town', type=Text(),
                           step=L.L3c, path='place',
-                          notes=['A village or other named place within the town where the project is, such as Quechee in '
-                                 'Hartford, when the documents name one.'])
+                          notes=['A village or other named area within the town where the project is, such as Quechee in '
+                                 'Hartford, when the documents name one. Read loosely and not scored: the town '
+                                 '(municipality) is the reliable field.'])
 units_added_proposed = Field('units_added_proposed', topics.UNITS, label='Units added: proposed', type=Count(),
                              step=L.L6a, path='proposed',
                              notes=['Units an earlier permit already approved and the project keeps unchanged are not '
@@ -122,7 +123,13 @@ units_added_town_approved = Field('units_added_town_approved', topics.UNITS, lab
                                          'under appeal, only that part is counted, as in the court\'s count.'])
 
 # ---- C · Grounds -------------------------------------------------------------------------
-NO_ARGUMENTS = A('L7a', 'stated').in_(['no', NONE_FOUND]) | (Q.G1.p('yes') < T.grounds)
+# No arguments: the scan sees none, or L7a found none and no follow-up found a judgment standard at issue. One wrong
+# "no" from L7a alone no longer blanks the grounds.
+_NONE_AT_ISSUE = None
+for _key in Q.GROUPS:
+    _term = A(f'L8_{_key}', 'level').in_(['not at issue', None])
+    _NONE_AT_ISSUE = _term if _NONE_AT_ISSUE is None else _NONE_AT_ISSUE & _term
+NO_ARGUMENTS = (Q.G1.p('yes') < T.grounds) | (A('L7a', 'stated').in_(['no', NONE_FOUND]) & _NONE_AT_ISSUE)
 arguments_stated = Field('arguments_stated', topics.GROUNDS, label='Arguments stated', type=_choice(Q.G1),
                          scan=Q.G1, step=L.L7a, path='stated',
                          notes=['A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
@@ -149,7 +156,7 @@ judgment_grounds = Field('judgment_grounds', topics.GROUNDS, label='Judgment sta
 judgment_results = Field('judgment_results', topics.GROUNDS, label='Judgment standards: the court\'s result',
                          type=_per_group(OneOf(L.RESULTS, not_stated=True)), steps=L.GROUND_RESULTS, path='result',
                          vouched_by='level', vouchers=L.GROUND_STEPS, if_skipped='not decided', not_stated_if=NO_ARGUMENTS,
-                         notes=['"Not stated" for a kind that got no follow-up (the scan saw it as not at issue).',
+                         notes=['"Not decided" for a kind that got no follow-up (the scan saw it as not at issue).',
                                 '"Met with conditions" only when a condition is aimed at that kind of standard.'])
 judgment_conditions = Field('judgment_conditions', topics.GROUNDS, label='Judgment standards: dispute about a condition',
                             type=_per_group(YesNo(not_stated=True)), steps=L.GROUND_CONDITIONS, path='condition',
@@ -157,7 +164,8 @@ judgment_conditions = Field('judgment_conditions', topics.GROUNDS, label='Judgme
                             notes=['Whether the dispute the court ruled on for that kind of standard was about a '
                                    'condition the municipality attached, or one a party asked the court to add, change '
                                    'or remove.',
-                                   'Asked only when the level is "decided, disputed"; any other level reads "no".'])
+                                   'Asked only when the level is "decided, disputed"; any other level, including a kind '
+                                   'that got no follow-up, reads "no".'])
 relief_kind = Field('relief_kind', topics.GROUNDS, label='Kind of dimensional relief', type=OneOf(L.RELIEF_KINDS),
                     step=L.L8_relief_kind, path='kind', not_stated_if=NO_ARGUMENTS,
                     notes=['Only "statutory variance" is a variance in the legal sense (24 V.S.A. § 4469). Counts of '
@@ -206,13 +214,16 @@ review_standard = Field('review_standard', topics.COURT, label='Review standard'
 final_decision = Field('final_decision', topics.COURT, label='A decision ends the docket', type=_choice(Q.C2),
                        scan=Q.C2, step=L.L5a, path='final',
                        notes=["The end of the case is the court's first decision that leaves nothing pending in this docket. Partial rulings don't end it, and later post-judgment proceedings don't extend it.",
+                              'A decision on the merits that decides every issue ends the docket even if a judgment order is still to be submitted: the order is a formality, and is often not published.',
                               'An outcome is never inferred from a ruling on a motion.'])
 how_ended = Field('how_ended', topics.COURT, label='How the docket ended', type=_choice(Q.C3),
                   scan=Q.C3, step=L.L5b, path='ended', not_stated_if=NOT_FINAL)
 court_result = Field('court_result', topics.COURT, label='What the court did', type=_choice(Q.C4),
                      scan=Q.C4, step=L.L5c, path='result',
                      not_stated_if=NOT_FINAL | A('L5b', 'ended').in_(['dismissed', 'settled', 'withdrawn']),
-                     notes=['"Granted" means the documents don\'t say the court attached or kept conditions, not that '
+                     notes=['A remand only to issue the approvals the court ordered counts as granted; "sent back" '
+                            'means the municipality must decide or reconsider something.',
+                            '"Granted" means the documents don\'t say the court attached or kept conditions, not that '
                             'there were none.'])
 dismissal_basis = Field('dismissal_basis', topics.COURT, label='Dismissal basis', type=_choice(Q.C5),
                         scan=Q.C5, step=L.L5d, path='dismissal_basis',
@@ -221,6 +232,11 @@ dismissal_basis = Field('dismissal_basis', topics.COURT, label='Dismissal basis'
 # ---- E · How long ------------------------------------------------------------------------
 final_decision_date = Field('final_decision_date', topics.COURT, label='Date of the first final decision',
                             type=DateValue(), step=L.L5e, path='final_decision_date')
+outcome_changed_later = Field('outcome_changed_later', topics.COURT, label='A later decision changed the outcome',
+                              type=YesNo(not_stated=True), step=L.L5g, path='changed', not_stated_if=NOT_FINAL,
+                              notes=['The case\'s timing and outcome come from the first final decision. "yes" when a '
+                                     'later decision of the court in this docket, such as after a Supreme Court remand '
+                                     'or on reconsideration, changed that outcome; the later outcome is not recorded.'])
 latest_order_date = Field('latest_order_date', topics.COURT, label='Date of the latest order',
                           type=DateValue(), step=L.L5f, path='latest_order_date',
                           notes=['Filled only when no decision ends the docket. It bounds the end of the case from below; it is not the end.'])
@@ -256,6 +272,6 @@ ALL = [proceeding, physical_change, housing_use, units_effect,
        arguments_stated, judgment_grounds, judgment_results, judgment_conditions, relief_kind, other_questions,
        conditions_challenged, conditions_challenged_by, conditions_outcome,
        review_standard, final_decision, how_ended, court_result, dismissal_basis,
-       final_decision_date, latest_order_date,
+       final_decision_date, outcome_changed_later, latest_order_date,
        stayed, stay_start, stay_end, units_vs_town, units_vs_application, units_added_court_approved,
        design_changed, design_change]

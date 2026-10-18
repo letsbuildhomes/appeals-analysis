@@ -220,7 +220,7 @@ not part of S1: one decision often grants several, so it is asked as a set
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
 | T1 | What did the municipal decision appealed to this court decide? When several municipal bodies decided in turn, the last one. And its date. (`town_decision`, `town_decision_date`) | approved (no conditions mentioned) · approved with conditions (conditions mentioned) · approved in part (and denied in part) · denied · not stated → date + precision | Scan (Choice); confirmed by L3a; date from L3b | `court_changed_outcome`, `duration`, `last_permission` |
-| `municipality`, `place_within_town` | In which Vermont town or city is the project, and in which village or other named place within it? | one of Vermont's 256 towns, cities, gores and grants · not stated; a place name · not stated | L3c (LLM value, checked against the list) | — |
+| `municipality`, `place_within_town` | In which Vermont town or city is the project, and in which village or other named area within it? | one of Vermont's 256 towns, cities, gores and grants · not stated; a place name, read loosely and not scored · not stated | L3c (LLM value, checked against the list) | — |
 
 **The town** is asked of the reasoning model rather than the scan: it only
 matters for dockets in scope, which are the ones that reach the steps. The
@@ -276,7 +276,7 @@ decision model before they were built, against a temporary 46-docket answer key.
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| G1 | Do the documents say what the appellant argued? (`arguments_stated`) | yes · no (no makes G2 and G4 "not stated") | Scan (Choice); confirmed by L7a | — |
+| G1 | Do the documents say what the appellant argued? (`arguments_stated`) | yes · no (G2 and G4 are "not stated" when the scan sees no arguments, or L7a finds none and no G2 follow-up finds a standard at issue) | Scan (Choice); confirmed by L7a | — |
 | G2 | For each of seven kinds of judgment standard, how far did the docket get with it? Kinds: character and fit (character of the area; scale, design or appearance; scenic effects) · historic · neighbor effects (nuisance; privacy, light, air) · traffic and services (traffic, access, street layout; schools, fire, municipal water and sewer) · water and environment (water supply, wastewater, stormwater, flooding, natural resources) · site design (landscaping, screening, buffers, open space, planned-development design criteria, only where argued about itself) · dimensional relief (variances and waivers) (`judgment_grounds`, `judgment_results`, `judgment_conditions`, `relief_kind`) | not at issue · raised only · taken up · decided, disputed · decided, not disputed · set aside → result (met · met with conditions · partly met · not met), whether the dispute was about a condition, and for dimensional relief which kind (statutory variance · bylaw waiver · planned-development modification) | Scan (Choice ×7); each kind with a 0.3 or higher chance of being at issue followed up by its own L8 conversation: the level, then the result if decided, then the condition if decided and disputed (otherwise not decided and no) | `judgment_central`, `judgment_at_issue`, `what_was_central` |
 | G3 | For each of nine other kinds of question, how far did the docket get with it? Kinds: measurable rules (setbacks, height, lot size and frontage, density, parking) · allowed use and defined terms (including how a rule is measured, when that is disputed) · nonconforming uses and structures · municipal process (notice, hearing, completeness, defects in the town's decision) · who can appeal (standing, timeliness, jurisdiction) · earlier permits and approvals (vested rights, unappealed permits, repeat applications, compliance) · property rights (title, easements, covenants) · constitutional and equitable claims (vagueness, takings, fair housing, estoppel) · other permits (Act 250, state wastewater or stormwater) (`other_questions`) | the same six levels as G2 | Scan (Choice ×9); each kind with a 0.5 or higher chance of being at issue followed up by its own L9 step | `what_was_central` |
 | G4 | Did a party challenge a condition attached to the permit, arguing whether it should be imposed or how strict? (`conditions_challenged`, `conditions_challenged_by`, `conditions_outcome`) | yes · no → for each challenged condition (up to 5): what it requires, who challenged it, what the court did | Scan (Choice); confirmed by L7b, then L7c–e | — |
@@ -291,6 +291,7 @@ decision model before they were built, against a temporary 46-docket answer key.
 | C4 | If decided on the merits, what did the court do with the application? (`court_result`) | granted (no conditions mentioned) · granted with conditions (conditions mentioned) · granted in part (and denied in part) · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome`, `last_permission` |
 | C5 | If dismissed, on what basis? (`dismissal_basis`) | standing · timeliness · jurisdiction · mootness · other · not stated | Scan (Choice); confirmed by L5 | — |
 | `final_decision_date` | Date of the court's first decision leaving nothing pending | date + precision | L5e (chained after L5a) | `duration` |
+| `outcome_changed_later` | Did a later decision of the court in this docket (after a Supreme Court remand, or on reconsideration) change the first final decision's outcome? | yes · no · not stated | L5g | — |
 | `latest_order_date` | If no decision ends the docket: date of the latest order | date + precision | L5f | `duration` |
 
 The scan reads the whole docket at once, so C2–C5 describe the docket as a
@@ -378,7 +379,7 @@ same request is sent again unchanged (twice by default). Every attempt
 records the stop reason the API reported.
 
 Steps are numbered by chain, in the order the chains run, and lettered by
-their order within the chain: L5 is the court's chain, L5a to L5f. A step that
+their order within the chain: L5 is the court's chain, L5a to L5g. A step that
 is asked once per flagged item is named after its item, as in L3_variance, and
 says so in its `set_item` (K1, "variance"): the steps settling one scan set's
 items are a family, which the graph draws as one box. A family's step may
@@ -418,6 +419,7 @@ can't tell doesn't take a docket out of the study.
 | L5c Result | final | L5b on the merits | C4 | L5b |
 | L5d Dismissal basis | final | L5b dismissed | C5 | L5b |
 | L5e End date | — | L5a yes | the date of that decision | L5a |
+| L5g Outcome changed later | — | L5a yes | whether a later decision in this docket changed the outcome | L5a |
 | L5f Latest order | — | L5a not yes | the date of the latest dated order | L5a |
 | L6a Units added: proposed | counts | — | U1 | — |
 | L6b Partial appeal | counts | — | U2 | L6a |
@@ -426,11 +428,11 @@ can't tell doesn't take a docket out of the study.
 | L6e Units added: town | counts | — | the units the town approved | L6c |
 | L6f Units added: court | counts | L5c granted (with or without conditions) or denied | the units the court approved | L6e |
 | L7a Arguments stated | grounds | — | G1 | — |
-| L7b Condition challenged | grounds | L7a yes and G4 yes at or above `check` | G4 | L7a |
+| L7b Condition challenged | grounds | G4 yes at or above `check` | G4 | L7a |
 | L7c Which conditions | grounds | L7b yes | each challenged condition, described in a few words | L7b |
 | L7d Who challenged, per condition | grounds | — | for each of the first 5 conditions L7c listed, one call: who challenged it | L7c |
 | L7e The court's ruling, per condition | grounds | — | for each of the first 5 conditions, one call: upheld, struck, changed, added, refused or not decided | L7c |
-| L8 per kind of judgment standard | grounds | L7a yes and that G2 kind flagged | G2 for that kind: its level, quoted | — |
+| L8 per kind of judgment standard | grounds | that G2 kind flagged | G2 for that kind: its level, quoted | — |
 | L8_…_result | grounds | that kind decided (disputed or not) | the court's result: met, met with conditions, partly met or not met | L8 for that kind |
 | L8_…_condition | grounds | that kind "decided, disputed" | whether the dispute was about a condition | L8_…_result |
 | L8_relief_kind | grounds | L8_relief at a level above "not at issue" | which kind of dimensional relief | L8_relief |
@@ -441,7 +443,11 @@ can't tell doesn't take a docket out of the study.
 | L12a Size or design | design | — | whether the court itself imposed such conditions | — |
 | L12b The change | design | L12a yes | a one-sentence description, quoted | L12a |
 
-A reasoning-model answer with a verified quote overrides the scan's answer.
+A reasoning-model answer with a verified quote overrides the scan's answer. A
+quote is verified when its words appear on the cited page, or start there and
+run onto the next page, ignoring case, spacing, curly quotes and words
+hyphenated across a line break. In the answer key's run, those last two rules
+recovered over half the quotes that had failed.
 For the yes/no steps about whether something happened (L3_*, L5a, L6b, L7a,
 L7b, L11a, L12a), the step may also answer "none found": the documents show
 nothing of the kind, so no passage can show it. That needs no quote, overrides

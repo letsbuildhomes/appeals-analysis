@@ -139,7 +139,8 @@ writes one record:
 3. **plan**: every gate evaluated, with the numbers it used, and the steps to run.
 4. **steps**: one reasoning thread on the docket's `Base`, with the planned
    steps run in order, so the cached prompt stays warm; every quote is checked
-   against its cited page.
+   against its cited page (or running onto the next), ignoring case, spacing and
+   words hyphenated across a line break.
 5. **facts**: one settled value per field.
 6. **derive**: derived values.
 7. **row**: the flat research row.

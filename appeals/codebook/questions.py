@@ -13,7 +13,8 @@ NS = 'The documents do not establish it.'
 # ---- Scope ---------------------------------------------------------------------------
 
 S1 = Question('S1', topics.SCOPE,
-    ask='What kind of proceeding is this docket? Answer for the decision appealed in this docket.',
+    ask='What kind of proceeding is this docket? Answer for the decision appealed in this docket, even if the '
+        'appellants mainly attack an earlier permit, and not for a sibling docket decided in the same decision.',
     options={'municipal permit application': 'An appeal of a decision by a municipal body or officer (such as a '
                  'development review board, planning commission, zoning board of adjustment or zoning '
                  'administrator) on an application for a permit or approval, such as a zoning permit, '
@@ -43,11 +44,13 @@ S1 = Question('S1', topics.SCOPE,
         'the rest of the court\'s docket is, and the stormwater and wastewater permits are of separate interest.')
 
 S2 = Question('S2', topics.SCOPE,
-    ask='Physically, what would the permission at issue allow?',
+    ask='Physically, what would the permission at issue allow? If it would both create lots and build dwellings, '
+        'answer that it builds (the lots are counted separately).',
     options={'build a new structure': 'Constructing a new building or structure.',
              'place a structure': 'Placing a structure, such as a mobile home.',
              'convert or renovate an existing building': 'Converting or substantially renovating an existing building.',
-             'create building lots': 'Subdividing land into building lots.',
+             'create building lots': 'Subdividing land into building lots, or releasing a restriction (such as '
+                                     'open space) so an existing lot becomes a building lot.',
              'authorize something already built': 'Approving, after the fact, something already built or done.',
              'no physical change': 'A change of use, occupancy or operations without construction.',
              NOT_STATED: NS},
@@ -60,7 +63,8 @@ S3 = Question('S3', topics.SCOPE,
                     'project that is mostly another use counts if it adds at least one dwelling unit.',
              'group or care housing': 'Residents will live there, but in rooms or beds rather than dwelling units, '
                                       'such as assisted living, a nursing home, a dormitory or a group home.',
-             'no': 'The use is not housing, such as commercial, industrial or accessory use. Seasonal camps, '
+             'no': 'The use is not housing, such as commercial, industrial or accessory use, or a road, '
+                   'right-of-way, utility or other work that only serves homes or house lots. Seasonal camps, '
                    'recreational vehicles and condominium hotels are not housing unless the documents describe them as '
                    'year-round dwellings.',
              NOT_STATED: NS},
@@ -70,9 +74,12 @@ S3 = Question('S3', topics.SCOPE,
 S4 = Question('S4', topics.SCOPE,
     ask='Does the project add dwelling units, replace existing dwelling units one for one, or neither? For group or '
         'care housing, count residents\' rooms or beds instead of dwelling units.',
-    options={'adds': 'It adds one or more dwelling units (or, in group or care housing, residents\' rooms or beds).',
+    options={'adds': 'It adds one or more dwelling units (or, in group or care housing, residents\' rooms or beds), '
+                     'such as a new house on land with no existing dwelling. An amendment adds only units beyond '
+                     'those already approved.',
              'replaces': 'It replaces existing dwelling units, such as rebuilding a house or replacing a mobile home.',
-             'neither': 'It neither adds nor replaces dwelling units.',
+             'neither': 'It neither adds nor replaces dwelling units, including a subdivision that only creates lots '
+                        'with no dwellings proposed (its lots are counted separately).',
              NOT_STATED: NS},
     why='An addition that creates no unit is not new housing; a replacement is.')
 
@@ -287,7 +294,8 @@ C1 = Question('C1', topics.COURT,
 C2 = Question('C2', topics.COURT,
     ask='Do the documents include a decision of the Environmental Court that leaves nothing pending in this docket?',
     options={'yes': 'A decision ends the docket in this court: a final judgment, dismissal, approved settlement or '
-                    'withdrawal.',
+                    'withdrawal. A decision on the merits that decides every issue ends it even if a judgment order is '
+                    'still to be submitted.',
              'no': 'Only interim rulings appear; something is still pending.'},
     why='The first final decision ends the duration.')
 
@@ -306,7 +314,9 @@ C4 = Question('C4', topics.COURT,
                                         'conditions.',
              'granted in part': 'Granted part of it and denied part, including granting one permission and denying '
                                 'another.',
-             'denied': 'Denied it.', 'sent back': 'Sent it back (remanded) to the municipality.',
+             'denied': 'Denied it.',
+             'sent back': 'Sent it back (remanded) to the municipality to decide or reconsider something. A remand '
+                          'only to issue the approvals the court ordered is "granted".',
              NOT_STATED: 'Not decided on the merits, or not stated.'},
     why='Compared with the town\'s decision, shows whether the appeal changed the outcome.')
 

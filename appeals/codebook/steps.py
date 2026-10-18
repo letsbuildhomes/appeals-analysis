@@ -140,8 +140,8 @@ L3c = Step('L3c', topics.TOWN, title='Town and place', after=L3b,
         f'it, such as "St. Johnsbury". Where a city and a town share a name, say which: {SHARED_NAMES}. Where the '
         'documents name a place that is now its own town or city, use that name even if it was part of another '
         'when the decision was made, such as "Essex Junction" (a village of Essex until 2022).',
-        'If the documents name a village or other place within that town or city where the project is, such as Quechee '
-        'in Hartford, give it as the place; otherwise the place is "not stated".',
+        'If the documents name a village or other named area within that town or city where the project is, such as '
+        'Quechee in Hartford, give it as the place; otherwise the place is "not stated".',
         'Answer both from the documents, each with a quote.'),
     returns=Record(town=Quoted(TOWN), place=Quoted(Name())))
 
@@ -202,8 +202,10 @@ L5a = Step('L5a', topics.COURT, title='A final decision', when=G.final,
     prompt=_paragraphs(
         '{C2}',
         'Is there a decision of the Environmental Court that leaves nothing pending in this docket: a final judgment, '
-        'dismissal, approved settlement or withdrawal? Partial rulings do not count. If there is, quote the concluding '
-        'passage of the first such decision; later post-judgment proceedings do not change which decision was first.'),
+        'dismissal, approved settlement or withdrawal? Partial rulings do not count. A decision on the merits that '
+        'decides every issue counts even if it asks the parties to submit a judgment order. If there is, quote the '
+        'concluding passage of the first such decision; later post-judgment proceedings do not change which decision '
+        'was first.'),
     returns=Record(final=_yes_none()))
 
 FINAL = A('L5a', 'final').is_('yes')
@@ -230,6 +232,14 @@ L5e = Step('L5e', topics.COURT, title='Date of the final decision', after=L5a, o
     prompt='Give the date of the decision you identified as the first that left nothing pending in this docket, as '
            'precisely as stated (YYYY-MM-DD, YYYY-MM or YYYY), with a quote.',
     returns=Record(final_decision_date=Quoted(DateValue())))
+
+# The first final decision ends the case for timing and outcome; this marks dockets where a later decision of the
+# court (after a Supreme Court remand, or on reconsideration) changed the outcome, so they can be found.
+L5g = Step('L5g', topics.COURT, title='Outcome changed later', after=L5a, only_if=FINAL,
+    prompt='After that first decision, do the documents include a later decision of the Environmental Court in this '
+           'docket, such as one after a Supreme Court remand or on reconsideration, that changed what the court '
+           'decided? If so, quote the passage that shows the change.',
+    returns=Record(changed=_yes_none()))
 
 L5f = Step('L5f', topics.COURT, title='Date of the latest order', after=L5a, only_if=~FINAL,
     prompt='No decision appears to end this docket. Give the date of the latest dated order or decision in the '
@@ -287,11 +297,12 @@ L7a = Step('L7a', topics.GROUNDS, title='Arguments stated', when=G.grounds,
     prompt=_paragraphs('{G1}', QUOTE_IT),
     returns=Record(stated=Quoted(YesNo(not_stated=False), none_found=True)))
 
-STATED = A('L7a', 'stated').is_('yes')
+# The follow-ups on conditions and judgment standards run on the scan's flags, not on L7a: a single wrong "no" there
+# used to skip them all. Whether arguments were stated is settled in the fields (fields.NO_ARGUMENTS).
 
 # Challenged conditions, one question at a time: whether, which, then who and what the court did for each.
 L7b = Step('L7b', topics.GROUNDS, title='Condition challenged', when=G.grounds, after=L7a,
-    only_if=STATED & (G4.p('yes') >= T.check),
+    only_if=G4.p('yes') >= T.check,
     prompt=_paragraphs('{G4}', QUOTE_IT),
     returns=Record(challenged=Quoted(YesNo(not_stated=False), none_found=True)))
 
@@ -362,7 +373,7 @@ def _group_prompt(key, scan):
 GROUP_SCAN = {key: _scan_level(f'G2.{key}', 'standard') for key in GROUPS}
 GROUND_STEPS = {key: Step(f'L8_{key}', topics.GROUNDS, title=f'Grounds: {GROUP_NAMES[key]}', when=G.grounds,
     set_item=(G2, key), short_title=GROUP_NAMES[key],
-    only_if=STATED & (G2.applies(key) >= T.check),
+    only_if=G2.applies(key) >= T.check,
     choose=If(G2.applies(key) >= T.sure, 'scan fairly confident', 'scan uncertain'),
     variants={name: _group_prompt(key, scan) for name, scan in GROUP_SCAN[key].items()},
     returns=Record(level=Quoted(OneOf(LEVELS, not_stated=False))))
@@ -464,7 +475,7 @@ ORDER = [L1a, L1b, L1c, L1d,
          L2a, L2b,
          L3a, L3b, L3c, *KINDS.values(),
          L4a, L4b,
-         L5a, L5b, L5c, L5d, L5e, L5f,
+         L5a, L5b, L5c, L5d, L5e, L5g, L5f,
          L6a, L6b, L6c, L6d, L6e, L6f,
          L7a, L7b, L7c, L7d, L7e,
          *(s for k in GROUND_STEPS for s in (GROUND_STEPS[k], GROUND_RESULTS[k], GROUND_CONDITIONS[k])),

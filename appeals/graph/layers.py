@@ -115,7 +115,8 @@ def render_prompt(pipeline, step, variant, scan):
 
 def _norm(text):
     text = text.replace('’', "'").replace('‘', "'").replace('“', '"').replace('”', '"')
-    return ' '.join(re.sub(r'[^\w\s\'".,;:()-]', ' ', text.casefold()).split())
+    text = ' '.join(re.sub(r'[^\w\s\'".,;:()-]', ' ', text.casefold()).split())
+    return re.sub(r'(\w)- (\w)', r'\1-\2', text)        # a word hyphenated across a line break, as one word
 
 
 def verify_quotes(value, docket):
@@ -129,7 +130,8 @@ def verify_quotes(value, docket):
         if isinstance(node, dict):
             if {'doc', 'page', 'quote'} <= set(node):
                 page = docket.page_text(node['doc'], node['page']) or ''
-                ok = bool(node['quote'].strip()) and _norm(node['quote']) in _norm(page)
+                following = docket.page_text(node['doc'], node['page'] + 1) or ''       # a quote may run onto it
+                ok = bool(node['quote'].strip()) and _norm(node['quote']) in _norm(f'{page} {following}')
                 counts['checked'] += 1
                 counts['verified'] += ok
                 return {**node, 'verified': ok}
@@ -273,6 +275,19 @@ def _set_scan_answer(f, scan, key):
     return NOT_STATED
 
 
+def _unreached(step, voucher, path, scan):
+    """Whether a step would have been skipped had the voucher step run and confirmed the scan's reading of its
+    item: such as the result of a kind of standard the scan reads as not at issue."""
+    if step is None or step.only_if is None or not voucher.set_item:
+        return False
+    question, item = voucher.set_item
+    level = top(scan.get(f'{question.id}.{item}', {}))
+    if level is None:
+        return False
+    ctx = E.Context(scan=scan, steps={voucher.id: {path: {'answer': level, 'quotes': []}}})
+    return not step.only_if.evaluate(ctx)
+
+
 def _resolve_set(f, scan, steps):
     """Each item from its own step when that step ran with a verified quote, else the scan's answer."""
     answer, quotes, sources, conflicts, none_found = {}, [], {}, [], []
@@ -284,6 +299,11 @@ def _resolve_set(f, scan, steps):
         item = _at(value, f.path)
         if f.vouched_by:                      # a plain value resting on a quoted answer, in this step or an earlier one
             vouching = f.vouchers.get(key, step)
+            unasked = not record or str(record.get('skipped', '')).startswith('condition')
+            if f.if_skipped is not None and vouching is not None and vouching.id not in steps and unasked \
+                    and _unreached(step, vouching, f.vouched_by, scan):
+                answer[key], sources[key] = f.if_skipped, 'rule'     # no follow-up, and the scan's reading skips it
+                continue
             voucher = _at(steps.get(vouching.id, {}).get('answer'), f.vouched_by) if vouching else None
             if item is None and f.if_skipped is not None and str(record.get('skipped', '')).startswith('condition'):
                 item = f.if_skipped
