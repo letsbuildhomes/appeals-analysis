@@ -52,7 +52,7 @@ def test_a_run_stores_every_layer_and_reuses_unchanged_nodes(tmp_path):
     assert reused in (1, None)
 
 
-def test_deleting_runs_keeps_results_other_runs_use(tmp_path):
+def test_deleting_runs_keeps_every_stored_result(tmp_path):
     store = _store(tmp_path)
     settings = replace(config.load(), data=tmp_path, budget_usd=1.0)
     pipeline = build(settings.thresholds)
@@ -64,12 +64,14 @@ def test_deleting_runs_keeps_results_other_runs_use(tmp_path):
     kept, scratch = run([]), run(['scratch'])
     assert [r['id'] for r in store.runs(tag='scratch')] == [scratch]
     records = store.value('SELECT count(*) FROM node_records')
-    assert store.delete_runs([r['id'] for r in store.runs(tag='scratch')]) == 0     # all shared with the kept run
+    store.delete_runs([r['id'] for r in store.runs(tag='scratch')])
     assert [r['id'] for r in store.runs()] == [kept]
-    assert store.value('SELECT count(*) FROM node_records') == records
     store.delete_runs([kept])
-    assert store.value('SELECT count(*) FROM node_records') == 0
     assert store.value('SELECT count(*) FROM run_records') == 0
+    assert store.value('SELECT count(*) FROM node_records') == records      # nothing paid for is lost
+    assert store.unused_results()[0] == records
+    assert store.prune_results() == records
+    assert store.value('SELECT count(*) FROM node_records') == 0
 
 
 class _InScope(FakeDecisions):
@@ -96,3 +98,47 @@ def test_a_chained_request_replays_the_earlier_requests_exactly(tmp_path):
     chained = [e for e in exchanges if e.get('history')]
     assert len(chained) > 5
     assert all(e['history'] in sent for e in chained)       # each extends an earlier request and its reply, unchanged
+
+
+def _layers(store, run_id):
+    return {(r['layer'], r['node']) for r in store.rows('SELECT layer, node FROM run_records WHERE run_id = ?',
+                                                        (run_id,))}
+
+
+def test_a_run_can_stop_after_the_scan_and_a_later_run_reuses_it(tmp_path):
+    store = _store(tmp_path)
+    settings = replace(config.load(), data=tmp_path, budget_usd=1.0)
+    pipeline = build(settings.thresholds)
+    runner = Runner(pipeline, store, settings, _InScope(), FakeReasoning(), log=lambda *_: None)
+    scanned = asyncio.run(runner.run(['12-1-20 Vtec'], workers=1, stop_after='scan'))
+    assert {layer for layer, _ in _layers(store, scanned)} == {'input', 'scan', 'plan'}
+    assert store.runs()[0]['status'] == 'stopped after scan'
+    full = asyncio.run(Runner(pipeline, store, settings, _InScope(), FakeReasoning(),
+                              log=lambda *_: None).run(['12-1-20 Vtec'], workers=1))
+    assert store.value("SELECT reused FROM run_records WHERE run_id = ? AND layer = 'scan'", (full,)) == 1
+
+
+def test_a_run_can_stop_after_a_step(tmp_path):
+    store = _store(tmp_path)
+    settings = replace(config.load(), data=tmp_path, budget_usd=1.0)
+    pipeline = build(settings.thresholds)
+
+    def steps(**kw):
+        runner = Runner(pipeline, store, settings, _InScope(), FakeReasoning(), log=lambda *_: None)
+        run_id = asyncio.run(runner.run(['12-1-20 Vtec'], workers=1, **kw))
+        return run_id, {node.split('[')[0] for layer, node in _layers(store, run_id) if layer == 'steps'} - {'base'}
+
+    _, everything = steps()
+    ran = [s.id for s in pipeline.steps if s.id in everything]
+    run_id, stopped = steps(stop_after=ran[2])
+    assert stopped == set(ran[:3])
+    assert not {layer for layer, _ in _layers(store, run_id)} & {'facts', 'derive', 'answers'}
+
+
+def test_a_run_refuses_an_unknown_stopping_point(tmp_path):
+    import pytest
+    store = _store(tmp_path)
+    settings = replace(config.load(), data=tmp_path, budget_usd=1.0)
+    runner = Runner(build(settings.thresholds), store, settings, FakeDecisions(), FakeReasoning(), log=lambda *_: None)
+    with pytest.raises(ValueError):
+        asyncio.run(runner.run(['12-1-20 Vtec'], stop_after='L99'))

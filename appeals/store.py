@@ -233,16 +233,26 @@ class Store:
         return rows
 
     def delete_runs(self, run_ids):
-        """Delete runs and the stored results no remaining run uses. Returns the number of results deleted."""
+        """Delete runs and their links to stored results. The results themselves are kept, even when no
+        remaining run uses them, so that deleting a scratch run never loses a paid-for answer a later run
+        would reuse."""
         if not run_ids:
-            return 0
+            return
         ids = json.dumps(list(run_ids))
         with self.transaction():
             self.db.execute('DELETE FROM run_records WHERE run_id IN (SELECT value FROM json_each(?))', (ids,))
             self.db.execute('DELETE FROM runs WHERE id IN (SELECT value FROM json_each(?))', (ids,))
-            orphans = self.db.execute(
-                'DELETE FROM node_records WHERE key NOT IN (SELECT key FROM run_records)').rowcount
-        return orphans
+
+    def unused_results(self):
+        """How many stored results no run uses, and what their model calls cost."""
+        row = self.rows('SELECT count(*) AS n, coalesce(sum(cost_usd), 0) AS cost FROM node_records '
+                        'WHERE key NOT IN (SELECT key FROM run_records)')[0]
+        return row['n'], row['cost']
+
+    def prune_results(self):
+        """Delete the stored results no run uses. Returns how many were deleted."""
+        with self.transaction():
+            return self.db.execute('DELETE FROM node_records WHERE key NOT IN (SELECT key FROM run_records)').rowcount
 
     def cached_record(self, key):
         rows = self.rows('SELECT * FROM node_records WHERE key = ?', (key,))

@@ -45,14 +45,22 @@ class Runner:
         self.log = log
         self.spent = 0.0
         self.fresh = None             # with fresh steps: the run ID, so this run's reasoning calls are its own
+        self.stop_after = None        # "scan" or a step ID: each docket stops after it
         self.description = pipeline.describe()
         self.nodes = {n['id']: n for n in self.description['nodes']}
 
     # ---- the run -------------------------------------------------------------------
 
-    async def run(self, numbers, workers=8, tags=(), fresh_steps=False):
+    async def run(self, numbers, workers=8, tags=(), fresh_steps=False, stop_after=None):
         """fresh_steps: ask the reasoning model again rather than reuse stored step results, such as to
-        measure how much its answers vary. The scan is still reused, and earlier runs' results are kept."""
+        measure how much its answers vary. The scan is still reused, and earlier runs' results are kept.
+
+        stop_after: "scan" or a step ID. Each docket stops after it, with no facts or row, so a later full run
+        reuses what this one stored."""
+        order = [s.id for s in self.pipeline.steps]
+        if stop_after not in (None, 'scan', *order):
+            raise ValueError(f'cannot stop after {stop_after!r}: give "scan" or a step ID')
+        self.stop_after = stop_after
         run_id = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-') + uuid.uuid4().hex[:4]
         self.fresh = run_id if fresh_steps else None
         graph_hash = self.description['hash']
@@ -60,7 +68,7 @@ class Runner:
         endpoints = {'decision': self.decision.identity(), 'reasoning': self.reasoning.identity()}
         self.store.start_run(run_id, graph_hash, endpoints,
                              {'workers': workers, 'budget_usd': self.settings.budget_usd,
-                              'fresh_steps': fresh_steps}, len(numbers),
+                              'fresh_steps': fresh_steps, 'stop_after': stop_after}, len(numbers),
                              datetime.now(timezone.utc), tags)
         queue = asyncio.Queue()
         for n in numbers:
@@ -84,7 +92,8 @@ class Runner:
                     self.log(f'  {number}: failed: {error}')
 
         await asyncio.gather(*(worker() for _ in range(max(1, workers))))
-        status = 'stopped at budget' if stopped.is_set() else 'finished'
+        status = ('stopped at budget' if stopped.is_set() else
+                  f'stopped after {stop_after}' if stop_after else 'finished')
         self.store.finish_run(run_id, status, round(self.spent, 4), datetime.now(timezone.utc))
         self.log(f'run {run_id} {status}: {done["ok"]} dockets done, {done["failed"]} failed, ${self.spent:.2f}')
         return run_id
@@ -120,7 +129,13 @@ class Runner:
         plan = layers.plan(p, scan)
         self._save(run_id, number, 'plan', 'plan', key_of('plan', self.description['hash'], scan), plan)
 
+        if self.stop_after == 'scan':
+            self.log(f'  {number}: scan {"proceeds" if plan["proceeds"] else "stops"}; stopped after the scan')
+            return
         results = await self._steps(run_id, number, docket, text_hash, scan, plan) if plan['proceeds'] else {}
+        if self.stop_after:
+            self.log(f'  {number}: stopped after {self.stop_after}')
+            return
 
         facts = layers.resolve(p, scan, results, number)
         self._save(run_id, number, 'facts', 'facts', key_of('facts', self.description['hash'], number, scan, results),
@@ -155,7 +170,10 @@ class Runner:
         self._save(run_id, number, 'steps', 'base', base_key,
                    {'chars': len(base), 'claims': claims, 'text_hash': text_hash})
         results, halted = {}, None
-        for entry in plan['steps']:
+        entries = plan['steps']
+        if self.stop_after:
+            entries = entries[:[e['step'] for e in entries].index(self.stop_after) + 1]
+        for entry in entries:
             step = p.nodes[entry['step']]
             if not entry['runs']:
                 continue

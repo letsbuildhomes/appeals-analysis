@@ -203,8 +203,10 @@ make setup            # install dependencies, check tools and keys
 make graph            # build and check the extraction graph; writes data/graph.json
 make run MODEL=fake LIMIT=40          # try the graph with made-up answers: no API calls
 make run MODEL=live DOCKETS="a,b" TAG=scratch   # real calls, tagged; keys from .env (see .env.example)
+make run MODEL=live LIMIT=0 STOP=scan TAG=scan  # every docket, scan only; STOP takes a step ID too
 make runs [TAG=scratch]                          # list runs
-make delete-runs TAG=scratch          # or RUN_ID=<id>; also deletes stored results no other run uses
+make delete-runs TAG=scratch          # or RUN_ID=<id>; stored results are kept for later runs
+make prune-results                    # delete stored results no run uses (asks first)
 make serve            # dashboard on port 8800; restarts itself when the code changes
 make release RUN_ID=<id>              # freeze a finished run into a release
 make publish RELEASE=<id>             # make it the one the public site serves

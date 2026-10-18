@@ -85,7 +85,7 @@ def cmd_run(args):
     numbers = _pick_dockets(store, args)
     runner = Runner(pipeline, store, settings, decision, reasoning)
     run_id = asyncio.run(runner.run(numbers, workers=settings.workers, tags=args.tag or [],
-                                    fresh_steps=args.fresh_steps))
+                                    fresh_steps=args.fresh_steps, stop_after=args.stop_after))
     print(f'run {run_id}')
 
 
@@ -127,11 +127,23 @@ def cmd_delete_runs(args):
         print('  ' + _run_line(r))
     spent = sum(r['cost_usd'] or 0 for r in runs)
     if spent:
-        print(f'Their model calls cost ${spent:.2f}; results no other run uses are lost and would be paid for again.')
+        print(f'Their model calls cost ${spent:.2f}. Their stored results are kept, so later runs still reuse them.')
     if not args.yes and input('Delete? [y/N] ').strip().lower() not in ('y', 'yes'):
         sys.exit('Nothing deleted.')
-    results = store.delete_runs([r['id'] for r in runs])
-    print(f'Deleted {len(runs)} run{"s" if len(runs) != 1 else ""} and {results} stored results no other run used.')
+    store.delete_runs([r['id'] for r in runs])
+    print(f'Deleted {len(runs)} run{"s" if len(runs) != 1 else ""}; their stored results are kept.')
+
+
+def cmd_prune_results(args):
+    store = Store(_settings(args).db)
+    count, cost = store.unused_results()
+    if not count:
+        sys.exit('Every stored result is used by a run; nothing to prune.')
+    print(f'{count} stored results are used by no run. Their model calls cost ${cost:.2f}; '
+          'a later run that needs them pays again.')
+    if not args.yes and input('Delete them? [y/N] ').strip().lower() not in ('y', 'yes'):
+        sys.exit('Nothing deleted.')
+    print(f'Deleted {store.prune_results()} stored results.')
 
 
 def cmd_score(args):
@@ -276,6 +288,9 @@ def main(argv=None):
     p.add_argument('--tag', action='append', help='label the run, such as "scratch"; may be repeated')
     p.add_argument('--fresh-steps', action='store_true',
                    help='ask the reasoning model again instead of reusing stored step results (the scan is reused)')
+    p.add_argument('--stop-after', metavar='STEP',
+                   help='"scan" or a step ID: stop each docket there, storing what ran for a later run to reuse '
+                        '(no rows, so no release)')
     for name in ('reasoning', 'decision'):
         p.add_argument(f'--{name}-model', help='"provider/model", from a file in providers/')
         p.add_argument(f'--{name}-key', help='the API key, instead of the provider\'s environment variable')
@@ -284,6 +299,8 @@ def main(argv=None):
     p = add('delete-runs', cmd_delete_runs, 'delete one run, or every run with a tag')
     p.add_argument('run', nargs='?', help='the run ID')
     p.add_argument('--tag', help='delete every run with this tag')
+    p.add_argument('--yes', action='store_true', help='don\'t ask for confirmation')
+    p = add('prune-results', cmd_prune_results, 'delete stored results that no run uses')
     p.add_argument('--yes', action='store_true', help='don\'t ask for confirmation')
     p = add('score', cmd_score, 'compare a run with the reference answers')
     p.add_argument('run')

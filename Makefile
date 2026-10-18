@@ -14,7 +14,7 @@ SITE_HOST ?= 0.0.0.0
 SITE_PORT ?= 8000
 URL     ?= http://192.168.88.3:$(SITE_PORT)/appeals/mcp
 
-.PHONY: help setup doctor test lint ingest crawl dockets graph run runs delete-runs serve score \
+.PHONY: help setup doctor test lint ingest crawl dockets graph run runs delete-runs prune-results serve score \
 	release releases publish delete-releases site mcp-check
 
 help:            ## list targets
@@ -45,14 +45,17 @@ dockets:         ## list recent dockets
 graph:           ## build and validate the extraction graph, write data/graph.json
 	$(RUN) appeals graph
 
-run:             ## run the graph: make run MODEL=fake|live LIMIT=10 or DOCKETS="a,b" WORKERS=24 TAG=scratch [FRESH=1]
-	$(RUN) appeals run --model $(MODEL) --workers $(WORKERS) $(if $(DOCKETS),--dockets "$(DOCKETS)",--limit $(LIMIT)) $(if $(TAG),--tag "$(TAG)") $(if $(FRESH),--fresh-steps)
+run:             ## run the graph: make run MODEL=fake|live LIMIT=10 or DOCKETS="a,b" WORKERS=24 TAG=scratch [FRESH=1] [STOP=scan|<step>]
+	$(RUN) appeals run --model $(MODEL) --workers $(WORKERS) $(if $(DOCKETS),--dockets "$(DOCKETS)",--limit $(LIMIT)) $(if $(TAG),--tag "$(TAG)") $(if $(FRESH),--fresh-steps) $(if $(STOP),--stop-after "$(STOP)")
 
 runs:            ## list runs: make runs [TAG=scratch]
 	$(RUN) appeals runs $(if $(TAG),--tag "$(TAG)")
 
-delete-runs:     ## delete runs and results no other run uses: make delete-runs RUN_ID=<id> or TAG=scratch
+delete-runs:     ## delete runs (their stored results are kept for reuse): make delete-runs RUN_ID=<id> or TAG=scratch
 	$(RUN) appeals delete-runs $(if $(RUN_ID),"$(RUN_ID)") $(if $(TAG),--tag "$(TAG)")
+
+prune-results:   ## delete stored results no run uses (asks first; they cost money to make again)
+	$(RUN) appeals prune-results
 
 score:           ## compare a run with the reference answers: make score RUN_ID=<id>
 	$(RUN) appeals score $(RUN_ID)
