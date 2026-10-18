@@ -20,7 +20,7 @@ import textwrap
 from typing import Callable, ClassVar
 
 from appeals.graph import expr as E
-from appeals.graph.values import NOT_STATED, OneOf, Record, ValueType, YesNo
+from appeals.graph.values import NOT_STATED, OneOf, OrNotStated, Record, ValueType, YesNo
 
 LAYERS = ['input', 'scan', 'plan', 'steps', 'facts', 'derive']
 LAYER_GUIDE = {
@@ -393,8 +393,10 @@ class Field(Node):
             rule = 'the scan\'s most likely answer'
         if self.not_stated_if:
             rule += f'; "not stated" when {self.not_stated_if.text()}'
+        # A record that a rule can make moot is "not stated" as a whole, not item by item.
+        declared = OrNotStated(self.type) if self.not_stated_if and isinstance(self.type, Record) else self.type
         d = super().describe() | {
-            'label': self.label, 'value_type': self.type.describe(), 'scored': self.type.scored,
+            'label': self.label, 'value_type': declared.describe(), 'scored': self.type.scored,
             'from_step': (', '.join(f'{s.id}.{self.path}' for s in self.steps.values()) if self.steps
                           else f'{self.step.id}.{self.path}' if self.step else None),
             'from_scan': self.scan.id if self.scan else None,

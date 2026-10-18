@@ -165,8 +165,9 @@ def precision(date):
 
 
 def cell(column, value):
-    """One column's value from a node's value: "not stated" becomes NULL except as an option."""
-    v = _at(value, column.path)
+    """One column's value from a node's value: "not stated" becomes NULL except as an option. A record that is
+    "not stated" as a whole is "not stated" in each of its columns."""
+    v = NOT_STATED if value == NOT_STATED else _at(value, column.path)
     if v is None or v == OUT_OF_SCOPE:
         return None
     if column.kind == 'one of':
