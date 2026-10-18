@@ -181,12 +181,17 @@ and "Feeds" the derived values that read them.
 |---|---|---|---|---|
 | S1 | What kind of proceeding is this docket? | municipal permit application · several, including a municipal permit application · municipal enforcement · municipal bylaw or policy · other municipal decision · Act 250 permit · ANR stormwater permit · ANR wastewater permit · other state permit or decision · state enforcement · other · not stated | Scan (Choice) | `in_scope` |
 | S2 | What would the permission allow physically? | build a new structure · place a structure · convert or renovate an existing building · create building lots · authorize something already built · no physical change · not stated | Scan (Choice) | `in_scope` |
-| S3 | Will the structure or lots be used for housing? | yes · no · not stated | Scan (Choice) | `in_scope` |
-| S4 | Does the project add dwelling units, replace existing ones, or neither? | adds · replaces · neither · not stated | Scan (Choice) | `in_scope` |
+| S3 | Will the structure or lots be used for housing? | yes (dwelling units) · group or care housing (assisted living, nursing homes, dormitories, group homes) · no · not stated | Scan (Choice) | `in_scope` |
+| S4 | Does the project add dwelling units (or, for group or care housing, residents' rooms or beds), replace existing ones, or neither? | adds · replaces · neither · not stated | Scan (Choice) | `in_scope` |
 
 **In scope (`in_scope`)** = S1 is a municipal permit application, alone or with other
-decisions in the docket ∧ S3 yes ∧ (S4 adds or replaces ∨ S2 creates lots) ∧
-S2 is not "already built" or "no physical change". An appeal of a preliminary
+decisions in the docket ∧ S3 yes or group or care housing ∧ (S4 adds or replaces ∨
+S2 creates lots) ∧ S2 is not "already built" or "no physical change". Group and
+care housing (assisted living, nursing homes, dormitories, group homes) counts as
+housing but keeps its own answer, so an analysis can leave it out. Act 250 and
+state permit appeals are out of scope even when the project is housing, including
+an Act 250 appeal decided together with the town's appeal under its own docket
+number: that project is counted once, through the town's docket. An appeal of a preliminary
 step on an application, such as sketch plan review, counts as a municipal
 permit application even when the court holds the step was not appealable:
 those appeals are housing projects that were appealed, and why they were
@@ -214,7 +219,7 @@ not part of S1: one decision often grants several, so it is asked as a set
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| T1 | What did the municipal decision appealed to this court decide? When several municipal bodies decided in turn, the last one. And its date. (`town_decision`, `town_decision_date`) | approved · approved with conditions · approved in part (and denied in part) · denied · not stated → date + precision | Scan (Choice); confirmed by L3a; date from L3b | `court_changed_outcome`, `duration`, `last_permission` |
+| T1 | What did the municipal decision appealed to this court decide? When several municipal bodies decided in turn, the last one. And its date. (`town_decision`, `town_decision_date`) | approved (no conditions mentioned) · approved with conditions (conditions mentioned) · approved in part (and denied in part) · denied · not stated → date + precision | Scan (Choice); confirmed by L3a; date from L3b | `court_changed_outcome`, `duration`, `last_permission` |
 | `municipality`, `place_within_town` | In which Vermont town or city is the project, and in which village or other named place within it? | one of Vermont's 256 towns, cities, gores and grants · not stated; a place name · not stated | L3c (LLM value, checked against the list) | — |
 
 **The town** is asked of the reasoning model rather than the scan: it only
@@ -283,7 +288,7 @@ decision model before they were built, against a temporary 46-docket answer key.
 | C1 | How did the court hear the appeal? (`review_standard`) | de novo · on the town's record · not stated | Scan (Choice); quoted by L10 | — |
 | C2 | Does a decision leave nothing pending in this docket? (`final_decision`) | yes · no | Scan (Choice); confirmed by L5 | `duration` |
 | C3 | If so, how did the docket end? (`how_ended`) | decided on the merits · dismissed · settled · withdrawn · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome` |
-| C4 | If decided on the merits, what did the court do with the application? (`court_result`) | granted · granted with conditions · granted in part (and denied in part) · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome`, `last_permission` |
+| C4 | If decided on the merits, what did the court do with the application? (`court_result`) | granted (no conditions mentioned) · granted with conditions (conditions mentioned) · granted in part (and denied in part) · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | `court_changed_outcome`, `last_permission` |
 | C5 | If dismissed, on what basis? (`dismissal_basis`) | standing · timeliness · jurisdiction · mootness · other · not stated | Scan (Choice); confirmed by L5 | — |
 | `final_decision_date` | Date of the court's first decision leaving nothing pending | date + precision | L5e (chained after L5a) | `duration` |
 | `latest_order_date` | If no decision ends the docket: date of the latest order | date + precision | L5f | `duration` |
@@ -452,7 +457,7 @@ it was dismissed.
 | Field | What | From |
 |---|---|---|
 | `in_scope` | In scope | S1–S4 (L1's answers when it ran) |
-| `court_changed_outcome` | Whether the court ended somewhere different from the town | C3, C4 and U4, against T1 |
+| `court_changed_outcome` | Whether the court ended somewhere different from the town: outcomes compared without their conditions | C3, C4 and U4, against T1 |
 | `unit_change` | Change in units added: against the town (court approved − town approved) and against the application (court approved − proposed, or the part under appeal when the appeal covered only part); U4 and U5 give the direction when counts aren't stated | U1, U2, U4, U5, `units_added_town_approved`, `units_added_court_approved` |
 | `duration` | Duration in days, exact or at least, with each end recorded as closed or open and whether it is inferred. Start: the filing date (F1) when stated to the day; else the town's decision date when stated to the day and not after the latest possible filing day, as a closed start marked inferred; else the earliest of the latest possible days of the filing date, the earliest event and the docket number. End: the first final decision's earliest possible day, else the latest order's | `filing_date`, `earliest_event`, `docket_filing`, `town_decision_date`, `final_decision_date`, `latest_order_date` |
 | `last_permission` | Last observed permission: the court's result, or else the town's decision | C4, T1 |

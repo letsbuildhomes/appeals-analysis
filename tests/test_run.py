@@ -47,8 +47,9 @@ def test_a_run_stores_every_layer_and_reuses_unchanged_nodes(tmp_path):
     assert {'input', 'scan', 'plan', 'facts', 'derive', 'answers'} <= layers
     second = asyncio.run(Runner(pipeline, store, settings, FakeDecisions(), FakeReasoning(),
                                 log=lambda *_: None).run(['12-1-20 Vtec'], workers=1))
-    reused = store.value("SELECT min(reused) FROM run_records WHERE run_id = ? AND layer IN ('scan', 'steps') "
-                         "AND node <> 'base'", (second,))
+    reused = store.value("SELECT min(r.reused) FROM run_records r JOIN node_records n ON n.key = r.key "
+                         "WHERE r.run_id = ? AND r.layer IN ('scan', 'steps') AND r.node <> 'base' "
+                         "AND json_extract(n.value, '$.skipped') IS NULL", (second,))     # model calls, not skips
     assert reused in (1, None)
 
 

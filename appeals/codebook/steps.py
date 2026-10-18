@@ -89,7 +89,7 @@ L1b = Step('L1b', topics.SCOPE, title='Scope: physical change', when=G.scope_che
 
 L1c = Step('L1c', topics.SCOPE, title='Scope: housing use', when=G.scope_check, after=L1b,
     prompt=_paragraphs('{S3}', QUOTE_IT),
-    returns=Record(housing=_choice(S3)), halt_unless=A('L1c', 'housing').in_(['yes', NOT_STATED]))
+    returns=Record(housing=_choice(S3)), halt_unless=A('L1c', 'housing').in_(['yes', 'group or care housing', NOT_STATED]))
 
 L1d = Step('L1d', topics.SCOPE, title='Scope: dwelling units', when=G.scope_check, after=L1c,
     prompt=_paragraphs('{S4}', QUOTE_IT),
@@ -135,7 +135,9 @@ SHARED_NAMES = '; '.join(f'"{n} City" or "{n} Town"' for n in towns.SHARED)
 L3c = Step('L3c', topics.TOWN, title='Town and place', after=L3b,
     prompt=_paragraphs(
         'In which Vermont town or city is the project at issue located? Give its name as the State of Vermont writes '
-        f'it, such as "St. Johnsbury". Where a city and a town share a name, say which: {SHARED_NAMES}.',
+        f'it, such as "St. Johnsbury". Where a city and a town share a name, say which: {SHARED_NAMES}. Where the '
+        'documents name a place that is now its own town or city, use that name even if it was part of another '
+        'when the decision was made, such as "Essex Junction" (a village of Essex until 2022).',
         'If the documents name a village or other place within that town or city where the project is, such as Quechee '
         'in Hartford, give it as the place; otherwise the place is "not stated".',
         'Answer both from the documents, each with a quote.'),

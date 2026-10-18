@@ -54,15 +54,20 @@ S2 = Question('S2', topics.SCOPE,
     why='Scope comes from what would be built, placed, converted or subdivided.')
 
 S3 = Question('S3', topics.SCOPE,
-    ask='Will the structure, building or lots at issue be used for housing (dwelling units where people live)?',
-    options={'yes': 'The documents say the structure or lots are for housing.',
+    ask='Will the structure, building or lots at issue be used for housing, where people live?',
+    options={'yes': 'The documents say the structure or lots are for housing in dwelling units, such as houses or '
+                    'apartments.',
+             'group or care housing': 'Residents will live there, but in rooms or beds rather than dwelling units, '
+                                      'such as assisted living, a nursing home, a dormitory or a group home.',
              'no': 'The use is not housing, such as commercial, industrial or accessory use.',
              NOT_STATED: NS},
-    why='New housing must be explicit in the documents.')
+    why='New housing must be explicit in the documents. Group and care housing is kept apart so it can be counted or '
+        'left out.')
 
 S4 = Question('S4', topics.SCOPE,
-    ask='Does the project add dwelling units, replace existing dwelling units one for one, or neither?',
-    options={'adds': 'It adds one or more dwelling units.',
+    ask='Does the project add dwelling units, replace existing dwelling units one for one, or neither? For group or '
+        'care housing, count residents\' rooms or beds instead of dwelling units.',
+    options={'adds': 'It adds one or more dwelling units (or, in group or care housing, residents\' rooms or beds).',
              'replaces': 'It replaces existing dwelling units, such as rebuilding a house or replacing a mobile home.',
              'neither': 'It neither adds nor replaces dwelling units.',
              NOT_STATED: NS},
@@ -110,9 +115,9 @@ K1 = YesNoSet('K1', topics.KINDS,
 T1 = Question('T1', topics.TOWN,
     ask='What did the municipal decision appealed to this court decide on the application? When several municipal '
         'bodies decided in turn, this is the last decision, the one appealed to the court.',
-    options={'approved': 'Approved the application as proposed, without conditions. A deemed approval, where the '
-                         'municipality failed to decide in time, counts as approved.',
-             'approved with conditions': 'Approved the application with conditions attached.',
+    options={'approved': 'Approved the application, and the documents don\'t say the approval carried conditions. A '
+                         'deemed approval, where the municipality failed to decide in time, counts as approved.',
+             'approved with conditions': 'Approved the application, and the documents say conditions were attached.',
              'approved in part': 'Approved part of the application and denied part, including a decision that granted '
                                  'one permission and denied another.',
              'denied': 'Denied the application in full.',
@@ -293,7 +298,9 @@ C3 = Question('C3', topics.COURT,
 
 C4 = Question('C4', topics.COURT,
     ask='If the court decided the appeal on its merits, what did it do with the application?',
-    options={'granted': 'Granted or approved it.', 'granted with conditions': 'Granted or approved it with conditions.',
+    options={'granted': 'Granted or approved it, and the documents don\'t say the court attached or kept conditions.',
+             'granted with conditions': 'Granted or approved it, and the documents say the court attached or kept '
+                                        'conditions.',
              'granted in part': 'Granted part of it and denied part, including granting one permission and denying '
                                 'another.',
              'denied': 'Denied it.', 'sent back': 'Sent it back (remanded) to the municipality.',

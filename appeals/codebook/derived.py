@@ -14,21 +14,32 @@ from appeals.graph.values import (NOT_STATED, Boolean, Count, CountsBy, DateValu
                                   Record, Text, YesNo)
 
 
+HOUSING = ('yes', 'group or care housing')     # group and care housing counts; housing_use tells them apart
+
+
 def in_scope(v):
     return (v['proceeding'] in L.MUNICIPAL_PERMIT
-            and v['housing_use'] == 'yes'
+            and v['housing_use'] in HOUSING
             and v['physical_change'] not in ('authorize something already built', 'no physical change')
             and (v['units_effect'] in ('adds', 'replaces') or v['physical_change'] == 'create building lots'))
+
+
+# The town's and the court's outcomes, compared without their conditions: "approved" only means the documents
+# don't mention conditions, so a difference in conditions alone is not a different outcome.
+TOWN_OUTCOME = {'approved': 'allowed', 'approved with conditions': 'allowed', 'approved in part': 'allowed in part',
+                'denied': 'denied'}
+COURT_OUTCOME = {'granted': 'allowed', 'granted with conditions': 'allowed', 'granted in part': 'allowed in part',
+                 'denied': 'denied', 'sent back': 'sent back'}
 
 
 def court_changed_outcome(v):
     town, ended, result = v['town_decision'], v['how_ended'], v['court_result']
     if ended == 'decided on the merits':
-        same = {('approved', 'granted'), ('approved with conditions', 'granted with conditions'),
-                ('approved in part', 'granted in part'), ('denied', 'denied')}
-        if (town, result) in same and v['units_vs_town'] in ('same', NOT_STATED):
+        if town not in TOWN_OUTCOME or result not in COURT_OUTCOME:
+            return NOT_STATED
+        if TOWN_OUTCOME[town] == COURT_OUTCOME[result] and v['units_vs_town'] in ('same', NOT_STATED):
             return 'no'
-        return 'yes' if town != NOT_STATED and result != NOT_STATED else NOT_STATED
+        return 'yes'
     if ended in ('dismissed', 'withdrawn'):
         return 'no'                     # the town's decision stands
     return NOT_STATED
@@ -134,10 +145,12 @@ def appellant_mix(v):
 
 IN_SCOPE = Derive('in_scope', topics.SCOPE, label='In scope', type=Boolean(),
                   inputs=[F.proceeding, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
-                  notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change."])
+                  notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change.",
+                         'Group and care housing (assisted living, nursing homes, dormitories, group homes) counts as housing, adding residents\' rooms or beds instead of units; housing_use marks it, so it can be left out.'])
 COURT_CHANGED_OUTCOME = Derive('court_changed_outcome', topics.COURT, label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
                                inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome,
-                               notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".'])
+                               notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".',
+                                      'Compares outcomes only (allowed, allowed in part, denied, sent back): a difference in conditions alone is not a change, since "approved" and "granted" only mean the documents don\'t mention conditions.'])
 UNIT_CHANGE = Derive('unit_change', topics.UNITS, label='Change in units added',
                      type=Record(vs_town=Integer(), vs_application=Integer(), direction_vs_town=F.units_vs_town.type,
                                  direction_vs_application=F.units_vs_application.type),

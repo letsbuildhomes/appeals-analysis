@@ -572,3 +572,21 @@ def test_a_court_upholding_a_partial_approval_did_not_change_the_outcome():
     assert court_changed_outcome(v) == 'no'
     assert last_permission(v) == 'allowed in part'
     assert court_changed_outcome(v | {'court_result': 'granted'}) == 'yes'
+
+
+def test_a_difference_in_conditions_alone_is_not_a_changed_outcome():
+    from appeals.codebook.derived import court_changed_outcome
+    v = {'town_decision': 'approved with conditions', 'how_ended': 'decided on the merits', 'court_result': 'granted',
+         'units_vs_town': 'same'}
+    assert court_changed_outcome(v) == 'no'
+    assert court_changed_outcome(v | {'court_result': 'denied'}) == 'yes'
+    assert court_changed_outcome(v | {'town_decision': 'not stated'}) == 'not stated'
+
+
+def test_group_or_care_housing_is_in_scope():
+    from appeals.codebook.derived import in_scope
+    v = {'proceeding': 'municipal permit application', 'physical_change': 'build a new structure',
+         'housing_use': 'group or care housing', 'units_effect': 'adds'}
+    assert in_scope(v)
+    assert not in_scope(v | {'housing_use': 'no'})
+

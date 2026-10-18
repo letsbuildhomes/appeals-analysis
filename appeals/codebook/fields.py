@@ -40,7 +40,10 @@ physical_change = Field('physical_change', topics.SCOPE, label='What the permiss
                         type=_choice(Q.S2), scan=Q.S2, step=L.L1b, scan_if_unsure=True, path='change',
                         notes=["'Authorize something already built' (after-the-fact permits) and 'no physical change' are out of scope."])
 housing_use = Field('housing_use', topics.SCOPE, label='Used for housing',
-                    type=_choice(Q.S3), scan=Q.S3, step=L.L1c, scan_if_unsure=True, path='housing')
+                    type=_choice(Q.S3), scan=Q.S3, step=L.L1c, scan_if_unsure=True, path='housing',
+                    notes=['"Group or care housing" (assisted living, nursing homes, dormitories, group homes) is in scope, '
+                           'kept apart from "yes" so it can be left out. Its unit counts are "not stated" unless the '
+                           'documents describe dwelling units.'])
 units_effect = Field('units_effect', topics.SCOPE, label='Adds or replaces units',
                      type=_choice(Q.S4), scan=Q.S4, step=L.L1d, scan_if_unsure=True, path='units')
 
@@ -56,7 +59,10 @@ docket_filing = Field('docket_filing', topics.FILING, label='Filing month or yea
 municipality = Field('municipality', topics.TOWN, label='Municipality', type=L.TOWN, step=L.L3c, path='town',
                      notes=['One of Vermont\'s 256 towns, cities, gores and grants, written as the codebook lists them '
                             '(from the Census Bureau); a name shared by a city and a town says which, such as "Rutland City".',
-                            'A village belongs to its town; the village is the place (place_within_town).'])
+                            'A village belongs to its town; the village is the place (place_within_town). A place that is '
+                            'now its own city or town goes under its own name when the documents use it, whenever the '
+                            'decision was made: "Essex Junction", a village of Essex until 2022, but "Essex" when the '
+                            'documents say only Essex.'])
 place_within_town = Field('place_within_town', topics.TOWN, label='Place within the town', type=Name(),
                           step=L.L3c, path='place',
                           notes=['A village or other named place within the town where the project is, such as Quechee in '
@@ -78,7 +84,9 @@ permission_kinds = Field('permission_kinds', topics.KINDS, label='Kinds of permi
 # ---- B · Who appeals ---------------------------------------------------------------------
 town_decision = Field('town_decision', topics.TOWN, label='Town\'s decision', type=_choice(Q.T1),
                       scan=Q.T1, step=L.L3a, path='decision',
-                      notes=['One answer for the whole decision: the outcomes are exclusive. A deemed approval counts as approved.'])
+                      notes=['One answer for the whole decision: the outcomes are exclusive. A deemed approval counts as approved.',
+                             '"Approved" means the documents don\'t say the approval carried conditions, not that it had none: '
+                             'decisions often never describe the town\'s conditions.'])
 town_decision_date = Field('town_decision_date', topics.TOWN, label='Date of the town\'s decision',
                            type=DateValue(), step=L.L3b, path='decision_date',
                            notes=['The date of the municipal decision appealed in this docket; the written decision\'s date when the vote and the written decision differ.',
@@ -203,7 +211,9 @@ how_ended = Field('how_ended', topics.COURT, label='How the docket ended', type=
                   scan=Q.C3, step=L.L5b, path='ended', not_stated_if=NOT_FINAL)
 court_result = Field('court_result', topics.COURT, label='What the court did', type=_choice(Q.C4),
                      scan=Q.C4, step=L.L5c, path='result',
-                     not_stated_if=NOT_FINAL | A('L5b', 'ended').in_(['dismissed', 'settled', 'withdrawn']))
+                     not_stated_if=NOT_FINAL | A('L5b', 'ended').in_(['dismissed', 'settled', 'withdrawn']),
+                     notes=['"Granted" means the documents don\'t say the court attached or kept conditions, not that '
+                            'there were none.'])
 dismissal_basis = Field('dismissal_basis', topics.COURT, label='Dismissal basis', type=_choice(Q.C5),
                         scan=Q.C5, step=L.L5d, path='dismissal_basis',
                         not_stated_if=NOT_FINAL | A('L5b', 'ended').in_(['decided on the merits', 'settled', 'withdrawn']))

@@ -9,7 +9,7 @@ from appeals.graph.nodes import Gate
 
 # Probability that the docket is a municipal appeal about new housing, from S1–S4.
 IN_SCOPE = ((S1.p('municipal permit application') + S1.p('several, including a municipal permit application'))
-            * S3.p('yes')
+            * (S3.p('yes') + S3.p('group or care housing'))
             * (1 - S2.p('authorize something already built') - S2.p('no physical change'))
             * Max(S4.p('adds') + S4.p('replaces'), S2.p('create building lots')))
 
