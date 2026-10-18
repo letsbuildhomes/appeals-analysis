@@ -186,7 +186,11 @@ Every question that could be silent includes "not stated" as an answer.
 
 **In scope (X1)** = S1 is a municipal permit application, alone or with other
 decisions in the docket ∧ S3 yes ∧ (S4 adds or replaces ∨ S2 creates lots) ∧
-S2 is not "already built" or "no physical change".
+S2 is not "already built" or "no physical change". An appeal of a preliminary
+step on an application, such as sketch plan review, counts as a municipal
+permit application even when the court holds the step was not appealable:
+those appeals are housing projects that were appealed, and why they were
+thrown out is data the study wants.
 
 S1 is one question about the whole proceeding rather than "is it municipal?"
 and "what kind of municipal action?" asked separately. A docket is one
@@ -320,10 +324,10 @@ item or C4 that is P(yes); for a kind in C2 or C3 it is the chance the kind is a
 | `sure` or above | the step runs, told the scan's reading, and asked to confirm or refute it |
 
 For a kind in C2 or C3, the scan's reading is its most likely level among those that count as at issue.
-`sure` also labels every scan answer in the claims each call starts with ("fairly confident" or
-"uncertain"). It is 0.6 because answers at or above it repeated exactly when the grounds experiments asked
-the same questions twice, and closer calls did not. The low bounds differ by question: they trade cost
-against missed cases, and C3's kinds come up often enough that 0.5 lost no case in the answer key.
+`sure` also labels every scan answer stated as a claim ("fairly confident" or "uncertain"). It is 0.6
+because answers at or above it repeated exactly when the grounds experiments asked the same questions
+twice, and closer calls did not. The low bounds differ by question: they trade cost against missed cases,
+and C3's kinds come up often enough that 0.5 lost no case in the answer key.
 
 An out-of-scope docket keeps its scan answers and makes no reasoning-model
 calls.
@@ -335,11 +339,21 @@ supports it, and returns JSON of the step's type. Details that depend on each
 other run as a chain: one conversation, in which each step names the step it
 follows and sees every exchange along that line. A chain is a line, or a tree
 where one step has two possible follow-ups; a step never follows two steps. A
-step runs only if earlier answers call for it (its *only if*): how
-the docket ended is asked only once a final decision is found, and the
-dismissal basis only if it was dismissed. Every step starts from the docket's
-cached `Base`, which states the scan's answers as claims, so most steps
-confirm or refute rather than answer from scratch.
+step runs only if earlier answers call for it (its *only if*): how the docket
+ended is asked only once a final decision is found, and the dismissal basis
+only if it was dismissed. Every step starts from the docket's cached `Base`:
+the framing, the docket text, and every scan answer as a claim. The step's own
+question states again the claims it checks, so most steps confirm or refute
+rather than answer from scratch. The full set of claims stays in the Base on
+purpose: it is a map of the docket the steps lean on. Taking it out (tried in
+October 2026) cost accuracy in the grounds steps and doubled their reasoning,
+at the price that a change to any question's wording, or to `sure`, reruns
+every step. A step in a chain replays the earlier steps' turns exactly as they
+were sent and received, then appends its own question, so each request extends
+the one before it and the provider's prefix cache covers the whole chain so
+far. Every question ends with the reply's JSON schema and what each answer
+option means, so a definition written once on the question or the step reaches
+the model.
 
 A reply that isn't valid JSON of the step's type goes back to the model with
 the errors (twice by default) before the step fails. A reply cut off at the
@@ -348,14 +362,16 @@ same request is sent again unchanged (twice by default). Every attempt
 records the stop reason the API reported.
 
 Steps are numbered by chain, in the order the chains run, and lettered by
-their order within the chain: L5 is the court's chain, L5a to L5f. A step
-that is asked once per flagged item is named after its item, as in
-L3_variance. Steps run in the order listed. A step can depend on an answer
-from another chain only through its *only if*, never through context: the
-units the court approved (L6f) follow the other counts, and run only if the
-court's chain found the application granted, which is why the court's chain
-(L5) runs before the counts (L6). When a scope step finds the docket out of
-scope, the remaining steps are skipped.
+their order within the chain: L5 is the court's chain, L5a to L5f. A step that
+is asked once per flagged item is named after its item, as in L3_variance.
+Steps run in the order listed. A step can depend on an answer from another
+chain only through its *only if*, never through context: the units the court
+approved (L6f) follow the other counts, and run only if the court's chain
+found the application granted or denied, which is why the court's chain (L5)
+runs before the counts (L6). When a scope step finds the docket out of scope,
+the remaining steps are skipped. A scope step that answers "not stated" does
+not end the chain, and the scope field keeps the scan's answer: a step that
+can't tell doesn't take a docket out of the study.
 
 | Step | Gate | Only if | Asks for | Follows |
 |---|---|---|---|---|
@@ -379,7 +395,7 @@ scope, the remaining steps are skipped.
 | L6c Units added: under appeal | counts | L6b yes | units added in the part under appeal | L6b |
 | L6d Housing lots | counts | — | A6 | L6a |
 | L6e Units added: town | counts | — | B5 | L6c |
-| L6f Units added: court | counts | L5c granted, with or without conditions | F4 | L6e |
+| L6f Units added: court | counts | L5c granted (with or without conditions) or denied | F4 | L6e |
 | L7a Arguments stated | grounds | — | C1 | — |
 | L7b Condition challenged | grounds | L7a yes and C4 yes at or above `check` | C4 | L7a |
 | L7c Which conditions | grounds | L7b yes | each challenged condition, described in a few words | L7b |
@@ -395,11 +411,15 @@ scope, the remaining steps are skipped.
 | L12b The change | design | L12a yes | a one-sentence description, quoted | L12a |
 
 A reasoning-model answer with a verified quote overrides the scan's answer.
-Each override is logged as a disagreement, and those logs are the data for
-tuning thresholds. A field can also be "not stated" by rule when an earlier
-answer makes it moot: C2 and C4 when no arguments are stated, D3–D5 when
-L5a finds no final decision, D4 unless the docket was decided on the merits,
-and D5 unless it was dismissed.
+For the yes/no steps about whether something happened (L3_*, L5a, L6b, L7a,
+L7b, L11a, L12a), the step may also answer "none found": the documents show
+nothing of the kind, so no passage can show it. That needs no quote, overrides
+the scan too, and is recorded as "no", with the trace marking it. Each
+override is logged as a disagreement, and those logs are the data for tuning
+thresholds. A field can also be "not stated" by rule when an earlier answer
+makes it moot: C2 and C4 when no arguments are stated, D3–D5 when L5a finds no
+final decision, D4 unless the docket was decided on the merits, and D5 unless
+it was dismissed.
 
 ### Derived fields
 

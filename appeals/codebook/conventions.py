@@ -12,18 +12,22 @@ CONVENTIONS = [
     'A decision the court issued in several dockets belongs in full to each of them, so sibling dockets often '
     'describe the same project. Adding up units or lots across linked dockets counts the same housing more than once.',
     # What the answers mean
-    '"Not stated" is a real answer: the documents were silent. It is different from "no", which needs the documents '
-    'to say so. Report "not stated" separately; never count it as "no".',
+    '"Not stated" is a real answer: the documents were silent. It is different from "no". Report "not stated" '
+    'separately; never count it as "no".',
+    'A "no" either has a passage that says so, or, for questions about whether something happened (such as a stay, '
+    'a challenged condition, a design change or a final decision), rests on the documents showing nothing of the '
+    'kind. The trace marks the second kind "none found"; it has no quotation.',
     '"Out of scope" means the docket is not a municipal appeal about new housing, so it was not studied: only its '
     'scope answers are filled in. That is different from "not stated".',
-    'Every answer except "not stated" has evidence when a reasoning step produced it: a short exact quotation with '
-    'its document and page, checked by code against the page text. Answers taken from the scan have a probability '
+    'Every answer a reasoning step produced has evidence, except "not stated" and a "none found" no: a short exact '
+    'quotation with its document and page, checked by code against the page text. Answers taken from the scan have a probability '
     'instead of a quote.',
     'Answers are closed: one option from a fixed set, or a separate yes/no question per item when options can '
     'overlap. Dates, counts and names are the only open values.',
     'Dates are as precise as the documents allow: a day (YYYY-MM-DD), a month (YYYY-MM) or a year (YYYY).',
     'Units are units added: every count of dwelling units is the number of new units the project would create. '
-    'Existing units that remain are not counted; a unit that replaces one removed counts as one.',
+    'Existing units that remain are not counted, nor units an earlier permit already approved that the project '
+    'keeps unchanged; a unit that replaces one removed counts as one.',
     'Stays and changes to the housing count only when the court imposed them. Changes the town made belong to the '
     'town\'s decision.',
     'Code combines answers into research answers (the derived values). No model does the combining.',

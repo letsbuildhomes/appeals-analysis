@@ -23,7 +23,7 @@ import traceback
 import uuid
 
 from appeals.graph import layers
-from appeals.graph.endpoints import BudgetReached
+from appeals.graph.endpoints import BudgetReached, answer_instructions
 from appeals.ingest.dockets import docket_text
 
 SYSTEM = ('You read decisions of the Vermont Superior Court, Environmental Division, for a research project. '
@@ -44,18 +44,23 @@ class Runner:
         self.reasoning = reasoning
         self.log = log
         self.spent = 0.0
+        self.fresh = None             # with fresh steps: the run ID, so this run's reasoning calls are its own
         self.description = pipeline.describe()
         self.nodes = {n['id']: n for n in self.description['nodes']}
 
     # ---- the run -------------------------------------------------------------------
 
-    async def run(self, numbers, workers=8, tags=()):
+    async def run(self, numbers, workers=8, tags=(), fresh_steps=False):
+        """fresh_steps: ask the reasoning model again rather than reuse stored step results, such as to
+        measure how much its answers vary. The scan is still reused, and earlier runs' results are kept."""
         run_id = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-') + uuid.uuid4().hex[:4]
+        self.fresh = run_id if fresh_steps else None
         graph_hash = self.description['hash']
         self.store.save_graph(graph_hash, self.description)
         endpoints = {'decision': self.decision.identity(), 'reasoning': self.reasoning.identity()}
         self.store.start_run(run_id, graph_hash, endpoints,
-                             {'workers': workers, 'budget_usd': self.settings.budget_usd}, len(numbers),
+                             {'workers': workers, 'budget_usd': self.settings.budget_usd,
+                              'fresh_steps': fresh_steps}, len(numbers),
                              datetime.now(timezone.utc), tags)
         queue = asyncio.Queue()
         for n in numbers:
@@ -168,7 +173,7 @@ class Runner:
                     continue
             prompt = layers.render_prompt(p, step, entry['variant'], scan)
             chain = [s for s in step.line() if results.get(s.id, {}).get('answer') is not None]
-            history = [(results[s.id]['prompt'], results[s.id]['reply']) for s in chain]
+            history = [turn for s in chain for turn in results[s.id]['turns']]     # exactly as sent: append only
             if step.for_each:
                 result = await self._each(run_id, number, docket, base, base_key, step, entry, prompt, chain, history,
                                           results)
@@ -183,7 +188,8 @@ class Runner:
 
     async def _ask(self, run_id, number, docket, base, base_key, step, node_id, entry, prompt, chain, history):
         """One reasoning call for a step (or one item of a for-each step), reused when cached."""
-        key = key_of('step', self.nodes[step.id], base_key, prompt, history, self.reasoning.identity())
+        key = key_of('step', self.nodes[step.id], base_key, SYSTEM, prompt, answer_instructions(step.returns), history,
+                     self.reasoning.identity(), *([self.fresh] if self.fresh else []))
         cached = self.store.cached_record(key)
         if cached:
             self._save(run_id, number, 'steps', node_id, key, None, reused=True)
@@ -195,7 +201,8 @@ class Runner:
         answer, checked, verified = (layers.verify_quotes(reply.answer, docket) if reply.answer is not None
                                      else (None, 0, 0))
         final_reply = reply.exchange['attempts'][-1]['reply']
-        result = {'variant': entry['variant'], 'prompt': prompt, 'reply': final_reply, 'answer': answer,
+        result = {'variant': entry['variant'], 'prompt': prompt, 'reply': final_reply, 'turns': reply.exchange['turns'],
+                  'answer': answer,
                   'error': reply.error, 'attempts': len(reply.exchange['attempts']),
                   'quotes_checked': checked, 'quotes_verified': verified,
                   'chained_after': [s.id for s in chain]}

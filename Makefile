@@ -7,6 +7,7 @@ MODEL   ?= fake
 LIMIT   ?= 10
 DOCKETS ?=
 TAG     ?=
+FRESH   ?=
 RUN_ID  ?=
 RELEASE ?=
 SITE_HOST ?= 0.0.0.0
@@ -44,8 +45,8 @@ dockets:         ## list recent dockets
 graph:           ## build and validate the extraction graph, write data/graph.json
 	$(RUN) appeals graph
 
-run:             ## run the graph: make run MODEL=fake|live LIMIT=10 or DOCKETS="a,b" WORKERS=24 TAG=scratch
-	$(RUN) appeals run --model $(MODEL) --workers $(WORKERS) $(if $(DOCKETS),--dockets "$(DOCKETS)",--limit $(LIMIT)) $(if $(TAG),--tag "$(TAG)")
+run:             ## run the graph: make run MODEL=fake|live LIMIT=10 or DOCKETS="a,b" WORKERS=24 TAG=scratch [FRESH=1]
+	$(RUN) appeals run --model $(MODEL) --workers $(WORKERS) $(if $(DOCKETS),--dockets "$(DOCKETS)",--limit $(LIMIT)) $(if $(TAG),--tag "$(TAG)") $(if $(FRESH),--fresh-steps)
 
 runs:            ## list runs: make runs [TAG=scratch]
 	$(RUN) appeals runs $(if $(TAG),--tag "$(TAG)")

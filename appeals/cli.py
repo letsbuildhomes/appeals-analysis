@@ -84,7 +84,8 @@ def cmd_run(args):
         decision, reasoning = endpoints.decision_model(settings.decision.model), endpoints.reasoning_model(settings.reasoning)
     numbers = _pick_dockets(store, args)
     runner = Runner(pipeline, store, settings, decision, reasoning)
-    run_id = asyncio.run(runner.run(numbers, workers=settings.workers, tags=args.tag or []))
+    run_id = asyncio.run(runner.run(numbers, workers=settings.workers, tags=args.tag or [],
+                                    fresh_steps=args.fresh_steps))
     print(f'run {run_id}')
 
 
@@ -273,6 +274,8 @@ def main(argv=None):
     p.add_argument('--workers', type=int)
     p.add_argument('--budget', type=float)
     p.add_argument('--tag', action='append', help='label the run, such as "scratch"; may be repeated')
+    p.add_argument('--fresh-steps', action='store_true',
+                   help='ask the reasoning model again instead of reusing stored step results (the scan is reused)')
     for name in ('reasoning', 'decision'):
         p.add_argument(f'--{name}-model', help='"provider/model", from a file in providers/')
         p.add_argument(f'--{name}-key', help='the API key, instead of the provider\'s environment variable')

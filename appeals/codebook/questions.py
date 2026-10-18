@@ -16,7 +16,9 @@ S1 = Question('S1', 'scope',
     options={'municipal permit application': 'An appeal of a decision by a municipal body or officer (such as a '
                  'development review board, planning commission, zoning board of adjustment or zoning '
                  'administrator) on an application for a permit or approval, such as a zoning permit, '
-                 'subdivision, site plan or conditional use approval.',
+                 'subdivision, site plan or conditional use approval. This includes an appeal of a preliminary step '
+                 'on such an application, such as sketch plan review, even if the court holds that step was not '
+                 'appealable.',
              'several, including a municipal permit application': 'The docket covers more than one decision, and one '
                  'of them is a municipal decision on a permit application, such as a municipal appeal heard together '
                  'with an Act 250 or state permit appeal of the same project.',
@@ -178,7 +180,8 @@ GROUP_NAMES = {'character': 'character and fit', 'historic': 'historic', 'neighb
                'relief': 'dimensional relief (variances and waivers)'}
 
 C2 = ChoiceSet('C2', 'C',
-    ask=f'How far did this docket get with a standard about {{item}}? {JUDGMENT} {FURTHEST}',
+    ask=f'The kind of standard: {{item}}. How far did this docket get with a standard of this kind? {JUDGMENT} '
+        f'{FURTHEST}',
     items=GROUPS, options=LEVELS, null='not at issue',
     why='Which kinds of judgment standard each appeal turned on, and how far each got. "Decided, disputed" is what '
         'makes a standard central to the appeal.')
@@ -245,8 +248,8 @@ OTHER_NAMES = {'measurable': 'measurable rules', 'meaning': 'allowed use and def
                'claims': 'constitutional and equitable claims', 'permits': 'other permits'}
 
 C3 = ChoiceSet('C3', 'C',
-    ask=f'How far did this docket get with a question about {{item}}? Count it only for this docket\'s appeal. '
-        f'{FURTHEST}',
+    ask=f'The kind of question: {{item}}. How far did this docket get with a question of this kind? Count it only '
+        f'for this docket\'s appeal. {FURTHEST}',
     items=OTHER_KINDS, options=OTHER_LEVELS, null='not at issue',
     why='Every other kind of question the appeal dealt with, so the appeals without a central judgment standard show '
         'what they turned on, and a docket can show several kinds at once.')

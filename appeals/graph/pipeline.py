@@ -48,10 +48,19 @@ class Pipeline:
             if node.id in self.nodes:
                 raise GraphError(f'duplicate node ID {node.id}')
             self.nodes[node.id] = node
+        for step in steps:
+            step.confirms = self._confirms(step)
         self.edges = self._edges()
         problems = self.check()
         if problems:
             raise GraphError('the graph does not build:\n  ' + '\n  '.join(problems))
+
+    def _confirms(self, step):
+        """The scan questions a step checks: those its prompt states as claims or its condition reads."""
+        refs = step.placeholders() | (step.only_if.refs() if step.only_if else set()) \
+            | (step.choose.refs() if step.choose else set())
+        stems = {self._node_for(r) for r in refs}
+        return sorted(s for s in stems if isinstance(self.nodes.get(s), (Question, YesNoSet, ChoiceSet)))
 
     # ---- edges -----------------------------------------------------------------
 

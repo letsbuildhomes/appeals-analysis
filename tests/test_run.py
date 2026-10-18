@@ -70,3 +70,29 @@ def test_deleting_runs_keeps_results_other_runs_use(tmp_path):
     store.delete_runs([kept])
     assert store.value('SELECT count(*) FROM node_records') == 0
     assert store.value('SELECT count(*) FROM run_records') == 0
+
+
+class _InScope(FakeDecisions):
+    """Every question's first option at 0.95: an in-scope docket whose flagged items all run."""
+
+    async def ask(self, state, questions, long_context=False):
+        reply = await super().ask(state, questions, long_context)
+        for qid, q in questions.items():
+            options = ['yes', 'no'] if q['type'] == 'yes_no' else list(q['criteria'])
+            reply.answer[qid] = {o: (0.95 if i == 0 else 0.05 / (len(options) - 1)) for i, o in enumerate(options)}
+        return reply
+
+
+def test_a_chained_request_replays_the_earlier_requests_exactly(tmp_path):
+    import json
+    store = _store(tmp_path)
+    settings = replace(config.load(), data=tmp_path, budget_usd=1.0)
+    runner = Runner(build(settings.thresholds), store, settings, _InScope(), FakeReasoning(), log=lambda *_: None)
+    run_id = asyncio.run(runner.run(['12-1-20 Vtec'], workers=1))
+    rows = store.db.execute('SELECT n.exchange FROM run_records r JOIN node_records n ON n.key = r.key '
+                            'WHERE r.run_id = ? AND n.exchange IS NOT NULL', (run_id,)).fetchall()
+    exchanges = [json.loads(r[0]) for r in rows if r[0]]
+    sent = [e['history'] + e['turns'] for e in exchanges if e.get('turns')]
+    chained = [e for e in exchanges if e.get('history')]
+    assert len(chained) > 5
+    assert all(e['history'] in sent for e in chained)       # each extends an earlier request and its reply, unchanged

@@ -16,10 +16,10 @@ import re
 
 from appeals.graph import expr as E
 from appeals.graph.nodes import ChoiceSet, YesNoSet
-from appeals.graph.values import NOT_STATED, OUT_OF_SCOPE, ListOf
+from appeals.graph.values import NONE_FOUND, NOT_STATED, OUT_OF_SCOPE, ListOf
 
 
-# ---- scan -> base -------------------------------------------------------------------
+# ---- scan -> base and step prompts -----------------------------------------------------------
 
 def top(dist):
     return max(dist, key=dist.get) if dist else None
@@ -30,35 +30,34 @@ def confidence(pipeline, dist, best):
     return 'fairly confident' if dist.get(best, 0) >= pipeline.thresholds['sure'] else 'uncertain'
 
 
+def _answered(pipeline, ask, dist):
+    """A scan question and its answer, in words: the question, then what the scan answered and how sure it was."""
+    best = top(dist)
+    ask = ask if ask.rstrip().endswith(('.', '?')) else f'{ask.rstrip()}.'
+    return f'{ask} The scan answered "{best}" and was {confidence(pipeline, dist, best)}.' if best else ask
+
+
 def claims(pipeline, scan):
-    """The scan's answers as one line per question, for the Base."""
-    lines = []
-    for q in pipeline.scan.flat():
-        dist = scan.get(q.id)
-        if dist:
-            best = top(dist)
-            lines.append(f'{q.id}: {q.ask} → {best} ({confidence(pipeline, dist, best)})')
-    return '\n'.join(lines)
+    """The scan's answers as a list, one question per line, for the Base."""
+    return '\n'.join(f'- {_answered(pipeline, q.ask, scan[q.id])}' for q in pipeline.scan.flat() if scan.get(q.id))
 
 
 def claim(pipeline, scan, ref):
-    """One placeholder in a step prompt: the question and the scan's answer."""
+    """One placeholder in a step prompt: the scan's question and its answer, in words (no question IDs)."""
     node = pipeline.nodes.get(ref)
     if isinstance(node, YesNoSet):
         flagged = [k for k in node.items if scan.get(f'{node.id}.{k}', {}).get('yes', 0) >= pipeline.thresholds['check']]
-        return f'{node.id} ({node.ask}) — flagged: {", ".join(flagged) or "none"}'
+        return f'{node.ask} The scan flagged: {", ".join(flagged) or "none"}.'
     if isinstance(node, ChoiceSet):
         read = '; '.join(f'{k}: {top(scan.get(f"{node.id}.{k}", {}))}' for k in node.items)
-        return f'{node.id} — scan: {read}'
+        return f'The scan read: {read}.'
     dist = scan.get(ref, {})
     owner = pipeline.nodes.get(ref.split('.')[0])
     if isinstance(owner, ChoiceSet):            # the step asks the question itself: name the likeliest answer that applies
         best = top({k: v for k, v in dist.items() if k != owner.null})
         return best or 'no answer'
     question = next((q for q in pipeline.scan.flat() if q.id == ref), None)
-    best = top(dist)
-    ask = question.ask if question else ref
-    return f'{ref} ({ask}) — scan: {best}, {confidence(pipeline, dist, best)}' if best else f'{ref} ({ask})'
+    return _answered(pipeline, question.ask if question else ref, dist)
 
 
 # ---- plan ----------------------------------------------------------------------------
@@ -164,10 +163,25 @@ def _at(value, path):
     return value
 
 
-def _quoted_ok(item):
-    """A quoted answer counts when it is "not stated" or has a verified quote."""
+def _quoted_ok(item, none_found=False):
+    """A quoted answer counts when it is "not stated" (or "none found", where its type offers it), or has a
+    verified quote."""
+    unquoted = (NOT_STATED, NONE_FOUND) if none_found else (NOT_STATED,)
     return isinstance(item, dict) and 'answer' in item and (
-        item['answer'] == NOT_STATED or any(q.get('verified') for q in item.get('quotes', [])))
+        item['answer'] in unquoted or any(q.get('verified') for q in item.get('quotes', [])))
+
+
+def _offers_none_found(step, path):
+    """Whether a step's answer at `path` may be "none found" (a yes/no type that offers it)."""
+    try:
+        return bool(step and getattr(step.returns.at(path), 'none_found', False))
+    except (KeyError, AttributeError):
+        return False
+
+
+def _settled(item, none_found):
+    """A step's answer as a field records it: "none found", where offered, is a "no" that no passage shows."""
+    return 'no' if none_found and item['answer'] == NONE_FOUND else item['answer']
 
 
 def _scan_answer(scan, question):
@@ -206,21 +220,27 @@ def _resolve_one(f, scan, steps):
         step_value = _at(steps[f.step.id]['answer'], f.path)
     scan_answer, probability = _scan_answer(scan, f.scan) if f.scan else (None, None)
     fact = {'answer': NOT_STATED, 'quotes': [], 'source': 'none', 'probability': None, 'conflict': False}
+    offered = _offers_none_found(f.step, f.path)
     if isinstance(f.type, ListOf) and isinstance(step_value, list):
         items = [{**i, 'ok': _quoted_ok(i)} for i in step_value]
         fact.update(answer=[i['answer'] for i in items if i['ok']], quotes=[q for i in items for q in i['quotes']],
                     source='step', dropped=sum(not i['ok'] for i in items))
-    elif _quoted_ok(step_value):
-        fact.update(answer=step_value['answer'], quotes=step_value['quotes'], source='step')
-        fact['conflict'] = scan_answer is not None and scan_answer != step_value['answer'] \
-            and step_value['answer'] != NOT_STATED
+    elif _quoted_ok(step_value, offered) and not (f.scan_if_unsure and step_value['answer'] == NOT_STATED
+                                                   and scan_answer is not None):
+        answer = _settled(step_value, offered)
+        fact.update(answer=answer, quotes=step_value['quotes'], source='step')
+        if answer != step_value['answer']:
+            fact['note'] = 'none found: the documents show nothing of the kind'
+        fact['conflict'] = scan_answer is not None and scan_answer != answer and answer != NOT_STATED
         if scan_answer is not None:
             fact['scan_answer'], fact['probability'] = scan_answer, probability
     elif isinstance(step_value, (str, int)) and not isinstance(step_value, bool):
         fact.update(answer=step_value, source='step')            # unquoted text, e.g. a description
     elif scan_answer is not None:
         fact.update(answer=scan_answer, source='scan', probability=probability)
-        if step_value is not None:
+        if isinstance(step_value, dict) and step_value.get('answer') == NOT_STATED:
+            fact['note'] = 'the step answered "not stated", so the scan\'s answer stands'
+        elif step_value is not None:
             fact['note'] = 'step answer not used: no verified quote'
     return fact
 
@@ -255,7 +275,7 @@ def _set_scan_answer(f, scan, key):
 
 def _resolve_set(f, scan, steps):
     """Each item from its own step when that step ran with a verified quote, else the scan's answer."""
-    answer, quotes, sources, conflicts = {}, [], {}, []
+    answer, quotes, sources, conflicts, none_found = {}, [], {}, [], []
     for key in (f.scan.items if f.scan else f.steps):
         scan_answer = _set_scan_answer(f, scan, key)
         step = f.steps.get(key)
@@ -264,15 +284,21 @@ def _resolve_set(f, scan, steps):
         if f.vouched_by:                      # a plain value resting on a quoted answer in the same step
             voucher = _at(value, f.vouched_by)
             item = {'answer': item, 'quotes': voucher['quotes']} if item is not None and _quoted_ok(voucher) else None
-        if _quoted_ok(item):
-            answer[key], sources[key] = item['answer'], 'step'
+        offered = _offers_none_found(step, f.path) and not f.vouched_by
+        if _quoted_ok(item, offered):
+            answer[key], sources[key] = _settled(item, offered), 'step'
+            if answer[key] != item['answer']:
+                none_found.append(key)
             quotes += item['quotes']
-            if f.scan and item['answer'] not in (scan_answer, NOT_STATED):
+            if f.scan and answer[key] not in (scan_answer, NOT_STATED):
                 conflicts.append(key)
         else:
             answer[key], sources[key] = scan_answer, ('scan' if f.scan else 'none')
-    return {'answer': answer, 'quotes': quotes, 'source': sources, 'probability': None, 'conflict': bool(conflicts),
+    fact = {'answer': answer, 'quotes': quotes, 'source': sources, 'probability': None, 'conflict': bool(conflicts),
             'conflicts': conflicts}
+    if none_found:
+        fact['none_found'] = none_found          # items whose "no" rests on the documents showing nothing
+    return fact
 
 
 # ---- derive and row --------------------------------------------------------------------

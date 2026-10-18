@@ -3,6 +3,9 @@
     DecisionModel.ask(state, questions, long_context) -> Reply(answers, exchange, cost)
     ReasoningModel.ask(system, base, history, prompt, returns) -> Reply(answer, exchange, cost)
 
+A chained step's request replays the earlier steps' turns exactly as they were sent and received, then
+appends its own question, so each request extends the one before it and a provider's prefix cache reuses it.
+
 Reasoning replies must be JSON matching the step's value type. A reply that
 doesn't parse or doesn't validate is sent back to the model with the errors,
 up to `json_repairs` times, and every attempt is kept in the exchange.
@@ -21,7 +24,7 @@ import time
 
 import httpx
 
-from appeals.graph.values import NOT_STATED, make_rng
+from appeals.graph.values import NONE_FOUND, NOT_STATED, ListOf, OneOf, Quoted, Record, make_rng
 from appeals.providers import unpriced
 
 
@@ -169,16 +172,41 @@ def parse_json(text):
 
 
 def answer_instructions(returns):
-    return ('Reply with a single JSON object and nothing else. It must match this JSON Schema exactly:\n'
-            + json.dumps(returns.schema(), indent=1)
-            + f'\nEvery answer other than "{NOT_STATED}" needs at least one quote: an exact, continuous passage '
-              'copied from the docket text, with its document number (doc) and page number (page).')
+    """What follows every step's question: the reply's schema, the quoting rule, and what each option means."""
+    schema = json.dumps(returns.schema(), indent=1)
+    unquoted = f'"{NOT_STATED}" or "{NONE_FOUND}"' if f'"{NONE_FOUND}"' in schema else f'"{NOT_STATED}"'
+    parts = ['Reply with a single JSON object and nothing else. It must match this JSON Schema exactly:', schema,
+             f'Wherever the schema has "answer" and "quotes", give at least one quote for every answer other than '
+             f'{unquoted}: an exact, continuous passage copied from the docket text, with its document number (doc) '
+             f'and page number (page).']
+    meanings = [f'{path}:\n' + '\n'.join(f'- {option}: {meaning}' for option, meaning in options.items())
+                for path, options in option_meanings(returns)]
+    if meanings:
+        parts += ['What the options mean:', *meanings]
+    return '\n\n'.join(parts)
+
+
+TRIVIAL = {'Yes.', 'No.', 'The documents do not establish it.'}
+
+
+def option_meanings(kind, path=()):
+    """(field path, {option: meaning}) for each choice in a reply type, leaving out meanings that say nothing more
+    than the option itself (a plain yes, no or "not stated")."""
+    if isinstance(kind, Record):
+        return [m for key, field in kind.fields.items() for m in option_meanings(field, (*path, key))]
+    if isinstance(kind, ListOf):
+        return option_meanings(kind.item, path)
+    if isinstance(kind, Quoted):
+        return option_meanings(kind.answer, path)
+    if isinstance(kind, OneOf):
+        told = {o: m for o, m in kind.options.items() if m not in TRIVIAL}
+        return [(' → '.join(path), told)] if told else []
+    return []
 
 
 def repair_message(errors):
     listed = '\n'.join(f'- {e}' for e in errors[:20])
-    return (f'Your reply could not be used:\n{listed}\n'
-            'Reply again with only the corrected JSON object, matching the schema.')
+    return f'Your reply could not be used:\n\n{listed}\n\nReply again with only the corrected JSON object, matching the schema.'
 
 
 @dataclass
@@ -206,7 +234,9 @@ class ReasoningModel:
         return self.model.identity()
 
     async def ask(self, system, base, history, prompt, returns):
-        """history: earlier (prompt, reply) pairs kept in context (chained steps).
+        """history: the turns of the earlier steps kept in context (chained steps), exactly as sent and received:
+        a list of {"role": "user" | "assistant", "text": …}. The exchange's `turns` are this step's own, to be
+        replayed after it.
 
         A reply that ran out of output tokens, or came back empty, is not a mistake the
         model can fix, so the same request is sent again unchanged, up to `resends` times.
@@ -237,16 +267,17 @@ class ReasoningModel:
                 value, errors = None, [str(error)]
             attempts.append({'reply': text, 'errors': errors, 'usage': done.usage, 'stop': done.stop})
             if not errors:
-                return Reply(value, self._exchange(system, history, question, attempts), cost)
+                return Reply(value, self._exchange(system, history, question, attempts,
+                                                   turns + [{'role': 'assistant', 'text': text}]), cost)
             repairs += 1
             if repairs > self.settings.json_repairs:
                 return Reply(None, self._exchange(system, history, question, attempts), cost,
                              error=f'no valid reply after {len(attempts)} attempts')
             turns += [{'role': 'assistant', 'text': text}, {'role': 'user', 'text': repair_message(errors)}]
 
-    def _exchange(self, system, history, question, attempts):
-        return {'model': self.identity(), 'system': system, 'history': [{'prompt': p, 'reply': r} for p, r in history],
-                'prompt': question, 'attempts': attempts}
+    def _exchange(self, system, history, question, attempts, turns=None):
+        return {'model': self.identity(), 'system': system, 'history': history, 'prompt': question,
+                'attempts': attempts, 'turns': turns}
 
     def _cost(self, usage, sent_at):
         """The call's cost, priced by the model's provider; how it was priced is added to `usage`."""
@@ -259,22 +290,27 @@ class ReasoningModel:
         raise NotImplementedError
 
 
+def _messages(base, turns):
+    """The conversation as API messages: the base is the first content part of the first user turn."""
+    messages, pending = [], [base]
+    for turn in turns:
+        if turn['role'] == 'user':
+            messages.append({'role': 'user', 'content': pending + [{'type': 'text', 'text': turn['text']}]})
+            pending = []
+        else:
+            messages.append({'role': 'assistant', 'content': turn['text']})
+    return messages
+
+
 class AnthropicReasoning(ReasoningModel):
     """The Messages API. The docket base is marked for prompt caching."""
 
     async def _complete(self, system, base, history, turns):
-        messages = []
-        pending = [{'type': 'text', 'text': base, 'cache_control': {'type': 'ephemeral'}}]
-        for prompt, reply in history:
-            messages += [{'role': 'user', 'content': pending + [{'type': 'text', 'text': prompt}]},
-                         {'role': 'assistant', 'content': reply}]
-            pending = []
-        for turn in turns:
-            if turn['role'] == 'user':
-                messages.append({'role': 'user', 'content': pending + [{'type': 'text', 'text': turn['text']}]})
-                pending = []
-            else:
-                messages.append({'role': 'assistant', 'content': turn['text']})
+        cached = {'cache_control': {'type': 'ephemeral'}}
+        messages = _messages({'type': 'text', 'text': base, **cached}, [*history, *turns])
+        if history:              # a second cache point: the earlier steps' last reply (one message per turn)
+            last = messages[len(history) - 1]
+            last['content'] = [{'type': 'text', 'text': last['content'], **cached}]
         body = {'model': self.model.name, 'max_tokens': self.settings.max_output_tokens, 'system': system,
                 'messages': messages}
         headers = {'x-api-key': self.model.key, 'anthropic-version': '2023-06-01'}
@@ -296,18 +332,7 @@ class OpenAIReasoning(ReasoningModel):
     """
 
     async def _complete(self, system, base, history, turns):
-        messages = [{'role': 'system', 'content': system}]
-        pending = [{'type': 'text', 'text': base}]
-        for prompt, reply in history:
-            messages += [{'role': 'user', 'content': pending + [{'type': 'text', 'text': prompt}]},
-                         {'role': 'assistant', 'content': reply}]
-            pending = []
-        for turn in turns:
-            if turn['role'] == 'user':
-                messages.append({'role': 'user', 'content': pending + [{'type': 'text', 'text': turn['text']}]})
-                pending = []
-            else:
-                messages.append({'role': 'assistant', 'content': turn['text']})
+        messages = [{'role': 'system', 'content': system}, *_messages({'type': 'text', 'text': base}, [*history, *turns])]
         body = {'model': self.model.name, 'messages': messages, 'max_tokens': self.settings.max_output_tokens}
         headers = {'Authorization': f'Bearer {self.model.key}'}
         async with self.limiter:
@@ -337,7 +362,7 @@ class FakeReasoning(ReasoningModel):
         rng = make_rng(base[:2000], question[:400], len(turns))
         if len(turns) == 1 and rng.random() < 1 / 6:
             return Completion('{"answer": "unfinished', {'fake': True}, 0.0, 'stop', False)
-        schema = json.loads(question.split('JSON Schema exactly:\n', 1)[1].rsplit('\nEvery answer', 1)[0])
+        schema = json.loads(question.split('JSON Schema exactly:\n\n', 1)[1].split('\n\nWherever', 1)[0])
         pages = re.findall(r'<document n="(\d+)"[^>]*>|<page n="(\d+)" source="[a-z]+">\n(.*?)\n</page>', base, re.S)
         passages, doc = [], 1
         for d, page, text in pages:

@@ -10,7 +10,7 @@ from appeals.codebook import steps as L
 from appeals.graph.expr import StepAnswer as A
 from appeals.graph.expr import T
 from appeals.graph.nodes import Field
-from appeals.graph.values import NOT_STATED, Count, DateValue, ListOf, Name, OneOf, Record, Text, YesNo
+from appeals.graph.values import NONE_FOUND, NOT_STATED, Count, DateValue, ListOf, Name, OneOf, Record, Text, YesNo
 from appeals.ingest.dockets import filing_period
 
 
@@ -29,16 +29,19 @@ def docket_number_filing(number):
 
 # ---- Scope ---------------------------------------------------------------------------
 proceeding = Field('proceeding', 'scope', code='S1', label='Kind of proceeding',
-                   type=_choice(Q.S1), scan=Q.S1, step=L.L1a, path='S1',
+                   type=_choice(Q.S1), scan=Q.S1, step=L.L1a, scan_if_unsure=True, path='proceeding',
                    notes=['Answered for every docket, so out-of-scope dockets say what they are.',
-                          '"Several, including a municipal permit application" counts as in scope.'])
+                          '"Several, including a municipal permit application" counts as in scope.',
+                          'An appeal of a preliminary step on an application, such as sketch plan review, counts as a '
+                          'municipal permit application even when the court holds the step was not appealable: those '
+                          'appeals are in the study, and the grounds record why they were thrown out.'])
 physical_change = Field('physical_change', 'scope', code='S2', label='What the permission allows',
-                        type=_choice(Q.S2), scan=Q.S2, step=L.L1b, path='S2',
+                        type=_choice(Q.S2), scan=Q.S2, step=L.L1b, scan_if_unsure=True, path='change',
                         notes=["'Authorize something already built' (after-the-fact permits) and 'no physical change' are out of scope."])
 housing_use = Field('housing_use', 'scope', code='S3', label='Used for housing',
-                    type=_choice(Q.S3), scan=Q.S3, step=L.L1c, path='S3')
+                    type=_choice(Q.S3), scan=Q.S3, step=L.L1c, scan_if_unsure=True, path='housing')
 units_effect = Field('units_effect', 'scope', code='S4', label='Adds or replaces units',
-                     type=_choice(Q.S4), scan=Q.S4, step=L.L1d, path='S4')
+                     type=_choice(Q.S4), scan=Q.S4, step=L.L1d, scan_if_unsure=True, path='units')
 
 # ---- A · Which decisions -----------------------------------------------------------------
 filing_date = Field('filing_date', 'A', code='A1', label='Filing date', type=DateValue(),
@@ -58,7 +61,10 @@ place_within_town = Field('place_within_town', 'A', code='A3', label='Place with
                           notes=['A village or other named place within the town where the project is, such as Quechee in '
                                  'Hartford, when the documents name one.'])
 units_added_proposed = Field('units_added_proposed', 'A', code='A4', label='Units added: proposed', type=Count(),
-                             step=L.L6a, path='proposed')
+                             step=L.L6a, path='proposed',
+                             notes=['Units an earlier permit already approved and the project keeps unchanged are not '
+                                    'counted, built or not: a revision of an approved development counts only the units '
+                                    'it changes.'])
 appeal_partial = Field('appeal_partial', 'A', code='A5', label='Appeal covers only part', type=_choice(Q.A5),
                        scan=Q.A5, step=L.L6b, path='partial')
 units_added_under_appeal = Field('units_added_under_appeal', 'A', code='A5', label='Units added: under appeal',
@@ -102,10 +108,12 @@ appellant_lawyers = Field('appellant_lawyers', 'B', code='B4', label='Appellants
                                  'One entry per lawyer, so an appellant with two lawyers has two entries. Names and '
                                  'firms are as written; the same lawyer may be spelled differently across dockets.'])
 units_added_town_approved = Field('units_added_town_approved', 'B', code='B5', label='Units added: town approved',
-                                  type=Count(), step=L.L6e, path='town_approved')
+                                  type=Count(), step=L.L6e, path='town_approved',
+                                  notes=['0 when the town denied the application. When only part of the project is '
+                                         'under appeal, only that part is counted, as in the court\'s count.'])
 
 # ---- C · Grounds -------------------------------------------------------------------------
-NO_ARGUMENTS = A('L7a', 'stated').is_('no') | (Q.C1.p('yes') < T.grounds)
+NO_ARGUMENTS = A('L7a', 'stated').in_(['no', NONE_FOUND]) | (Q.C1.p('yes') < T.grounds)
 arguments_stated = Field('arguments_stated', 'C', code='C1', label='Arguments stated', type=_choice(Q.C1),
                          scan=Q.C1, step=L.L7a, path='stated',
                          notes=['A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
@@ -181,7 +189,7 @@ conditions_outcome = Field('conditions_outcome', 'C', code='C4', label='What the
                                   'condition\'s description.'])
 
 # ---- D · The court -----------------------------------------------------------------------
-NOT_FINAL = A('L5a', 'final').is_('no')
+NOT_FINAL = A('L5a', 'final').in_(['no', NONE_FOUND])
 review_standard = Field('review_standard', 'D', code='D1', label='Review standard', type=_choice(Q.D1),
                         scan=Q.D1, step=L.L10, path='standard')
 final_decision = Field('final_decision', 'D', code='D2', label='A decision ends the docket', type=_choice(Q.D2),
@@ -217,7 +225,9 @@ units_vs_application = Field('units_vs_application', 'F', code='F3', label='Unit
                              type=_choice(Q.F3), scan=Q.F3,
                              notes=['From the scan only: a direction with a probability, no quote.'])
 units_added_court_approved = Field('units_added_court_approved', 'F', code='F4', label='Units added: court approved',
-                                   type=Count(), step=L.L6f, path='court_approved')
+                                   type=Count(), step=L.L6f, path='court_approved',
+                                   notes=['0 when the court denied the application. When only part of the project is '
+                                          'under appeal, only that part is counted, as in the town\'s count.'])
 design_changed = Field('design_changed', 'F', code='F5', label='Court changed size or design', type=_choice(Q.F5),
                        scan=Q.F5, step=L.L12a, path='changed',
                        notes=["Only changes the court imposed; changes the town made belong to the town's decision."])

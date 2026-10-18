@@ -9,7 +9,7 @@ from appeals.graph import layers
 from appeals.graph.endpoints import Completion, ReasoningModel, parse_json
 from appeals.graph.nodes import Answer, Field, Gate, Question, Scan
 from appeals.graph.pipeline import GraphError, Pipeline
-from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record
+from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record, YesNo
 from appeals.providers import unpriced
 
 THRESHOLDS = {'scope_high': 0.7, 'scope_low': 0.2, 'counts': 0.5, 'grounds': 0.3, 'other_check': 0.5,
@@ -115,9 +115,11 @@ class _Scripted(ReasoningModel):
         super().__init__(Reasoning(unpriced('m', api='test')))
         self.replies = list(replies)
         self.seen = []
+        self.requests = []
 
     async def _complete(self, system, base, history, turns):
         self.seen.append(list(turns))
+        self.requests.append([*history, *turns])
         reply = self.replies.pop(0)
         if reply is None:                             # None stands for a reply cut off at the output limit
             return Completion('{"n": ', {}, 0.0, 'length', True)
@@ -132,6 +134,20 @@ def test_malformed_reply_is_sent_back_with_errors():
     repair = model.seen[1][-1]['text']
     assert 'not valid JSON' in repair
     assert 'n: expected a whole number' in model.seen[2][-1]['text']
+
+
+def test_a_chained_request_extends_the_one_before_it_exactly():
+    from appeals.graph.endpoints import _messages
+    model = _Scripted(['{"n": ', '{"n": 3}', '{"n": 4}'])           # the first step needs one repair
+    first = asyncio.run(model.ask('sys', 'base', [], 'How many?', Record(n=Count())))
+    second = asyncio.run(model.ask('sys', 'base', first.exchange['turns'], 'And now?', Record(n=Count())))
+    sent_first, sent_second = model.requests[1], model.requests[2]
+    assert sent_second[:len(sent_first)] == sent_first                # the first step's last request, unchanged …
+    assert sent_second[len(sent_first)] == {'role': 'assistant', 'text': '{"n": 3}'}   # … then its reply
+    assert sent_second[-1]['text'].startswith('And now?') and len(sent_second) == len(sent_first) + 2
+    base = {'type': 'text', 'text': 'base'}
+    one, two = _messages(base, sent_first), _messages(base, sent_second)
+    assert two[:len(one)] == one and second.answer == {'n': 4}
 
 
 def test_gives_up_after_the_repair_limit():
@@ -275,8 +291,76 @@ def test_flagged_items_get_a_prompt_for_how_sure_the_scan_was():
     steps = {s['step']: s for s in layers.plan(pipeline, scan)['steps']}
     assert steps['L3_subdivision']['runs'] and steps['L3_subdivision']['variant'] == 'scan fairly confident'
     assert steps['L3_variance']['runs'] and steps['L3_variance']['variant'] == 'scan uncertain'
-    assert 'B1 (What did the municipal decision' in layers.claim(pipeline, {'B1': {'denied': 0.6, 'approved': 0.4}}, 'B1')
-    assert layers.claim(pipeline, {'B1': {'denied': 0.55, 'approved': 0.45}}, 'B1').endswith('scan: denied, uncertain')
+    assert layers.claim(pipeline, {'B1': {'denied': 0.6, 'approved': 0.4}}, 'B1').startswith('What did the municipal decision')
+    assert layers.claim(pipeline, {'B1': {'denied': 0.55, 'approved': 0.45}}, 'B1').endswith(
+        'The scan answered "denied" and was uncertain.')
+
+
+def test_the_base_states_every_scan_answer_and_a_step_repeats_only_its_own():
+    pipeline = build(THRESHOLDS)
+    scan = {**IN_SCOPE_SCAN, 'B1': {'denied': 0.9, 'approved': 0.1}, 'D1': {'de novo': 0.9},
+            'A7.subdivision': {'yes': 0.9, 'no': 0.1}}
+    base = pipeline.base.render('DOCKET', layers.claims(pipeline, scan))
+    assert base.startswith(pipeline.base.framing.strip() + '\n\nDOCKET\n\n<scan>\n') and base.endswith('</scan>')
+    assert '- How did the Environmental Court hear this appeal of the municipal decision? The scan answered "de novo"' in base
+    assert 'Item: subdivision approval. The scan answered "yes" and was fairly confident.' in base
+    assert 'B1' not in base                                                   # no question IDs
+    prompt = layers.render_prompt(pipeline, pipeline.nodes['L3a'], '', scan)
+    assert 'The scan answered "denied"' in prompt and 'How did the Environmental Court hear' not in prompt
+
+
+def test_a_step_confirms_the_scan_questions_it_states_or_reads():
+    pipeline = build(THRESHOLDS)
+    confirms = {s.id: s.confirms for s in pipeline.steps}
+    assert confirms['L6e'] == [] and confirms['L6f'] == ['F2', 'F3']
+    assert confirms['L8_traffic'] == ['C2'] and confirms['L3_variance'] == ['A7']
+    assert confirms['L7b'] == ['C4'] and confirms['L3b'] == []
+
+
+def test_prompts_are_paragraphs_without_line_wrapping():
+    pipeline = build(THRESHOLDS)
+    for text in [pipeline.base.framing, *(t for s in pipeline.steps for t in s.templates().values())]:
+        assert all('\n' not in paragraph for paragraph in text.split('\n\n')), text[:60]
+
+
+def test_the_answer_instructions_say_what_each_option_means():
+    from appeals.graph.endpoints import answer_instructions
+    pipeline = build(THRESHOLDS)
+    told = answer_instructions(pipeline.nodes['L8_relief_kind'].returns)
+    assert 'What the options mean:' in told and '- bylaw waiver: A waiver of a dimensional requirement' in told
+    roles = answer_instructions(pipeline.nodes['L4a'].returns)
+    assert 'appellants → role:\n- applicant or owner:' in roles
+    assert 'What the options mean' not in answer_instructions(Record(n=Quoted(YesNo())))   # a plain yes or no
+
+
+def test_none_found_needs_no_quote_and_is_recorded_as_no():
+    pipeline = build(THRESHOLDS)
+    stayed = pipeline.nodes['L11a'].returns
+    assert stayed.validate({'stayed': {'answer': 'none found', 'quotes': []}}, '') == []
+    assert stayed.validate({'stayed': {'answer': 'no', 'quotes': []}}, '')          # a stated no still needs its quote
+    scan = {**IN_SCOPE_SCAN, 'F1': {'yes': 0.7, 'no': 0.3}, 'A7.subdivision': {'yes': 0.8, 'no': 0.2}}
+    steps = {'L11a': {'answer': {'stayed': {'answer': 'none found', 'quotes': []}}},
+             'L3_subdivision': {'answer': {'at_issue': {'answer': 'none found', 'quotes': []}}}}
+    facts = layers.resolve(pipeline, scan, steps)
+    assert facts['stayed']['answer'] == 'no' and facts['stayed']['source'] == 'step' and facts['stayed']['conflict']
+    assert facts['permission_kinds']['answer']['subdivision'] == 'no'
+    assert facts['permission_kinds']['none_found'] == ['subdivision']
+    town = pipeline.nodes['L3c'].returns                       # only a type that offers it may answer "none found"
+    assert town.validate({'town': {'answer': 'none found', 'quotes': []}, 'place': {'answer': 'not stated', 'quotes': []}}, '')
+    place = layers.resolve(pipeline, scan, {'L3c': {'answer': {'town': {'answer': 'not stated', 'quotes': []},
+                                                               'place': {'answer': 'none found', 'quotes': []}}}})
+    assert place['place_within_town']['answer'] == NOT_STATED
+
+
+def test_a_scope_step_that_cannot_tell_neither_ends_the_chain_nor_takes_the_docket_out():
+    pipeline = build(THRESHOLDS)
+    unsure = {'housing': {'answer': 'not stated', 'quotes': []}}
+    assert not layers.halts(pipeline.nodes['L1c'], {'L1c': unsure})
+    assert layers.halts(pipeline.nodes['L1c'], {'L1c': {'housing': {'answer': 'no', 'quotes': []}}})
+    scan = {**IN_SCOPE_SCAN, 'S3': {'yes': 0.86, 'no': 0.14}}
+    facts = layers.resolve(pipeline, scan, {'L1c': {'answer': unsure}})
+    assert facts['housing_use']['answer'] == 'yes' and facts['housing_use']['source'] == 'scan'
+    assert layers.derive(pipeline, facts)['in_scope'] is True
 
 
 def _runs(pipeline, scan, step_id, answers):
@@ -301,8 +385,9 @@ def test_a_kind_of_judgment_standard_is_followed_up_when_it_may_be_at_issue():
     assert _runs(pipeline, scan, 'L8_historic', stated)[0] is False
     assert _runs(pipeline, scan, 'L8_character', {'L7a': {'stated': {'answer': 'no', 'quotes': []}}})[0] is False
     prompt = layers.render_prompt(pipeline, pipeline.nodes['L8_character'], 'scan fairly confident', scan)
-    assert prompt.startswith("The scan judged that this docket dealt with this kind of standard; its most likely level: "
-                             "decided, disputed.")
+    assert prompt.startswith('The kind of standard: the character of the area')
+    assert ('The scan judged that this docket dealt with this kind of standard, most likely at the level '
+            '"decided, disputed".') in prompt
 
 
 def test_other_questions_are_followed_up_at_a_higher_threshold():
@@ -316,7 +401,7 @@ def test_other_questions_are_followed_up_at_a_higher_threshold():
     assert _runs(pipeline, scan, 'L9_process', stated)[0] is False
     assert _runs(pipeline, scan, 'L9_meaning', stated) == (True, 'scan uncertain')
     prompt = layers.render_prompt(pipeline, pipeline.nodes['L9_meaning'], 'scan uncertain', scan)
-    assert 'unsure whether' in prompt and 'its most likely\nlevel: decided, disputed)' in prompt
+    assert 'unsure whether' in prompt and 'most likely at the level "decided, disputed")' in prompt
 
 
 def test_what_was_central_reads_both_families():

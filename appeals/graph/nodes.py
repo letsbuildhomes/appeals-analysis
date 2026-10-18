@@ -203,7 +203,12 @@ class Gate(Node):
 
 @dataclass(eq=False)
 class Base(Node):
-    """The shared start of every reasoning-model call for a docket: framing, docket text, scan claims."""
+    """The shared start of every reasoning-model call for a docket: framing, docket text, scan claims.
+
+    Every scan answer is a claim here, not only those a step checks: the claims are a map of the docket that the
+    steps lean on (dropping them, tried in October 2026, cost accuracy and doubled the grounds steps' reasoning).
+    A step also states the claims it checks in its own question.
+    """
     framing: str = ''
     kind: ClassVar[str] = 'base'
     layer: ClassVar[int] = 3
@@ -213,10 +218,10 @@ class Base(Node):
 
     def render(self, docket_text, claims):
         return (f'{self.framing.strip()}\n\n{docket_text}\n\n<scan>\n'
-                'The decision model\'s first reading of this docket. Each line is a claim to confirm or refute '
-                'from the text, never to repeat without checking. "Fairly confident" and "uncertain" say how sure '
-                'the scan was; a confident claim can still be wrong.\n'
-                f'{claims}\n</scan>')
+                'The scan: the decision model\'s first reading of this docket. Each answer below, and each one a '
+                'question repeats, is a claim to confirm or refute from the text, never to repeat without checking. '
+                '"Fairly confident" and "uncertain" say how sure the scan was; a confident claim can still be wrong.'
+                f'\n\n{claims}\n</scan>')
 
     def describe(self):
         return super().describe() | {'framing': self.framing.strip(),
@@ -248,7 +253,7 @@ class Step(Node):
     returns: Record = None
     after: 'Step | None' = None
     halt_unless: E.Expr | None = None
-    confirms: list = field(default_factory=list)
+    confirms: list = field(default_factory=list)   # set by the pipeline: the scan questions it checks
     for_each: tuple | None = None
     item: str = ''
     limit: int | None = None
@@ -320,6 +325,8 @@ class Field(Node):
     on the ruling quoted for the level.
     `not_stated_if`: a condition on earlier answers that makes the field "not stated"
     whatever the sources say, such as grounds when no arguments are stated.
+    `scan_if_unsure`: when the step answers "not stated", keep the scan's answer instead, such as for scope,
+    where a step that can't tell should not take a docket out of the study.
     `notes`: what a reader of the data must know to use the value correctly.
     """
     code: str = ''
@@ -333,6 +340,7 @@ class Field(Node):
     per_item: Callable | None = None
     vouched_by: str | None = None
     not_stated_if: E.Expr | None = None
+    scan_if_unsure: bool = False
     notes: list = field(default_factory=list)
     kind: ClassVar[str] = 'field'
     layer: ClassVar[int] = 4
@@ -375,6 +383,7 @@ class Field(Node):
             'from_scan': self.scan.id if self.scan else None,
             'vouched_by': self.vouched_by,
             'not_stated_if': self.not_stated_if.text() if self.not_stated_if else None,
+            'scan_if_unsure': self.scan_if_unsure,
             'rule': rule, 'notes': self.notes}
         if self.from_docket:
             d['source'] = textwrap.dedent(inspect.getsource(self.from_docket))

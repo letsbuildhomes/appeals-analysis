@@ -12,6 +12,7 @@ from appeals import dates
 
 NOT_STATED = 'not stated'
 OUT_OF_SCOPE = 'out of scope'      # a research row's value for a docket we did not study
+NONE_FOUND = 'none found'          # a step's "no" that rests on the documents showing nothing, so has no quote
 
 
 class ValueType:
@@ -314,16 +315,22 @@ class Quoted(ValueType):
 
     Every answer except "not stated" needs at least one quote, except free text, which needs one only
     when `quote_required` says so (such as a challenged condition, whose quote is its evidence).
+    `none_found`, for a yes/no question: adds the answer "none found", a "no" that rests on the documents
+    showing nothing rather than on a passage saying so, and so needs no quote. A field records it as "no".
     """
     name = 'quoted'
 
-    def __init__(self, answer, quote_required=None):
+    def __init__(self, answer, quote_required=None, none_found=False):
+        if none_found:
+            answer = OneOf({**answer.options, NONE_FOUND: 'The documents show nothing of the kind, so no passage can '
+                            'show the answer. Answer "no" only with a passage that says so.'}, not_stated=False)
         self.answer = answer
+        self.none_found = none_found
         self.scored = answer.scored
         self.quote_required = type(answer) is not Text if quote_required is None else quote_required
 
     def describe(self):
-        return {'type': self.name, 'answer': self.answer.describe()}
+        return {'type': self.name, 'answer': self.answer.describe()} | ({'none_found': True} if self.none_found else {})
 
     def schema(self):
         return {'type': 'object', 'required': ['answer', 'quotes'], 'additionalProperties': False,
@@ -339,7 +346,8 @@ class Quoted(ValueType):
             return errors + [f'{path}.quotes: expected a list']
         for i, q in enumerate(quotes):
             errors += QUOTE.validate(q, f'{path}.quotes[{i}]')
-        if not quotes and value['answer'] != NOT_STATED and self.quote_required:
+        unquoted = (NOT_STATED, NONE_FOUND) if self.none_found else (NOT_STATED,)
+        if not quotes and value['answer'] not in unquoted and self.quote_required:
             errors.append(f'{path}.quotes: an answer other than "{NOT_STATED}" needs at least one quote')
         return errors
 
@@ -373,5 +381,5 @@ def from_description(d):
     if kind == 'or not stated':
         return OrNotStated(from_description(d['value']))
     if kind == 'quoted':
-        return Quoted(from_description(d['answer']))
+        return Quoted(from_description(d['answer']), none_found=d.get('none_found', False))
     raise ValueError(f'unknown value type {kind!r}')
