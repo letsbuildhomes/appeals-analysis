@@ -4,7 +4,7 @@ Each question is self-contained: the decision model sees only its text and
 options, never its ID. IDs and answer sets follow docs/PIPELINE.md.
 """
 
-from appeals.graph.nodes import Question, YesNoSet
+from appeals.graph.nodes import ChoiceSet, Question, YesNoSet
 
 NOT_STATED = 'not stated'
 NS = 'The documents do not establish it.'
@@ -96,7 +96,7 @@ A7 = YesNoSet('A7', 'A',
     ask='Is this kind of municipal permission at issue in this appeal?',
     items={'subdivision': 'subdivision approval', 'site plan': 'site plan approval',
            'planned development': 'planned unit development or master plan approval',
-           'conditional use': 'conditional use approval', 'variance': 'a variance',
+           'conditional use': 'conditional use approval', 'variance': 'a variance (the statutory variance; a waiver is "other")',
            'zoning permit': 'a zoning or building permit', 'other': 'another kind of permission'},
     why='What kind of approval was appealed.')
 
@@ -122,6 +122,7 @@ B2 = Question('B2', 'B',
 
 
 # ---- C · Grounds ----------------------------------------------------------------------
+# The definitions here were settled by the grounds experiments (scored against a 46-docket answer key).
 
 C1 = Question('C1', 'C',
     ask='Do the documents say what the appellant argued in this appeal?',
@@ -129,33 +130,135 @@ C1 = Question('C1', 'C',
              'no': 'The documents do not say what the appellant argued, for example a dismissal on procedural grounds.'},
     why='Without stated arguments, the grounds are "not stated".')
 
-C2 = Question('C2', 'C',
-    ask='Does any argument in this appeal dispute how a judgment-based standard was applied, such as '
-        'compatibility with the neighborhood, the character of the area, or the adequacy of something?',
-    options={'yes': 'An argument disputes the application of a judgment-based standard.',
-             'no': 'No argument does; the arguments concern fixed rules, facts, procedure or legal rights.'},
-    why='Tests whether appeals turn on subjective standards.')
+JUDGMENT = ('Count only a standard the project must meet whose terms leave the outcome to judgment, with no '
+            'measurable test such as a number, distance or list, and only where it is applied to this project, not '
+            'merely quoted in a list of criteria. A dispute over whether a measurable rule was met does not count, nor '
+            'does the court\'s own discretion over its procedure (such as reopening an appeal period), an equitable '
+            'claim such as estoppel, a constitutional test such as a taking or due process, or an impact argued only to '
+            'show standing.')
 
-C3 = Question('C3', 'C',
-    ask='Does any argument in this appeal challenge whether a judgment-based standard is valid, for example as too '
-        'vague to be enforced?',
-    options={'yes': 'An argument challenges the validity of such a standard.', 'no': 'No argument does.'},
-    why='Challenging a standard itself differs from disputing how it was applied.')
+LEVELS = {
+    'not at issue': 'Not argued, and not considered by the court.',
+    'raised only': 'A party argued it; the court has not addressed it.',
+    'taken up': 'The court treated it as open without deciding it, such as denying summary judgment over disputed '
+                'facts or setting it for trial.',
+    'decided, disputed': 'A party contested whether the project meets it, and the court ruled on it.',
+    'decided, not disputed': 'The court ruled whether the project meets it, but no party contested it, such as a short '
+                             'finding in a run through every criterion.',
+    'set aside': 'The court declined to reach it, such as outside the questions on appeal, no standing, moot or '
+                 'withdrawn.',
+}
+FURTHEST = ('If several standards or documents differ, answer for the furthest point reached, in this order: decided, '
+            'disputed; decided, not disputed; taken up; set aside; raised only.')
+
+GROUPS = {
+    'character': 'the character of the area or neighborhood, or whether the project\'s scale, mass, density, design or '
+                 'appearance fits its surroundings, including scenic and aesthetic effects. Not: landscaping, '
+                 'screening or buffers (site design)',
+    'historic': 'historic sites, buildings or districts',
+    'neighbor': 'nuisance effects on neighbors, such as noise, lighting, odor, dust or vibration, or loss of privacy, '
+                'light, air or sun',
+    'traffic': 'traffic safety, congestion, road capacity, circulation, access or street layout, or the capacity of '
+               'community facilities and services such as schools, fire protection, or municipal water and sewer',
+    'water': 'the project\'s water supply or wastewater disposal, stormwater, drainage or erosion, flood hazards, or '
+             'natural resources such as wetlands, streams, wildlife habitat, agricultural soils or forest',
+    'site': 'site design standards: landscaping, screening, buffers, open-space set-asides, or the design criteria of a '
+            'planned unit or residential development (such as clustering or efficient use of land). It does not include '
+            'a subdivision\'s or project\'s layout in general, roads, driveways or access (traffic), drainage or '
+            'stormwater (water and environment), lot dimensions or other measurable rules, or a waiver of a dimensional '
+            'requirement. Count it only where the parties argued about the design standard itself, not merely because a '
+            'subdivision or development it applies to was contested',
+    'relief': 'dimensional relief: the criteria for a variance or a waiver of a dimensional requirement such as '
+              'frontage, setback or lot size, judged by tests such as unnecessary hardship, no reasonable use of the '
+              'property, or the minimum relief needed (a variance\'s "essential character" criterion counts as the '
+              'character of the area instead)',
+}
+GROUP_NAMES = {'character': 'character and fit', 'historic': 'historic', 'neighbor': 'neighbor effects',
+               'traffic': 'traffic and services', 'water': 'water and environment', 'site': 'site design',
+               'relief': 'dimensional relief (variances and waivers)'}
+
+C2 = ChoiceSet('C2', 'C',
+    ask=f'How far did this docket get with a standard about {{item}}? {JUDGMENT} {FURTHEST}',
+    items=GROUPS, options=LEVELS, null='not at issue',
+    why='Which kinds of judgment standard each appeal turned on, and how far each got. "Decided, disputed" is what '
+        'makes a standard central to the appeal.')
+
+# The other kinds of question an appeal can turn on, asked like the judgment groups so a docket shows every
+# kind it had. Distilled from 25 candidates and scored against a 46-docket answer key (the grounds
+# experiments, v4–v6).
+OTHER_LEVELS = {
+    'not at issue': 'Not argued, and not considered by the court.',
+    'raised only': 'A party argued it; the court has not addressed it.',
+    'taken up': 'The court treated it as open without deciding it, such as denying summary judgment over disputed '
+                'facts or setting it for trial.',
+    'decided, disputed': 'A party contested it, and the court ruled on it.',
+    'decided, not disputed': 'The court ruled on it, but no party contested it.',
+    'set aside': 'The court declined to reach it, such as outside the questions on appeal, no standing, moot or '
+                 'withdrawn.',
+}
+
+OTHER_KINDS = {
+    'measurable': 'whether the project meets a rule with a measurable test, such as a setback, height limit, minimum '
+                  'lot size or frontage, density limit or required number of parking spaces. If only the measuring '
+                  'method is disputed, the method is allowed use and defined terms and compliance here is "decided, '
+                  'disputed", even if the figures under the adopted method are agreed. Not: a variance or waiver from '
+                  'such a rule, what the rule\'s words mean, or a number set by an earlier permit\'s condition (earlier permits '
+                  'and approvals)',
+    'meaning': 'what the words of the bylaw or a permit mean: whether the proposed use is allowed in the zoning district '
+               'or which use category it falls in (permitted, conditional or prohibited), what a defined term such as '
+               '"dwelling unit", "structure" or "lot" covers, how a measurable rule is to be measured when the parties '
+               'dispute the method (such as whether lot width is taken at its narrowest point), or whether the bylaw '
+               'must be read to include 24 V.S.A. § 4412\'s required provisions (such as for accessory dwelling '
+               'units), under any version of the bylaw a party relies on. A disputed reading of an earlier permit\'s '
+               'condition counts here, and whether it binds or is met under earlier permits and approvals. Count it '
+               'only where a party argued about what the words mean, not where their meaning is clear and only '
+               'whether the project meets them is disputed; a court only stating or applying a definition is "not at '
+               'issue", so "decided, not disputed" never applies here. Not: whether the project meets a measurable '
+               'rule (measurable rules), or meets a standard calling for judgment (the judgment groups)',
+    'nonconforming': 'a nonconforming use, structure or lot: whether it may continue, expand or change',
+    'process': 'the municipal process: notice of the application, hearing or decision, how the hearing was held, '
+               'whether the application was complete, or a defect in the municipal decision itself, such as '
+               'inadequate findings, a late decision or a deemed approval. Not: the court\'s own handling of the '
+               'appeal or of its Statement of Questions, or a remand for the panel to look first (who can appeal)',
+    'appeal': 'whether the appeal can be heard: an appellant\'s standing or party status, whether the appeal was filed '
+              'on time, or the court\'s jurisdiction, such as whether the decision appealed was final, or whether it '
+              'can review an application changed on appeal or a question the municipal panel never considered',
+    'earlier': 'earlier permits and approvals: vested rights, the binding effect of an earlier permit or decision that '
+               'was not appealed, whether a plat label or permit condition is specific enough to be enforced, a repeat '
+               'application or a permit amendment, or compliance with an earlier permit or its conditions. Not: the '
+               'finality of the decision under appeal because the appeal was late (who can appeal)',
+    'property': 'a private property dispute: who owns the land or holds rights in it, such as title, the location or '
+                'width of an easement or right-of-way, or a deed covenant or restriction. This includes a property '
+                'question the court declines to decide because it lacks jurisdiction over private property rights. '
+                'Not: whether the bylaw allows the project or its use (allowed use and defined terms), or whether the '
+                'project meets a zoning rule',
+    'claims': 'a constitutional or equitable claim against the municipality: a bylaw standard too vague to enforce '
+              'constitutionally (void for vagueness), a taking or exaction, due process or equal protection, a claim of '
+              'discrimination under federal or state fair housing statutes, or estoppel. Not: whether a permit '
+              'condition or plat label is specific enough to bind (earlier permits and approvals)',
+    'permits': 'whether another permit is needed or was obtained, such as Act 250, a state wastewater or water supply '
+               'permit, or a state stormwater permit',
+}
+OTHER_NAMES = {'measurable': 'measurable rules', 'meaning': 'allowed use and defined terms',
+               'nonconforming': 'nonconforming uses and structures', 'process': 'municipal process',
+               'appeal': 'who can appeal', 'earlier': 'earlier permits and approvals', 'property': 'property rights',
+               'claims': 'constitutional and equitable claims', 'permits': 'other permits'}
+
+C3 = ChoiceSet('C3', 'C',
+    ask=f'How far did this docket get with a question about {{item}}? Count it only for this docket\'s appeal. '
+        f'{FURTHEST}',
+    items=OTHER_KINDS, options=OTHER_LEVELS, null='not at issue',
+    why='Every other kind of question the appeal dealt with, so the appeals without a central judgment standard show '
+        'what they turned on, and a docket can show several kinds at once.')
 
 C4 = Question('C4', 'C',
-    ask='Did the court treat an argument about a judgment-based standard as a principal issue of the appeal?',
-    options={'yes': 'It was a principal issue.', 'no': 'It was minor or absent.', NOT_STATED: NS},
-    why='Whether discretion was central, not just present.')
-
-C5 = YesNoSet('C5', 'C',
-    ask='Did the appellant raise this issue in this appeal?',
-    items={'traffic': 'traffic, access or parking', 'density': 'density or the number of units',
-           'character': 'neighborhood character, appearance or aesthetics',
-           'natural resources': 'wetlands, stormwater, wildlife or other natural resources',
-           'noise or lighting': 'noise, lighting or other nuisance', 'dimensional': 'setbacks, height, lot size or other dimensional rules',
-           'procedure': 'notice, hearing or other procedure', 'standing': 'standing or party status',
-           'vested rights': 'vested rights or prior approvals', 'other': 'another issue'},
-    why='Which issues appeals raise.')
+    ask='Did a party challenge a condition the municipality attached to the permit, or ask the court to add, change or '
+        'remove one, arguing whether it should be imposed or how strict it should be? A dispute over whether a '
+        'condition was met, or what it means, does not count, nor do conditions an applicant offers that no party '
+        'opposes; opposing the removal or relaxation of an existing condition counts.',
+    options={'yes': 'Yes: a party challenged such a condition.', 'no': 'No.'},
+    why='Conditions are how a board can approve a project and still burden it; this catches challenges that no '
+        'group does.')
 
 
 # ---- D · The court ---------------------------------------------------------------------
@@ -224,5 +327,5 @@ F5 = Question('F5', 'F',
     why='Design changes the court imposed, short of denial.')
 
 
-ALL = [S1, S2, S3, S4, A1, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, C5, D1, D2, D3, D4, D5,
+ALL = [S1, S2, S3, S4, A1, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, D1, D2, D3, D4, D5,
        F1, F2, F3, F5]

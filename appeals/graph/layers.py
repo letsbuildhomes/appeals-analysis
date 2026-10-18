@@ -15,7 +15,7 @@ The executor (run.py) calls these in order and stores what they return.
 import re
 
 from appeals.graph import expr as E
-from appeals.graph.nodes import YesNoSet
+from appeals.graph.nodes import ChoiceSet, YesNoSet
 from appeals.graph.values import NOT_STATED, OUT_OF_SCOPE, ListOf
 
 
@@ -47,7 +47,14 @@ def claim(pipeline, scan, ref):
     if isinstance(node, YesNoSet):
         flagged = [k for k in node.items if scan.get(f'{node.id}.{k}', {}).get('yes', 0) >= pipeline.thresholds['check']]
         return f'{node.id} ({node.ask}) — flagged: {", ".join(flagged) or "none"}'
+    if isinstance(node, ChoiceSet):
+        read = '; '.join(f'{k}: {top(scan.get(f"{node.id}.{k}", {}))}' for k in node.items)
+        return f'{node.id} — scan: {read}'
     dist = scan.get(ref, {})
+    owner = pipeline.nodes.get(ref.split('.')[0])
+    if isinstance(owner, ChoiceSet):            # the step asks the question itself: name the likeliest answer that applies
+        best = top({k: v for k, v in dist.items() if k != owner.null})
+        return best or 'no answer'
     question = next((q for q in pipeline.scan.flat() if q.id == ref), None)
     best = top(dist)
     ask = question.ask if question else ref
@@ -235,21 +242,35 @@ def _resolve_each(f, steps):
             'dropped': dropped, 'items': result.get('items'), 'asked': result.get('asked')}
 
 
+def _set_scan_answer(f, scan, key):
+    """A set item's answer from the scan: "yes" at even odds for a yes/no set, the most likely option for a
+    choice set, and "not stated" when the field has no scan question."""
+    dist = scan.get(f'{f.scan.id}.{key}', {}) if f.scan else {}
+    if isinstance(f.scan, ChoiceSet):
+        return top(dist) or NOT_STATED
+    if isinstance(f.scan, YesNoSet):
+        return 'yes' if dist.get('yes', 0) >= 0.5 else 'no'
+    return NOT_STATED
+
+
 def _resolve_set(f, scan, steps):
-    """Each item from its own step when that step ran with a verified quote, else the scan's most likely answer."""
+    """Each item from its own step when that step ran with a verified quote, else the scan's answer."""
     answer, quotes, sources, conflicts = {}, [], {}, []
-    for key in f.scan.items:
-        p_yes = scan.get(f'{f.scan.id}.{key}', {}).get('yes', 0)
-        scan_answer = 'yes' if p_yes >= 0.5 else 'no'
+    for key in (f.scan.items if f.scan else f.steps):
+        scan_answer = _set_scan_answer(f, scan, key)
         step = f.steps.get(key)
-        item = _at(steps.get(step.id, {}).get('answer'), f.path) if step else None
+        value = steps.get(step.id, {}).get('answer') if step else None
+        item = _at(value, f.path)
+        if f.vouched_by:                      # a plain value resting on a quoted answer in the same step
+            voucher = _at(value, f.vouched_by)
+            item = {'answer': item, 'quotes': voucher['quotes']} if item is not None and _quoted_ok(voucher) else None
         if _quoted_ok(item):
             answer[key], sources[key] = item['answer'], 'step'
             quotes += item['quotes']
-            if item['answer'] not in (scan_answer, NOT_STATED):
+            if f.scan and item['answer'] not in (scan_answer, NOT_STATED):
                 conflicts.append(key)
         else:
-            answer[key], sources[key] = scan_answer, 'scan'
+            answer[key], sources[key] = scan_answer, ('scan' if f.scan else 'none')
     return {'answer': answer, 'quotes': quotes, 'source': sources, 'probability': None, 'conflict': bool(conflicts),
             'conflicts': conflicts}
 

@@ -55,17 +55,35 @@ who = Answer('answer_B', 'B', title='Who appeals, and against what',
                      FROM appellant_mix_representation GROUP BY 1 ORDER BY 2 DESC""")])
 
 grounds = Answer('answer_C', 'C', title='On what grounds',
-                 question='Whether the appeal turns on judgment-based standards, and which issues were raised.',
-                 parts=[F.arguments_stated, F.disputes_application, F.challenges_validity, F.principal_issue,
-                        F.issues_raised],
+                 question='Whether the appeal turned on standards that leave the outcome to judgment, which kinds, '
+                          'how far each got, and which other kinds of question it dealt with.',
+                 parts=[F.arguments_stated, F.judgment_grounds, F.judgment_results, F.judgment_conditions,
+                        F.relief_kind, F.other_questions, F.conditions_challenged, F.conditions_challenged_by,
+                        F.conditions_outcome, X.X7, X.X8, X.X9],
+                 notes=['Central (X7) means disputed and decided; at issue (X8) is broader. Report both, and keep '
+                        '"not stated" (arguments not described) apart from "no".'],
                  examples=[
-                     example('How often do appeals dispute how a judgment-based standard was applied?', """
-                         SELECT arguments_stated, disputes_application, count(*) AS appeals
-                         FROM appeals GROUP BY ALL ORDER BY ALL"""),
-                     example('Which issues do appellants raise?', """
-                         SELECT item AS issue, count(*) FILTER (WHERE answer = 'yes') AS appeals,
-                                count(*) FILTER (WHERE answer = 'not stated') AS not_stated
-                         FROM issues_raised GROUP BY 1 ORDER BY 2 DESC""")])
+                     example('How often was a judgment standard central to the appeal?', """
+                         SELECT judgment_central, judgment_at_issue, count(*) AS appeals
+                         FROM appeals GROUP BY ALL ORDER BY appeals DESC"""),
+                     example('Which kinds of judgment standard were central, and how often were they at issue?', """
+                         SELECT item AS kind,
+                                count(*) FILTER (WHERE answer = 'decided, disputed') AS central,
+                                count(*) FILTER (WHERE answer NOT IN ('not at issue', 'not stated')) AS at_issue
+                         FROM judgment_grounds GROUP BY 1 ORDER BY 2 DESC"""),
+                     example('What were the appeals without a central judgment standard about?', """
+                         SELECT o.item AS kind, count(*) AS appeals
+                         FROM appeals a JOIN other_questions o ON o.docket = a.docket
+                         WHERE a.judgment_central = 'no' AND o.answer = 'decided, disputed'
+                         GROUP BY 1 ORDER BY 2 DESC"""),
+                     example('What was central to each appeal, and how did the appeals end?', """
+                         SELECT what_was_central, how_ended, count(*) AS appeals
+                         FROM appeals GROUP BY ALL ORDER BY appeals DESC"""),
+                     example('Who challenged conditions, and what did the court do with them?', """
+                         SELECT b.challenged_by, o.outcome, count(*) AS conditions
+                         FROM conditions_challenged_by b
+                         JOIN conditions_outcome o ON o.docket = b.docket AND o.condition = b.condition
+                         GROUP BY ALL ORDER BY conditions DESC""")])
 
 court = Answer('answer_D', 'D', title='What the court does',
                question='How the court heard the appeal, and how the docket ended.',

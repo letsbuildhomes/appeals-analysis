@@ -4,7 +4,7 @@ An expression can evaluate itself against a docket's answers, print itself
 as text for the dashboard, and list the nodes it reads (which become edges in
 the graph). Build them with operators:
 
-    P(C2, 'yes') >= T.discretion        P(S1, 'yes') * P(S4, 'yes')
+    P(C1, 'yes') >= T.grounds           P(S1, 'yes') * P(S4, 'yes')
     Is(C1, 'yes') & (… | …)             1 - P(S3, 'no physical change')
 """
 import operator
@@ -144,7 +144,7 @@ class Threshold(Expr):
 
 
 class _Thresholds:
-    """`T.discretion` is the threshold named "discretion" in config.toml."""
+    """`T.grounds` is the threshold named "grounds" in config.toml."""
 
     def __getattr__(self, name):
         return Threshold(name)

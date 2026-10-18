@@ -8,6 +8,7 @@ earlier answer makes the question moot. Codes refer to docs/PIPELINE.md.
 from appeals.codebook import questions as Q
 from appeals.codebook import steps as L
 from appeals.graph.expr import StepAnswer as A
+from appeals.graph.expr import T
 from appeals.graph.nodes import Field
 from appeals.graph.values import NOT_STATED, Count, DateValue, ListOf, Name, OneOf, Record, Text, YesNo
 from appeals.ingest.dockets import filing_period
@@ -104,23 +105,85 @@ units_added_town_approved = Field('units_added_town_approved', 'B', code='B5', l
                                   type=Count(), step=L.L6e, path='town_approved')
 
 # ---- C · Grounds -------------------------------------------------------------------------
-NO_ARGUMENTS = A('L7a', 'stated').is_('no')
+NO_ARGUMENTS = A('L7a', 'stated').is_('no') | (Q.C1.p('yes') < T.grounds)
 arguments_stated = Field('arguments_stated', 'C', code='C1', label='Arguments stated', type=_choice(Q.C1),
                          scan=Q.C1, step=L.L7a, path='stated',
-                         notes=['A procedural dismissal whose documents don\'t say what the appellant argued leaves the grounds (C1–C5) "not stated".'])
-disputes_application = Field('disputes_application', 'C', code='C2', label='Disputes applying a judgment standard',
-                             type=_choice(Q.C2), scan=Q.C2, step=L.L7b, path='applied', not_stated_if=NO_ARGUMENTS)
-challenges_validity = Field('challenges_validity', 'C', code='C3', label='Challenges a standard\'s validity',
-                            type=_choice(Q.C3), scan=Q.C3, step=L.L7c, path='validity', not_stated_if=NO_ARGUMENTS)
-principal_issue = Field('principal_issue', 'C', code='C4', label='Judgment standard a principal issue',
-                        type=_choice(Q.C4), scan=Q.C4, step=L.L7d, path='principal', not_stated_if=NO_ARGUMENTS)
-issues_raised = Field('issues_raised', 'C', code='C5', label='Issues raised', type=_items(Q.C5),
-                      scan=Q.C5, steps=L.ISSUES, path='raised')
+                         notes=['A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
+                                'judgment standards (C2) and conditions (C4) "not stated"; the other questions (C3) are '
+                                'still answered.'])
+
+
+def _per_group(kind):
+    return Record(**{key: kind for key in Q.GROUPS})
+
+
+GROUND_NOTES = [
+    'One item per kind of judgment standard: ' + '; '.join(f'{k} = {v}' for k, v in Q.GROUP_NAMES.items()) + '.',
+    'A judgment standard leaves the outcome to judgment, with no measurable test, and counts only where it is applied '
+    'to this project. Disputes over measurable rules, the court\'s procedural discretion, equitable and constitutional '
+    'claims, and impacts argued only for standing are not judgment standards; the other questions (C3) record them.',
+    '"Decided, disputed" means a party contested whether the project meets the standard and the court ruled: that is '
+    'what makes a standard central (X7). A finding made only because the court runs through every criterion is '
+    '"decided, not disputed".',
+    'A kind the scan gave less than a 0.3 chance of being at issue gets no follow-up and keeps the scan\'s answer.']
+judgment_grounds = Field('judgment_grounds', 'C', code='C2', label='Judgment standards: how far each got',
+                         type=_per_group(OneOf(Q.LEVELS, not_stated=True)), scan=Q.C2, steps=L.GROUND_STEPS,
+                         path='level', not_stated_if=NO_ARGUMENTS, notes=GROUND_NOTES)
+judgment_results = Field('judgment_results', 'C', code='C2', label='Judgment standards: the court\'s result',
+                         type=_per_group(OneOf(L.RESULTS, not_stated=True)), steps=L.GROUND_STEPS, path='result',
+                         vouched_by='level', not_stated_if=NO_ARGUMENTS,
+                         notes=['"Not stated" for a kind that got no follow-up (the scan saw it as not at issue).',
+                                '"Met with conditions" only when a condition is aimed at that kind of standard.'])
+judgment_conditions = Field('judgment_conditions', 'C', code='C2', label='Judgment standards: dispute about a condition',
+                            type=_per_group(YesNo(not_stated=True)), steps=L.GROUND_STEPS, path='condition',
+                            vouched_by='level', not_stated_if=NO_ARGUMENTS,
+                            notes=['Whether the dispute over that kind of standard was about a condition the '
+                                   'municipality attached, or one a party asked the court to add, change or remove.'])
+relief_kind = Field('relief_kind', 'C', code='C2', label='Kind of dimensional relief', type=OneOf(L.RELIEF_KINDS),
+                    step=L.L8_relief_kind, path='kind', not_stated_if=NO_ARGUMENTS,
+                    notes=['Only "statutory variance" is a variance in the legal sense (24 V.S.A. § 4469). Counts of '
+                           'dimensional relief include bylaw waivers and planned-development modifications.'])
+OTHER_NOTES = [
+    'One item per other kind of question: ' + '; '.join(f'{k} = {v}' for k, v in Q.OTHER_NAMES.items()) + '.',
+    'Several kinds can apply to one docket. With the judgment standards (C2) they show what an appeal turned on: '
+    'for an appeal with no central judgment standard (X7 no), the kinds at "decided, disputed" are what it was about.',
+    '"Decided, disputed" means a party contested the question and the court ruled on it.',
+    'A kind the scan gave less than a 0.5 chance of being at issue gets no follow-up and keeps the scan\'s answer.',
+    'Answered for every docket in scope, including those whose documents don\'t say what the appellant argued, '
+    'such as an appeal dismissed as untimely before the merits.']
+other_questions = Field('other_questions', 'C', code='C3', label='Other questions: how far each got',
+                        type=Record(**{key: OneOf(Q.OTHER_LEVELS, not_stated=True) for key in Q.OTHER_KINDS}),
+                        scan=Q.C3, steps=L.OTHER_STEPS, path='level', notes=OTHER_NOTES)
+conditions_challenged = Field('conditions_challenged', 'C', code='C4', label='A condition was challenged',
+                              type=_choice(Q.C4), scan=Q.C4, step=L.L7b, path='challenged', not_stated_if=NO_ARGUMENTS,
+                              notes=['Challenges to whether a condition should be imposed or how strict it is, '
+                                     'including opposing the removal of one. Not: whether one was met, what one means, '
+                                     'or the applicant\'s own unopposed conditions.'])
+
+
+def condition_challengers(item, answer):
+    return [{'condition': item, 'challenged_by': answer['challenged_by']['answer']}]
+
+
+def condition_outcome(item, answer):
+    return [{'condition': item, 'outcome': answer['outcome']['answer']}]
+
+
+conditions_challenged_by = Field('conditions_challenged_by', 'C', code='C4', label='Who challenged each condition',
+                                 type=ListOf(Record(condition=Text(), challenged_by=OneOf(L.CHALLENGERS)),
+                                             not_stated=True),
+                                 step=L.L7d, path='challenged_by', per_item=condition_challengers,
+                                 notes=['Up to five conditions per docket; the condition is described in a few words.'])
+conditions_outcome = Field('conditions_outcome', 'C', code='C4', label='What the court did with each condition',
+                           type=ListOf(Record(condition=Text(), outcome=OneOf(L.OUTCOMES)), not_stated=True),
+                           step=L.L7e, path='outcome', per_item=condition_outcome,
+                           notes=['Up to five conditions per docket. Match to conditions_challenged_by by the '
+                                  'condition\'s description.'])
 
 # ---- D · The court -----------------------------------------------------------------------
 NOT_FINAL = A('L5a', 'final').is_('no')
 review_standard = Field('review_standard', 'D', code='D1', label='Review standard', type=_choice(Q.D1),
-                        scan=Q.D1, step=L.L9, path='standard')
+                        scan=Q.D1, step=L.L10, path='standard')
 final_decision = Field('final_decision', 'D', code='D2', label='A decision ends the docket', type=_choice(Q.D2),
                        scan=Q.D2, step=L.L5a, path='final',
                        notes=["The end of the case is the court's first decision that leaves nothing pending in this docket. Partial rulings don't end it, and later post-judgment proceedings don't extend it.",
@@ -143,10 +206,10 @@ latest_order_date = Field('latest_order_date', 'E', code='E2', label='Date of th
 
 # ---- F · Cost to housing -------------------------------------------------------------------
 stayed = Field('stayed', 'F', code='F1', label='Court stayed the permit', type=_choice(Q.F1),
-               scan=Q.F1, step=L.L10a, path='stayed',
+               scan=Q.F1, step=L.L11a, path='stayed',
                notes=['Only stays the court imposed.'])
-stay_start = Field('stay_start', 'F', code='F1', label='Stay start', type=DateValue(), step=L.L10b, path='start')
-stay_end = Field('stay_end', 'F', code='F1', label='Stay end', type=DateValue(), step=L.L10b, path='end')
+stay_start = Field('stay_start', 'F', code='F1', label='Stay start', type=DateValue(), step=L.L11b, path='start')
+stay_end = Field('stay_end', 'F', code='F1', label='Stay end', type=DateValue(), step=L.L11b, path='end')
 units_vs_town = Field('units_vs_town', 'F', code='F2', label='Units added vs the town\'s decision',
                       type=_choice(Q.F2), scan=Q.F2,
                       notes=['From the scan only: a direction with a probability, no quote.'])
@@ -156,10 +219,10 @@ units_vs_application = Field('units_vs_application', 'F', code='F3', label='Unit
 units_added_court_approved = Field('units_added_court_approved', 'F', code='F4', label='Units added: court approved',
                                    type=Count(), step=L.L6f, path='court_approved')
 design_changed = Field('design_changed', 'F', code='F5', label='Court changed size or design', type=_choice(Q.F5),
-                       scan=Q.F5, step=L.L11a, path='changed',
+                       scan=Q.F5, step=L.L12a, path='changed',
                        notes=["Only changes the court imposed; changes the town made belong to the town's decision."])
 design_change = Field('design_change', 'F', code='F5', label='The size or design change', type=Text(),
-                      step=L.L11b, path='description',
+                      step=L.L12b, path='description',
                       notes=['Free text from the reasoning model, describing the change; never scored.'])
 
 ALL = [proceeding, physical_change, housing_use, units_effect,
@@ -167,7 +230,8 @@ ALL = [proceeding, physical_change, housing_use, units_effect,
        units_added_under_appeal, housing_lots, permission_kinds,
        town_decision, town_decision_date, appellants_named, appellants, appellant_lawyers,
        units_added_town_approved,
-       arguments_stated, disputes_application, challenges_validity, principal_issue, issues_raised,
+       arguments_stated, judgment_grounds, judgment_results, judgment_conditions, relief_kind, other_questions,
+       conditions_challenged, conditions_challenged_by, conditions_outcome,
        review_standard, final_decision, how_ended, court_result, dismissal_basis,
        final_decision_date, latest_order_date,
        stayed, stay_start, stay_end, units_vs_town, units_vs_application, units_added_court_approved,

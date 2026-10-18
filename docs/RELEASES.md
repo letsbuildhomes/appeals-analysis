@@ -27,7 +27,7 @@ The tables:
 |---|---|
 | `dockets` | One row per docket the run covered: status, whether it's in scope, document count and dates, then one column per answer. Answers outside the scope area are NULL for out-of-scope dockets |
 | `appeals` | A view of `dockets WHERE in_scope`. Research questions start here |
-| long tables | One per yes/no set (`permission_kinds`, `issues_raised`), list (`appellants`, …) or count by option (`appellant_mix_roles`, …) |
+| long tables | One per yes/no or choice set (`permission_kinds`, `judgment_grounds`), list (`appellants`, …) or count by option (`appellant_mix_roles`, …) |
 | `documents` | Each docket's documents, numbered as quotes cite them, with the court's PDF link |
 | `docket_links` | Dockets that share a decision, which often means the same project |
 | `confidence` | Where each settled answer came from: a quoted step, the scan with its probability, a rule, or nothing |

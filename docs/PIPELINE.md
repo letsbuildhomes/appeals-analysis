@@ -15,7 +15,7 @@ is not extracted.
 | Scope | Is this docket a municipal appeal about new housing? | S1–S4 → X1 |
 | A | Which town decisions about new housing get appealed: when the appeal was filed, in which town, how many units and lots, and what kind of permission | A1–A7 |
 | B | Who appeals, and against what: whether the town approved or denied, who the appellants are, and whether they had lawyers | B1–B5 → X6 |
-| C | On what grounds: whether the appeal turns on judgment-based standards, and which issues were raised | C1–C5 |
+| C | On what grounds: whether the appeal turned on standards that leave the outcome to judgment, which kinds and how far each got, which other kinds of question it dealt with, and challenged conditions | C1–C4 → X7, X8, X9 |
 | D | What the court does: how it heard the appeal, and how the docket ended | D1–D5 → X2 |
 | E | How long: days from the appeal's filing (or the town's decision, when no filing date is stated) to the court's first decision that leaves nothing pending | A1/A2, B1 date, E1/E2 → X4 |
 | F | What the appeal cost the housing: stays, unit changes and design changes the court imposed, and where permission ended up | F1–F5 → X3, X5 |
@@ -208,7 +208,7 @@ not part of S1: one decision often grants several, so it is asked as a set
 | A4 | How many new dwelling units would the project add, as proposed? | stated? → count | Scan (Choice); value from L6a | X3, A |
 | A5 | Is the appeal limited to part of the proposal? How many units added in that part? | yes · no · not stated → count | Scan (Choice); values from L6b, L6c | X3, A |
 | A6 | How many new building lots for housing would the application create? | stated? → count | Scan (Choice); value from L6d | A |
-| A7 | Which kinds of permission are at issue? | subdivision · site plan · planned development or master plan · conditional use · variance · zoning permit · other | Scan (Yes/no ×7); each flagged kind confirmed by its own L3 step | A |
+| A7 | Which kinds of permission are at issue? | subdivision · site plan · planned development or master plan · conditional use · variance (the statutory variance only; a waiver is "other") · zoning permit · other | Scan (Yes/no ×7); each flagged kind confirmed by its own L3 step | A |
 
 **The town (A3)** is asked of the reasoning model rather than the scan: it only
 matters for dockets in scope, which are the ones that reach the steps. The
@@ -233,19 +233,43 @@ within its town.
 
 ### C · On what grounds
 
+A **judgment standard** is one the project must meet whose terms leave the outcome to judgment, with no
+measurable test (a number, distance or list), counted only where it is applied to this project rather than
+merely quoted in a list of criteria. Not judgment standards: disputes over whether a measurable rule was met,
+the court's own procedural discretion, equitable claims such as estoppel, constitutional tests, and impacts
+argued only to show standing. A standard is **central** when a party contested whether the project meets it
+and the court ruled on it ("decided, disputed"). Every other kind of question an appeal can turn on is asked
+the same way (C3), so a docket shows every kind it dealt with, and an appeal with no central judgment standard
+shows what it turned on instead (X9).
+
+**How these questions were chosen.** The grounds experiments (October 2026) tested the questions on the
+decision model before they were built, against a temporary 46-docket answer key. What they settled:
+- **One level question per kind,** not "at issue?" and "how far?" separately: the two gave the same answers.
+- **Kinds grouped by what moves together:** 21 topics became the 7 judgment groups, and 25 candidate other
+  questions became 9. Catch-alls ("another standard", "any discretion?") were dropped: the decision model
+  can't answer "none of these", and a broad question fired on discretion of every kind.
+- **Each question says what does not count and where it goes,** because the decision model sees one
+  question at a time. That is what fixed site design and the two other questions that over-flagged.
+- **"Decided, disputed" defines central:** it separates real disputes from the findings a court makes only
+  because it runs through every criterion.
+- **Conditions are a form, not a topic:** a follow-up asks whether each dispute was about a condition, and
+  C4 catches challenges no group does.
+- **Results against the key:** the judgment groups caught 48 of 54 central cases (23 false flags); the other
+  questions 67 of 75 (38 false flags). Answers at a top probability of 0.6 or more repeated exactly between
+  two scans; closer calls did not, which is why the follow-ups are worded by that line.
+
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| C1 | Do the documents say what the appellant argued? | yes · no (no makes C2–C4 "not stated") | Scan (Choice); confirmed by L7 | C |
-| C2 | Does an argument dispute how a judgment-based standard (compatibility, character of the area, adequacy) was applied? | yes · no | Scan (Choice); confirmed by L7 | C |
-| C3 | Does an argument challenge whether such a standard is valid, for example as too vague? | yes · no | Scan (Choice); confirmed by L7 | C |
-| C4 | Did the court treat the judgment-based argument as a principal issue? | yes · no · not stated | Scan (Choice); confirmed by L7 | C |
-| C5 | Which issues did the appellant raise? | traffic or access · density · character or appearance · natural resources · noise or lighting · dimensional rules · procedure · standing · vested rights · other | Scan (Yes/no ×10); each flagged issue confirmed by its own L8 step | C |
+| C1 | Do the documents say what the appellant argued? | yes · no (no makes C2 and C4 "not stated") | Scan (Choice); confirmed by L7a | C |
+| C2 | For each of seven kinds of judgment standard, how far did the docket get with it? Kinds: character and fit (character of the area; scale, design or appearance; scenic effects) · historic · neighbor effects (nuisance; privacy, light, air) · traffic and services (traffic, access, street layout; schools, fire, municipal water and sewer) · water and environment (water supply, wastewater, stormwater, flooding, natural resources) · site design (landscaping, screening, buffers, open space, planned-development design criteria, only where argued about itself) · dimensional relief (variances and waivers) | not at issue · raised only · taken up · decided, disputed · decided, not disputed · set aside → result (met · met with conditions · partly met · not met), whether the dispute was about a condition, and for dimensional relief which kind (statutory variance · bylaw waiver · planned-development modification) | Scan (Choice ×7); each kind with a 0.3 or higher chance of being at issue followed up by its own L8 step | X7, X8 |
+| C3 | For each of nine other kinds of question, how far did the docket get with it? Kinds: measurable rules (setbacks, height, lot size and frontage, density, parking) · allowed use and defined terms (including how a rule is measured, when that is disputed) · nonconforming uses and structures · municipal process (notice, hearing, completeness, defects in the town's decision) · who can appeal (standing, timeliness, jurisdiction) · earlier permits and approvals (vested rights, unappealed permits, repeat applications, compliance) · property rights (title, easements, covenants) · constitutional and equitable claims (vagueness, takings, fair housing, estoppel) · other permits (Act 250, state wastewater or stormwater) | the same six levels as C2 | Scan (Choice ×9); each kind with a 0.5 or higher chance of being at issue followed up by its own L9 step | X9 |
+| C4 | Did a party challenge a condition attached to the permit, arguing whether it should be imposed or how strict? | yes · no → for each challenged condition (up to 5): what it requires, who challenged it, what the court did | Scan (Choice); confirmed by L7b, then L7c–e | C |
 
 ### D · What the court does
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| D1 | How did the court hear the appeal? | de novo · on the town's record · not stated | Scan (Choice); quoted by L9 | D |
+| D1 | How did the court hear the appeal? | de novo · on the town's record · not stated | Scan (Choice); quoted by L10 | D |
 | D2 | Does a decision leave nothing pending in this docket? | yes · no | Scan (Choice); confirmed by L5 | X4, D |
 | D3 | If so, how did the docket end? | decided on the merits · dismissed · settled · withdrawn · not stated | Scan (Choice); confirmed by L5 | X2, D |
 | D4 | If decided on the merits, what did the court do with the application? | granted · granted with conditions · denied · sent back to the municipality · not stated | Scan (Choice); confirmed by L5 | X2, X5, D |
@@ -265,11 +289,11 @@ whole.
 
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
-| F1 | Did the court stop construction or stay the permit? Dates? | yes · no → start, end | Scan (Choice); confirmed by L10 | F |
+| F1 | Did the court stop construction or stay the permit? Dates? | yes · no → start, end | Scan (Choice); confirmed by L11 | F |
 | F2 | Did the court's result change the number of units added from what the municipality approved? | more · fewer · same · not stated | Scan (Choice); count from L6 | X2, X3 |
 | F3 | Did it change the number of units added from what the application proposed? | more · fewer · same · not stated | Scan (Choice); count from L6 | X3 |
 | F4 | How many new dwelling units did the court approve? | count · not stated | L6f (LLM value) | X3 |
-| F5 | Did the court impose conditions that change the buildings' size or design? | yes · no | Scan (Choice); confirmed by L11 | F |
+| F5 | Did the court impose conditions that change the buildings' size or design? | yes · no | Scan (Choice); confirmed by L12 | F |
 
 ### Gates
 
@@ -279,16 +303,27 @@ Thresholds are *to set* per question from the reference set.
 |---|---|---|
 | Scope | P(in scope) from S1–S4. At or above the high threshold: continue. At or below the low threshold: stop. Between them: run L1 first. | Base and all steps / L1 / stop |
 | Counts | A4, A5 or A6 stated, or F2/F3 is more or fewer | L6 |
-| Discretion | C1 yes and (C2 or C3 at or above threshold) | L7 |
-| Review | D1 is not "not stated" | L9 |
+| Grounds | C1 yes at or above `grounds` (0.3, low so dockets with arguments are rarely skipped) | L7, L8 |
+| Review | D1 is not "not stated" | L10 |
 | Final | D2 at or above threshold | L5 |
-| Stay | F1 at or above threshold | L10 |
-| Design | F5 at or above threshold | L11 |
+| Stay | F1 at or above threshold | L11 |
+| Design | F5 at or above threshold | L12 |
 
-An item of A7 or C5 at or above `check` is flagged, and its own step
-confirms or refutes it, with a prompt saying whether the scan was fairly
-confident (at or above `sure`) or uncertain. An item below `check` is
-recorded as the scan's "no" without a step.
+Every follow-up step reads **one number**: the scan's probability of the claim the step checks. For an A7
+item or C4 that is P(yes); for a kind in C2 or C3 it is the chance the kind is at issue at all,
+1 − P(not at issue). The same number decides both whether the step runs and how it is asked:
+
+| That number | What happens |
+|---|---|
+| below the low bound (`check` 0.3; `other_check` 0.5 for C3) | no step; the field keeps the scan's answer |
+| from the low bound up to `sure` (0.6) | the step runs, told the scan was unsure, and asked to decide |
+| `sure` or above | the step runs, told the scan's reading, and asked to confirm or refute it |
+
+For a kind in C2 or C3, the scan's reading is its most likely level among those that count as at issue.
+`sure` also labels every scan answer in the claims each call starts with ("fairly confident" or
+"uncertain"). It is 0.6 because answers at or above it repeated exactly when the grounds experiments asked
+the same questions twice, and closer calls did not. The low bounds differ by question: they trade cost
+against missed cases, and C3's kinds come up often enough that 0.5 lost no case in the answer key.
 
 An out-of-scope docket keeps its scan answers and makes no reasoning-model
 calls.
@@ -345,19 +380,24 @@ scope, the remaining steps are skipped.
 | L6d Housing lots | counts | — | A6 | L6a |
 | L6e Units added: town | counts | — | B5 | L6c |
 | L6f Units added: court | counts | L5c granted, with or without conditions | F4 | L6e |
-| L7a Arguments stated | discretion | — | C1 | — |
-| L7b–d Judgment standards | discretion | L7a yes | C2, C3, C4, one at a time | the L7 step before it |
-| L8 per issue | — | that C5 issue flagged | whether the appellant raised it | — |
-| L9 Review standard | review | — | the passage establishing how the court heard the appeal | — |
-| L10a Stay | stay | — | whether the court itself stayed the permit | — |
-| L10b Stay dates | stay | L10a yes | start and end | L10a |
-| L11a Size or design | design | — | whether the court itself imposed such conditions | — |
-| L11b The change | design | L11a yes | a one-sentence description, quoted | L11a |
+| L7a Arguments stated | grounds | — | C1 | — |
+| L7b Condition challenged | grounds | L7a yes and C4 yes at or above `check` | C4 | L7a |
+| L7c Which conditions | grounds | L7b yes | each challenged condition, described in a few words | L7b |
+| L7d Who challenged, per condition | grounds | — | for each of the first 5 conditions L7c listed, one call: who challenged it | L7c |
+| L7e The court's ruling, per condition | grounds | — | for each of the first 5 conditions, one call: upheld, struck, changed, added, refused or not decided | L7c |
+| L8 per kind of judgment standard | grounds | L7a yes and that C2 kind flagged | C2 for that kind: level, result and whether about a condition | — |
+| L8_relief_kind | grounds | L8_relief at a level above "not at issue" | which kind of dimensional relief | L8_relief |
+| L9 per other kind of question | — | that C3 kind flagged (every docket that proceeds, arguments stated or not) | C3 for that kind: its level | — |
+| L10 Review standard | review | — | the passage establishing how the court heard the appeal | — |
+| L11a Stay | stay | — | whether the court itself stayed the permit | — |
+| L11b Stay dates | stay | L11a yes | start and end | L11a |
+| L12a Size or design | design | — | whether the court itself imposed such conditions | — |
+| L12b The change | design | L12a yes | a one-sentence description, quoted | L12a |
 
 A reasoning-model answer with a verified quote overrides the scan's answer.
 Each override is logged as a disagreement, and those logs are the data for
 tuning thresholds. A field can also be "not stated" by rule when an earlier
-answer makes it moot: C2–C4 when L7a finds no arguments stated, D3–D5 when
+answer makes it moot: C2 and C4 when no arguments are stated, D3–D5 when
 L5a finds no final decision, D4 unless the docket was decided on the merits,
 and D5 unless it was dismissed.
 
@@ -371,6 +411,9 @@ and D5 unless it was dismissed.
 | X4 | Duration in days, exact or at least, with each end recorded as closed or open and whether it is inferred. Start: A1 when stated to the day; else the town's decision (B1's date) when stated to the day and not after the latest possible filing day, as a closed start marked inferred; else the earliest of the latest possible days of A1, A2 and the docket number. End: E1's earliest possible day, else E2's | A1, A2, B1 date, E1, E2 |
 | X5 | Last observed permission: the court's result, or else the town's decision | D4, B1 |
 | X6 | Appellant mix, folding groups of neighbors into neighbors; the count is unknown when B2 is no. Representation counts each appellant once and covers the appellants L4b asked about (representation_of) | B2–B4 |
+| X7 | A judgment standard was central: any kind of C2 at "decided, disputed" | C2 |
+| X8 | A judgment standard was at issue: any kind of C2 above "not at issue" | C2 |
+| X9 | What was central: a judgment standard; other questions only (C3, no judgment standard at "decided, disputed"); or nothing | C2, C3 |
 
 ### Calls per docket
 

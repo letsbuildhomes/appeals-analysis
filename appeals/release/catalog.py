@@ -211,7 +211,7 @@ def tables(con, description, layout):
         tips = []
         if t.form == 'set':
             asked = next((n for n in description['nodes'] if n['id'] == node.get('from_scan')), None)
-            if asked and asked['kind'] == 'question set':
+            if asked and asked['kind'] in ('question set', 'choice set'):
                 columns[1]['options'] = {k: asked['options'].get(k, '') for k in columns[1]['options']}
             per_item = con.execute(f'SELECT item, answer, count(*) FROM {_q(t.name)} GROUP BY 1, 2 ORDER BY 1, 2').fetchall()
             profile = {}

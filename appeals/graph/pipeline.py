@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 import hashlib
 import json
 
-from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, Derive, Field, Gate, Question, Step, YesNoSet
+from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, ChoiceSet, Derive, Field, Gate, Question, Step, YesNoSet
 from appeals.graph.values import ListOf
 
 AREAS = {
@@ -56,7 +56,7 @@ class Pipeline:
     # ---- edges -----------------------------------------------------------------
 
     def _node_for(self, ref):
-        """A reference to a set item ("C5.traffic") is an edge from the set ("C5")."""
+        """A reference to a set item ("C2.traffic") is an edge from the set ("C2")."""
         if ref in self.nodes:
             return ref
         stem = ref.split('.')[0]
@@ -81,7 +81,7 @@ class Pipeline:
     def _edge_kind(source, target):
         if isinstance(source, Step) and isinstance(target, Step):
             return 'chain' if source is target.after else 'condition'
-        if isinstance(target, (Gate, Step)) and isinstance(source, (Question, YesNoSet, Gate)):
+        if isinstance(target, (Gate, Step)) and isinstance(source, (Question, YesNoSet, ChoiceSet, Gate)):
             return 'condition'
         if isinstance(source, Base):
             return 'base'
@@ -108,7 +108,7 @@ class Pipeline:
             problems.append(str(error))
         reaches = self._reaches_answer()
         for node in self.nodes.values():
-            if isinstance(node, (Question, YesNoSet, Field, Derive, Step)) and node.id not in reaches:
+            if isinstance(node, (Question, YesNoSet, ChoiceSet, Field, Derive, Step)) and node.id not in reaches:
                 problems.append(f'{node.id} reaches no Answer')
         position = {s.id: i for i, s in enumerate(self.steps)}
         for step in self.steps:
@@ -133,10 +133,11 @@ class Pipeline:
             if for_each != bool(f.per_item):
                 problems.append(f'{f.id}: a field reads a for-each step exactly when it has per_item')
             for step in f.item_steps().values():
-                try:
-                    step.returns.at(f.path)
-                except KeyError:
-                    problems.append(f'{f.id} reads {step.id}.{f.path}, which the step does not return')
+                for path in filter(None, [f.path, f.vouched_by]):
+                    try:
+                        step.returns.at(path)
+                    except KeyError:
+                        problems.append(f'{f.id} reads {step.id}.{path}, which the step does not return')
         if self.in_scope is not None and self.in_scope not in {d.id for d in self.derives}:
             problems.append(f'in_scope names {self.in_scope}, which is not a derived value')
         for name in self._thresholds_used():

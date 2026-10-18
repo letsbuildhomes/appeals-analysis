@@ -31,15 +31,22 @@ chars_per_token = 4.0
 # Gate thresholds: probabilities from the decision model's scan.
 # To be tuned against the reference set.
 [thresholds]
-# How sure the scan is: its most likely answer's probability. At `sure` or above, claims and prompts call the
-# scan fairly confident; below it, uncertain. An A7 or C5 item at `check` or above gets its own step, told how
-# confident the scan was; below `check` it is recorded as the scan's "no" with no step.
+# Every follow-up reads one number: the scan's probability of the claim it checks (A7 and C4: "yes"; C2 and C3:
+# that the kind is at issue at all, one minus "not at issue"). Below its low bound (`check`, or `other_check` for
+# C3) there is no step; from there up to `sure` the step is told the scan was unsure and asked to decide; at
+# `sure` or above it is told the scan's reading and asked to confirm or refute it. `sure` also labels every scan
+# answer in the claims each call starts with. 0.6 is measured: answers at or above it repeated exactly when the
+# grounds experiments asked the same questions twice; below it some changed.
 check = 0.3
-sure = 0.8
+sure = 0.6
 scope_high = 0.7
 scope_low = 0.2
 counts = 0.5
-discretion = 0.5
+# Grounds (C): the gate on C1 "yes", low so dockets with arguments are rarely skipped.
+grounds = 0.3
+# The other kinds of question (C3) flag more often than the judgment standards: follow one up at this
+# chance of being at issue. 0.5 lost no case in the answer key and saves about one call per docket.
+other_check = 0.5
 review = 0.5
 final = 0.5
 stay = 0.5

@@ -73,14 +73,16 @@ execution, renders as a diagram, and checks itself.
   question as asked, its kind (`choice` with named options, or yes/no), the
   meaning of each option, and the reason the question exists. A question never
   asks for free text. A **`YesNoSet`** asks one prompt as a separate yes/no
-  question per item, shown as one node.
+  question per item, shown as one node; a **`ChoiceSet`** does the same with
+  one choice question per item, every item with the same options.
 - **`Scan`**: a set of `Question`s sent together in one decision-model request
   over the same docket text. The questions run in parallel and can't see each
   other's answers. Each answer comes back as a probability or a probability
   distribution.
-- **`Gate`**: a condition over earlier answers, such as "C2 or C3 is at least
-  0.6". A gate is written as a small expression object, not a function, so
-  code can evaluate it and the diagram can show it as text.
+- **`Gate`**: a condition over earlier answers, such as "C1 is yes with a
+  probability of at least 0.3". A gate is written as a small expression
+  object, not a function, so code can evaluate it and the diagram can show it
+  as text.
 - **`Base`**: the shared start of every reasoning-model call for one docket.
   It holds a framing prompt, the docket text, and the scan's answers stated as
   claims to confirm or refute. It is built once and cached by the model

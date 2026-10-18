@@ -11,7 +11,7 @@ const COLUMNS = [
   { layer: 'answers', title: 'Answers', note: 'research answers', width: 220 },
 ];
 const LEFT = 140, GAP = 64, TOP = 96, NODE_H = 56, NODE_GAP = 8, LANE_PAD = 16;
-const KIND_LAYER = { question: 'scan', 'question set': 'scan', gate: 'plan', base: 'steps', step: 'steps',
+const KIND_LAYER = { question: 'scan', 'question set': 'scan', 'choice set': 'scan', gate: 'plan', base: 'steps', step: 'steps',
   field: 'facts', derive: 'derive', answer: 'answers' };
 
 let graph, byId, positions = {}, run = null, docket = null, records = null, selected = null;
@@ -127,7 +127,7 @@ function stepGroups() {
       (children[sid] || []).forEach((child, i) => place(child, col + 1, i === 0 ? row : rows));
     };
     place(id, 0, 0);
-    groups.push({ kind: 'chain', area: n.area, label: `${id.replace(/[a-z]$/, '')} · one conversation`, cells,
+    groups.push({ kind: 'chain', area: n.area, label: `${/^L\d+[a-z]$/.test(id) ? id.slice(0, -1) : id} · one conversation`, cells,
       cols: Math.max(...cells.map(c => c.col)) + 1, rows, rank: rank[id] });
   }
   for (const g of Object.values(sets)) {
@@ -230,6 +230,7 @@ function draw() {
 
 function nodeTitle(n) {
   if (n.kind === 'question' || n.kind === 'question set') return n.ask;
+  if (n.kind === 'choice set') return n.ask.replace('{item}', '…').split('?')[0] + '?';
   if (n.kind === 'base') return 'Shared base prompt, cached per docket';
   return n.title || n.label || n.id;
 }
@@ -242,7 +243,7 @@ function nodeBox(n, pos) {
     'data-id': n.id, onclick: () => select(n.id),
   },
     el('div', { class: 'row1' }, el('span', { class: 'id' }, n.code || n.id),
-      n.kind === 'question set' ? el('span', {}, n.question_type) : null,
+      n.kind === 'question set' || n.kind === 'choice set' ? el('span', {}, n.question_type) : null,
       state.badge ? el('span', { class: `badge tag ${state.badgeClass || ''}` }, state.badge) : null),
     el('div', { class: 'label', title: nodeTitle(n) }, nodeTitle(n)),
     el('div', { class: 'value' }, state.value || ''));
@@ -379,6 +380,11 @@ function overlay(n) {
   if (n.kind === 'question') {
     const best = top(scanDist(n.id));
     return best ? { value: `${best[0]} · ${best[1].toFixed(2)}` } : {};
+  }
+  if (n.kind === 'choice set') {
+    const none = n.null || Object.keys(n.choices)[0];
+    const read = Object.keys(n.options).map(k => [k, top(scanDist(`${n.id}.${k}`))]).filter(([, b]) => b && b[0] !== none);
+    return { value: read.length ? read.map(([k, b]) => `${k}: ${b[0]}`).join(' · ') : `all ${none}` };
   }
   if (n.kind === 'question set') {
     const keys = Object.keys(n.options);
@@ -518,6 +524,17 @@ const renderers = {
       out.push(...section('Options', el('p', {}, 'Built per docket by this function:'), el('pre', { class: 'block' }, n.options_source)));
       if (dist) out.push(...section('This docket', optionList(Object.fromEntries(Object.keys(dist).map(k => [k, ''])), dist)));
     } else out.push(...section(dist ? 'Options · this docket' : 'Options', optionList(n.options, dist)));
+    return out;
+  },
+  'choice set'(n) {
+    const out = [el('p', { class: 'ask' }, n.ask.replace('{item}', '[item]')), el('p', { class: 'why' }, n.why),
+      el('p', { class: 'why' }, `Asked as ${Object.keys(n.options).length} separate choice questions, one per item, each with the same answers.`)];
+    out.push(...section('Items', optionList(n.options, null)));
+    if (records) {
+      for (const k of Object.keys(n.options)) {
+        out.push(...folded(`${k} · this docket`, optionList(n.choices, scanDist(`${n.id}.${k}`) || {})));
+      }
+    } else out.push(...section('Answers', optionList(n.choices, null)));
     return out;
   },
   'question set'(n) {

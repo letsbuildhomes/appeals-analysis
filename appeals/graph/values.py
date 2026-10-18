@@ -312,13 +312,15 @@ QUOTE = Record(doc=Count(), page=Count(), quote=Text())
 class Quoted(ValueType):
     """An answer with the quotations that support it: {"answer": …, "quotes": [{"doc", "page", "quote"}]}.
 
-    Every answer except "not stated" needs at least one quote.
+    Every answer except "not stated" needs at least one quote, except free text, which needs one only
+    when `quote_required` says so (such as a challenged condition, whose quote is its evidence).
     """
     name = 'quoted'
 
-    def __init__(self, answer):
+    def __init__(self, answer, quote_required=None):
         self.answer = answer
         self.scored = answer.scored
+        self.quote_required = type(answer) is not Text if quote_required is None else quote_required
 
     def describe(self):
         return {'type': self.name, 'answer': self.answer.describe()}
@@ -337,7 +339,7 @@ class Quoted(ValueType):
             return errors + [f'{path}.quotes: expected a list']
         for i, q in enumerate(quotes):
             errors += QUOTE.validate(q, f'{path}.quotes[{i}]')
-        if not quotes and value['answer'] != NOT_STATED and type(self.answer) is not Text:
+        if not quotes and value['answer'] != NOT_STATED and self.quote_required:
             errors.append(f'{path}.quotes: an answer other than "{NOT_STATED}" needs at least one quote')
         return errors
 

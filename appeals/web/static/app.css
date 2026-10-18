@@ -125,7 +125,7 @@ aside.panel .close:hover { color: var(--text); }
 .node .label { font-size: 12.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .node .value { font-size: 11.5px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .node .badge { margin-left: auto; }
-.node.k-question, .node.k-question-set { --kind: var(--scan); }
+.node.k-question, .node.k-question-set, .node.k-choice-set { --kind: var(--scan); }
 .node.k-gate { --kind: var(--plan); }
 .node.k-step, .node.k-base { --kind: var(--steps); }
 .node.k-field { --kind: var(--facts); }

@@ -2,7 +2,7 @@
 
 Threshold values live in config.toml under [thresholds].
 """
-from appeals.codebook.questions import A4, A5, A6, C1, C2, C3, D1, D2, F1, F2, F3, F5, S1, S2, S3, S4
+from appeals.codebook.questions import A4, A5, A6, C1, D1, D2, F1, F2, F3, F5, S1, S2, S3, S4
 from appeals.graph.expr import Max, T
 from appeals.graph.nodes import Gate
 
@@ -25,9 +25,10 @@ counts = Gate('counts', 'A', title='Any count in play',
          | (1 - F2.p('same') - F2.p('not stated') >= T.counts) | (1 - F3.p('same') - F3.p('not stated') >= T.counts),
     why='Some count is stated, or the court likely changed the number of units.')
 
-discretion = Gate('discretion', 'C', title='Discretion claimed',
-    when=C1.is_('yes') & ((C2.p('yes') >= T.discretion) | (C3.p('yes') >= T.discretion)),
-    why='The appeal likely turns on a judgment-based standard: ask for evidence or refutation.')
+grounds = Gate('grounds', 'C', title='Arguments may be stated',
+    when=C1.p('yes') >= T.grounds,
+    why='The documents may say what the appellant argued: confirm it, then follow up each kind of judgment standard '
+        'the scan flags. Low on purpose, so a docket with arguments is rarely skipped.')
 
 review = Gate('review', 'D', title='Review standard stated',
     when=1 - D1.p('not stated') >= T.review,
@@ -45,7 +46,7 @@ design = Gate('design', 'F', title='Design change likely',
     when=F5.p('yes') >= T.design,
     why='Confirm and describe the court-imposed change.')
 
-ALL = [scope, scope_check, counts, discretion, review, final, stay, design]
+ALL = [scope, scope_check, counts, grounds, review, final, stay, design]
 
 # Whether a docket goes on to the reasoning steps at all.
 PROCEED = scope.passed() | scope_check.passed()

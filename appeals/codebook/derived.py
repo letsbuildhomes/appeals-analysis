@@ -174,4 +174,54 @@ X6 = Derive('appellant_mix', 'B', code='X6', label='Appellant mix',
             notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.',
                    'Representation is asked for the first 10 appellants only: representation_of says how many appellants the representation counts cover.'])
 
-ALL = [X1, X2, X3, X4, X5, X6]
+
+def judgment_central(v):
+    levels = v['judgment_grounds']
+    if levels == NOT_STATED:
+        return NOT_STATED
+    return 'yes' if 'decided, disputed' in levels.values() else 'no'
+
+
+X7 = Derive('judgment_central', 'C', code='X7', label='A judgment standard was central',
+            type=YesNo(not_stated=True), inputs=[F.judgment_grounds], fn=judgment_central,
+            notes=['Central: a party contested whether the project meets a judgment standard, and the court ruled on '
+                   'it, in an interim or final decision. Any one kind of standard is enough.',
+                   'When the documents don\'t say what the appellant argued, "other questions only" can still be '
+                   'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
+
+
+def judgment_at_issue(v):
+    levels = v['judgment_grounds']
+    if levels == NOT_STATED:
+        return NOT_STATED
+    return 'yes' if any(level not in ('not at issue', NOT_STATED) for level in levels.values()) else 'no'
+
+
+X8 = Derive('judgment_at_issue', 'C', code='X8', label='A judgment standard was at issue',
+            type=YesNo(not_stated=True), inputs=[F.judgment_grounds], fn=judgment_at_issue,
+            notes=['At issue: any kind of judgment standard got past "not at issue", including one only raised or set '
+                   'aside. Broader than central (X7).'])
+
+
+def what_was_central(v):
+    judgment, other = v['judgment_grounds'], v['other_questions']
+    if judgment != NOT_STATED and 'decided, disputed' in judgment.values():
+        return 'a judgment standard'
+    if other != NOT_STATED and 'decided, disputed' in other.values():
+        return 'other questions only'
+    return NOT_STATED if judgment == NOT_STATED else 'nothing'
+
+
+X9 = Derive('what_was_central', 'C', code='X9', label='What was central',
+            type=OneOf({'a judgment standard': 'At least one judgment standard was disputed and decided (X7 yes); '
+                                               'other questions may have been too.',
+                        'other questions only': 'No judgment standard was central, but at least one other question '
+                                                '(C3) was disputed and decided.',
+                        'nothing': 'Nothing was disputed and decided, such as an unopposed dismissal or a docket still '
+                                   'pending.'}, not_stated=True),
+            inputs=[F.judgment_grounds, F.other_questions], fn=what_was_central,
+            notes=['For "other questions only", which ones were central is in other_questions.',
+                   'When the documents don\'t say what the appellant argued, "other questions only" can still be '
+                   'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
+
+ALL = [X1, X2, X3, X4, X5, X6, X7, X8, X9]

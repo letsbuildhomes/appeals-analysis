@@ -5,7 +5,7 @@ function. The executor has one generic behavior per kind of node, so what a
 node says in the dashboard is all it does.
 
 Layers (a node reads only from earlier layers, except where noted):
-    1 scan    Question, YesNoSet (asked together by the Scan)
+    1 scan    Question, YesNoSet, ChoiceSet (asked together by the Scan)
     2 plan    Gate
     3 steps   Base, Step (a step may chain after earlier steps)
     4 facts   Field
@@ -125,6 +125,42 @@ class YesNoSet(Node):
 
 
 @dataclass(eq=False)
+class ChoiceSet(Node):
+    """One choice question asked separately per item, every item with the same options (shown as one node).
+
+    `ask` contains {item}, replaced by each item's meaning. `null` names the option that means the item
+    doesn't apply (such as "not at issue"); the chance an item applies is one minus its probability.
+    """
+    ask: str = ''
+    items: dict = field(default_factory=dict)
+    options: dict = field(default_factory=dict)
+    null: str = ''
+    why: str = ''
+    kind: ClassVar[str] = 'choice set'
+    layer: ClassVar[int] = 1
+
+    def questions(self):
+        return [Question(f'{self.id}.{key}', self.area, ask=self.ask.format(item=meaning), options=self.options)
+                for key, meaning in self.items.items()]
+
+    def ids(self):
+        return [f'{self.id}.{key}' for key in self.items]
+
+    def p(self, key, option):
+        """The scan's probability that one item's answer is `option`."""
+        return E.P(f'{self.id}.{key}', option)
+
+    def applies(self, key):
+        """The scan's probability that one item applies: one minus the probability of `null`."""
+        return 1 - self.p(key, self.null)
+
+    def describe(self):
+        return super().describe() | {'ask': self.ask, 'why': self.why,
+                                     'question_type': f'choice ×{len(self.items)}',
+                                     'options': self.items, 'choices': self.options, 'null': self.null}
+
+
+@dataclass(eq=False)
 class Scan(Node):
     """Every question, sent to the decision model in one request over the docket text."""
     questions: list = field(default_factory=list)
@@ -135,7 +171,7 @@ class Scan(Node):
         """Every individual Question, with sets expanded."""
         out = []
         for q in self.questions:
-            out.extend(q.questions() if isinstance(q, YesNoSet) else [q])
+            out.extend(q.questions() if isinstance(q, (YesNoSet, ChoiceSet)) else [q])
         return out
 
     def describe(self):
@@ -279,6 +315,9 @@ class Field(Node):
     `from_docket` instead computes the value from the docket number, in code.
     `per_item`, for a for-each step: a function (item, answer) turning one iteration into the
     field's list entries; `path` then names the quoted answer that must check out.
+    `vouched_by`: for a value at `path` that is not quoted itself, the path of the quoted answer
+    in the same step that must check out before the value is used, such as a result that rests
+    on the ruling quoted for the level.
     `not_stated_if`: a condition on earlier answers that makes the field "not stated"
     whatever the sources say, such as grounds when no arguments are stated.
     `notes`: what a reader of the data must know to use the value correctly.
@@ -286,12 +325,13 @@ class Field(Node):
     code: str = ''
     label: str = ''
     type: ValueType = None
-    scan: Question | YesNoSet | None = None
+    scan: Question | YesNoSet | ChoiceSet | None = None
     step: Step | None = None
     steps: dict = field(default_factory=dict)
     path: str | None = None
     from_docket: Callable | None = None
     per_item: Callable | None = None
+    vouched_by: str | None = None
     not_stated_if: E.Expr | None = None
     notes: list = field(default_factory=list)
     kind: ClassVar[str] = 'field'
@@ -316,8 +356,10 @@ class Field(Node):
             rule = (f'one entry per {self.step.for_each[1]} item the step was asked about, from its answer '
                     f'when {self.path} has a verified quote')
         elif self.steps:
-            rule = ('each item: its step\'s answer with a verified quote when the step ran, '
-                    'else the scan\'s answer at the threshold')
+            fallback = ('else the scan\'s most likely answer' if isinstance(self.scan, ChoiceSet)
+                        else 'else the scan\'s answer at the threshold' if self.scan else 'else "not stated"')
+            quoted = f'when its {self.vouched_by} has a verified quote' if self.vouched_by else 'with a verified quote'
+            rule = f'each item: its step\'s answer {quoted} when the step ran, {fallback}'
         elif self.step and self.scan:
             rule = 'step answer with a verified quote, else the scan\'s most likely answer, else "not stated"'
         elif self.step:
@@ -331,6 +373,7 @@ class Field(Node):
             'from_step': (', '.join(f'{s.id}.{self.path}' for s in self.steps.values()) if self.steps
                           else f'{self.step.id}.{self.path}' if self.step else None),
             'from_scan': self.scan.id if self.scan else None,
+            'vouched_by': self.vouched_by,
             'not_stated_if': self.not_stated_if.text() if self.not_stated_if else None,
             'rule': rule, 'notes': self.notes}
         if self.from_docket:
@@ -396,5 +439,5 @@ class Answer(Node):
                                      'examples': self.examples}
 
 
-__all__ = ['Node', 'Question', 'YesNoSet', 'Scan', 'Gate', 'Base', 'Step', 'Field', 'Derive', 'Answer',
+__all__ = ['Node', 'Question', 'YesNoSet', 'ChoiceSet', 'Scan', 'Gate', 'Base', 'Step', 'Field', 'Derive', 'Answer',
            'LAYERS', 'NOT_STATED', 'YesNo', 'OneOf', 'Record']
