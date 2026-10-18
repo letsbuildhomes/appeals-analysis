@@ -9,10 +9,10 @@ from collections import deque
 from appeals.release.read import LIMITS
 
 HOW_TO_WORK = [
-    'Read this overview first. Then use describe on the tables, research areas or columns you need: it gives '
-    'each column\'s meaning, options, notes, a profile of what the data holds, and query tips.',
-    'Count research questions from the appeals view (in-scope dockets). Use dockets for the whole population, '
-    'scope and failures. Always state the population you counted and how many were "not stated".',
+    'Read this overview first. Then use describe on the tables or columns you need: it gives each column\'s '
+    'meaning, options, notes, a profile of what the data holds, and query tips.',
+    'Count appeals from the appeals view (in-scope dockets). Use dockets for the whole population, scope and '
+    'failures. Always state the population you counted and how many were "not stated".',
     'Keep "not stated" (and NULL) separate from "no" and from zero. Report shares of known answers next to the '
     'number known.',
     'Before adding up units or lots across dockets, check docket_links: dockets that share a decision may describe '
@@ -40,19 +40,13 @@ def _brief_release(release, current_id):
 
 
 def overview(release, current_id):
-    """Start here: what the data is, its population, the research questions, tables, conventions and changes."""
+    """Start here: what the data is, its population, its tables, the conventions and what changed."""
     m = release.meta
     graph = m['graph']
     return {
         'release': _brief_release(release, current_id),
         'what_this_is': graph.get('description', ''),
         'population': m['population'],
-        'research_questions': [{'area': a['area'], 'title': a['title'], 'question': a['question'],
-                                'answered_by': [{'label': p['label'], 'code': p['code'], 'in': p['in']}
-                                                for p in a['parts']],
-                                'notes': a['notes'],
-                                'example_questions': [e['question'] for e in a['examples']]}
-                               for a in m['answers']],
         'tables': [{'name': t['name'], 'grain': t['grain'], 'description': t['description'],
                     'rows': m['table_rows'].get(t['name'])} for t in m['tables']],
         'conventions': m['conventions'],
@@ -89,15 +83,13 @@ def index(release):
 
 
 def describe(release, target=None, page=1, per_page=25):
-    """Full descriptions of the columns a target names: a table, a research area or answer, a node ID or code,
-    or column names (comma-separated). Without a target, a compact index of everything."""
+    """Full descriptions of the columns a target names: a table, a node ID or code, or column names
+    (comma-separated). Without a target, a compact index of everything."""
     if not target:
         return {'release': release.id, 'index': index(release),
-                'next': 'describe a table, an area (scope, A–F), a code such as A4, or column names for detail'}
+                'next': 'describe a table, a code such as A4, or column names for detail'}
     wanted = [w.strip() for w in str(target).split(',') if w.strip()]
     tables = {t['name']: t for t in release.meta['tables']}
-    areas = {a['area']: a for a in release.meta['answers']}
-    titles = {a['title'].casefold(): a for a in release.meta['answers']}
     matches, tables_out = [], []
     for w in wanted:
         key = w.casefold()
@@ -107,18 +99,12 @@ def describe(release, target=None, page=1, per_page=25):
             if isinstance(t['columns'], list):
                 matches += [(w, c) for c in t['columns']]
             continue
-        answer = areas.get(w) or titles.get(key)
         hits = [(tn, c) for tn, c in _columns(release)
-                if (answer and c.get('area') == answer['area'])
-                or c['name'].casefold() == key or str(c.get('node', '')).casefold() == key
+                if c['name'].casefold() == key or str(c.get('node', '')).casefold() == key
                 or str(c.get('code', '')).casefold() == key]
         for t in tables.values():
-            if t.get('node') and (t['node'].casefold() == key or str(t.get('code', '')).casefold() == key
-                                  or (answer and t.get('area') == answer['area'])):
+            if t.get('node') and (t['node'].casefold() == key or str(t.get('code', '')).casefold() == key):
                 tables_out.append({k: v for k, v in t.items() if k != 'columns'})
-        if answer:
-            tables_out.append({'research_answer': answer['title'], 'question': answer['question'],
-                               'notes': answer['notes'], 'examples': answer['examples']})
         matches += hits
     seen, unique = set(), []
     for tn, c in matches:

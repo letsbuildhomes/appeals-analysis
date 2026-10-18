@@ -17,10 +17,10 @@ from appeals.release.read import LIMITS
 
 INSTRUCTIONS = """\
 This server publishes the current release of a research dataset that an extraction pipeline built from published \
-court decisions. Call overview first: it says what the data is, its population, the research questions and the \
-columns that answer them, the conventions every answer follows, and what changed since the previous release. \
-Then describe the tables, areas or columns you need (meaning, options, notes, a profile of what the data actually \
-holds, and query tips) and query them with read-only DuckDB SQL. explain traces any column back through the \
+court decisions: one row of facts per docket, for any question you want to ask of them. Call overview first: it \
+says what the data is, its population, its tables, the conventions every answer follows, and what changed since \
+the previous release. Then describe the tables or columns you need (meaning, options, notes, a profile of what the \
+data actually holds, and query tips) and query them with read-only DuckDB SQL. explain traces any column back through the \
 pipeline: the questions asked, gates and thresholds, prompts and the code that combines answers. docket reads a \
 few dockets in full, with their quotes: use it for individual cases, never for bulk analysis. Keep "not stated" \
 separate from "no", state the population you counted, and cite the release ID with any figure."""
@@ -51,16 +51,16 @@ def make_server(releases, name='Research data', streamable_http_path='/mcp', all
 
     @server.tool(annotations=READ_ONLY)
     def overview() -> dict[str, Any]:
-        """Start here. What the data is, the release and its provenance, the population, each research question
-        with the columns that answer it, the tables, the conventions every answer follows, how to work with the
-        data, query limits, and what changed since the previous release."""
+        """Start here. What the data is, the release and its provenance, the population, the tables, the
+        conventions every answer follows, how to work with the data, query limits, and what changed since the
+        previous release."""
         return guide.overview(current(), releases.current_id())
 
     @server.tool(annotations=READ_ONLY)
     def describe(target: str | None = None, page: int = 1) -> dict[str, Any]:
         """Describe columns: meaning, options, notes, how each answer is settled, a profile of what the data holds
-        (counts, share known, sources), and query tips. `target` is a table name, a research area (scope, A–F) or
-        answer title, a code such as A4 or X4, a node ID such as duration, or comma-separated column names. Without a target,
+        (counts, share known, sources), and query tips. `target` is a table name, a code such as A4 or X4, a node ID
+        such as duration, or comma-separated column names. Without a target,
         returns a compact index of every table and column. Long results are paged."""
         return guide.describe(current(), target, page)
 

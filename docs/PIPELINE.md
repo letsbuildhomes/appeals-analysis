@@ -2,13 +2,16 @@
 
 The current design of what we extract and how, as decided so far. The
 [README](../README.md) explains the building blocks (`Question`, `Scan`,
-`Gate`, `Base`, `Step`, `Field`, `Derive`, `Answer`). This document fills them
+`Gate`, `Base`, `Step`, `Field`, `Derive`). This document fills them
 in. Values marked *to set* are still to be decided or tuned.
 
 ## Research questions
 
-Every extracted value exists to answer one of these. A value that serves none
-is not extracted.
+The pipeline's output is its facts and derived values: one row of
+well-structured data per docket, for any question. These research questions
+shaped what it extracts; [RESEARCH-QUESTIONS.md](RESEARCH-QUESTIONS.md) keeps
+them with the columns and example queries that answer them. They are not built
+into the pipeline, the releases or the MCP server.
 
 | | Research question | Answered by |
 |---|---|---|
@@ -35,8 +38,7 @@ govern, so they travel with every run's graph description and every release:
   one row per docket, "not stated" versus "no" versus "out of scope", quotes
   as evidence, closed answers, date precision, units added, actors, how the
   scan and the steps settle an answer, and what the source can't show.
-- **Rulings about one answer** are `notes` on its field, derived value or
-  answer: after-the-fact permits (S2), deemed approvals (B1), groups of
+- **Rulings about one answer** are `notes` on its field or derived value: after-the-fact permits (S2), deemed approvals (B1), groups of
   neighbors (B3, X6), procedural dismissals (C1), the end of the case (D2),
   stays and design changes the court imposed (F1, F5), unit changes (X3) and
   durations (X4).

@@ -1,5 +1,5 @@
 """The data dictionary a release carries: every table and column with its meaning, a profile of what the
-data actually holds, query tips, the codebook's checked examples, and what changed since the last release.
+data actually holds, query tips, and what changed since the last release.
 
 Meanings, notes and options come from the graph description; profiles come
 from the built tables; tips come from each column's type and profile. Nothing
@@ -68,18 +68,8 @@ LONG_TEXT = {
 }
 
 
-def _answers_of(description):
-    out = {}
-    for n in description['nodes']:
-        if n['kind'] == 'answer':
-            for part in n['parts']:
-                out.setdefault(part, []).append(n['title'])
-    return out
-
-
-def _node_info(node, answers):
-    info = {'node': node['id'], 'label': node.get('label', ''), 'code': node.get('code', ''), 'area': node['area'],
-            'research_answer': answers.get(node['id'], [])}
+def _node_info(node):
+    info = {'node': node['id'], 'label': node.get('label', ''), 'code': node.get('code', '')}
     if node['kind'] == 'field':
         info['how_settled'] = node.get('rule', '')
     else:
@@ -161,7 +151,6 @@ def _column_tips(column, profile, population, confidence):
 
 def tables(con, description, layout):
     """Every table in data.duckdb, described, with each column profiled."""
-    answers = _answers_of(description)
     in_scope = description.get('in_scope')
     in_scope_label = layout.nodes.get(in_scope, {}).get('label', '') if in_scope else ''
     confidence = {nid: _sources(con, nid) for nid, n in layout.nodes.items() if n['kind'] == 'field'}
@@ -178,22 +167,22 @@ def tables(con, description, layout):
     columns[1]['profile'] = {'values': _pairs(con, 'SELECT status, count(*) FROM dockets GROUP BY 1 ORDER BY 2 DESC')}
     columns[3]['profile'] = {'values': _pairs(con, 'SELECT in_scope, count(*) FROM dockets GROUP BY 1 ORDER BY 2 DESC')}
     if in_scope in layout.nodes:
-        columns[3] = {**columns[3], 'type': 'BOOLEAN', **_node_info(layout.nodes[in_scope], answers)}
+        columns[3] = {**columns[3], 'type': 'BOOLEAN', **_node_info(layout.nodes[in_scope])}
     for c in layout.wide:
         where, who = population(c.node)
         profile = _profile(con, c, 'dockets', where)
         conf = confidence.get(c.node) if c.kind not in ('precision',) else None
-        entry = {**c.describe(), **_node_info(layout.nodes[c.node], answers), 'population': who, 'profile': profile,
+        entry = {**c.describe(), **_node_info(layout.nodes[c.node]), 'population': who, 'profile': profile,
                  'tips': _column_tips(c, profile, who, conf)}
         if conf and c.kind != 'count of items':
             entry['confidence'] = conf
         columns.append(entry)
     out.append({'name': 'dockets', 'form': 'docket', 'grain': grain, 'description': text, 'columns': columns,
-                'tips': ['Use the appeals view for research questions; use dockets for the population and scope.']})
+                'tips': ['Use the appeals view for questions about appeals in scope; use dockets for the population and scope.']})
     grain, text = TABLE_TEXT['appeals']
     out.append({'name': 'appeals', 'form': 'view', 'grain': grain, 'description': text,
                 'columns': 'the same as dockets',
-                'tips': ['Answers in the scope area also appear for dockets out of scope, in the dockets table.']})
+                'tips': ['The scope columns also hold answers for dockets out of scope, in the dockets table.']})
 
     for t in layout.tables:
         node = layout.nodes[t.node]
@@ -229,7 +218,7 @@ def tables(con, description, layout):
             tips.append('Options that don\'t occur have no row: a missing option means zero.')
         entry = {'name': t.name, 'form': t.form, 'node': t.node, 'grain': grain,
                  'description': f'{node.get("label", t.node)} ({node.get("code", "")}). {text}',
-                 **_node_info(node, answers), 'population': who, 'columns': columns, 'tips': tips}
+                 **_node_info(node), 'population': who, 'columns': columns, 'tips': tips}
         if confidence.get(t.node):
             entry['confidence'] = confidence[t.node]
         out.append(entry)
@@ -238,43 +227,6 @@ def tables(con, description, layout):
         grain, text = TABLE_TEXT[name]
         out.append({'name': name, 'form': name, 'grain': grain, 'description': text,
                     'columns': [{'name': c, 'meaning': m} for c, m in FIXED_COLUMNS[name].items()]})
-    return out
-
-
-def examples(description, run):
-    """Run each answer's example queries; record the result, or the error that stops the build."""
-    out = []
-    for n in description['nodes']:
-        if n['kind'] != 'answer':
-            continue
-        for ex in n.get('examples') or []:
-            entry = {'answer': n['id'], 'question': ex['question'], 'sql': ex['sql']}
-            try:
-                result = run(ex['sql'])
-                entry['result'] = {k: result[k] for k in ('columns', 'rows', 'truncated')}
-            except ValueError as error:
-                entry['error'] = str(error)
-            out.append(entry)
-    return out
-
-
-def answers(description, layout, ran):
-    """The research answers, each with the release columns and tables that hold its parts."""
-    where = {description['in_scope']: ['in_scope']} if description.get('in_scope') else {}
-    for table, c in layout.columns():
-        if table == 'dockets':
-            where.setdefault(c.node, []).append(c.name)
-    for t in layout.tables:
-        where.setdefault(t.node, []).append(f'table {t.name}')
-    out = []
-    for n in description['nodes']:
-        if n['kind'] == 'answer':
-            out.append({'id': n['id'], 'area': n['area'], 'title': n['title'], 'question': n['question'],
-                        'parts': [{'node': p, 'label': layout.nodes[p].get('label', ''),
-                                   'code': layout.nodes[p].get('code', ''), 'in': where.get(p, [])}
-                                  for p in n['parts'] if p in layout.nodes],
-                        'notes': n.get('notes') or [],
-                        'examples': [e for e in ran if e['answer'] == n['id']]})
     return out
 
 

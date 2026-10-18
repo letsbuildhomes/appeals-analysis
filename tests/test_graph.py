@@ -7,7 +7,7 @@ from appeals.config import Reasoning
 from appeals.graph import expr as E
 from appeals.graph import layers
 from appeals.graph.endpoints import Completion, ReasoningModel, parse_json
-from appeals.graph.nodes import Answer, Field, Gate, Question, Scan
+from appeals.graph.nodes import Field, Gate, Question, Scan
 from appeals.graph.pipeline import GraphError, Pipeline
 from appeals.graph.values import NOT_STATED, Count, DateValue, OneOf, Quoted, Record, YesNo
 from appeals.providers import unpriced
@@ -53,13 +53,12 @@ def test_expression_evaluates_traces_and_prints():
 
 # ---- the pipeline checks itself -------------------------------------------------------
 
-def _tiny(answer_parts=True):
+def _tiny(extra_question=False):
     q = Question('Q1', 'A', ask='?', yes_no=True)
     gate = Gate('g', 'A', title='g', when=q.p('yes') >= 0.5)
     f = Field('f', 'A', label='f', type=OneOf(q.options), scan=q)
-    answers = [Answer('ans', 'A', title='a', parts=[f] if answer_parts else [])]
-    return Pipeline('tiny', Scan('scan', 'A', questions=[q]), [gate], _base(), [], [f], [], answers,
-                    gate.passed(), {})
+    questions = [q, Question('Q2', 'A', ask='?', yes_no=True)] if extra_question else [q]
+    return Pipeline('tiny', Scan('scan', 'A', questions=questions), [gate], _base(), [], [f], [], gate.passed(), {})
 
 
 def _base():
@@ -67,17 +66,17 @@ def _base():
     return Base('base', 'steps', framing='x')
 
 
-def test_a_field_that_reaches_no_answer_fails_the_build():
+def test_a_question_that_feeds_no_fact_fails_the_build():
     _tiny()
-    with pytest.raises(GraphError, match='reaches no Answer'):
-        _tiny(answer_parts=False)
+    with pytest.raises(GraphError, match='Q2 feeds no fact or derived value'):
+        _tiny(extra_question=True)
 
 
-def test_codebook_builds_and_every_question_reaches_an_answer():
+def test_codebook_builds_and_every_question_feeds_a_fact():
     pipeline = build(THRESHOLDS)
     description = pipeline.describe()
     assert len(description['hash']) == 16
-    assert {n['kind'] for n in description['nodes']} >= {'question', 'gate', 'step', 'field', 'derive', 'answer'}
+    assert {n['kind'] for n in description['nodes']} >= {'question', 'gate', 'step', 'field', 'derive'}
     assert pipeline.hash() == build(THRESHOLDS).hash()
     assert pipeline.hash() != build(THRESHOLDS | {'final': 0.6}).hash()     # thresholds are part of the identity
 

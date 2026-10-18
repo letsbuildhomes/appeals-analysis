@@ -105,7 +105,7 @@ def test_the_current_codebook_lays_out():
 
 # ---- building -------------------------------------------------------------------------
 
-def test_a_release_describes_every_column_and_runs_every_example(released):
+def test_a_release_describes_every_column(released):
     store, run_id, releases, release = released
     meta = release.meta
     assert meta['run']['id'] == run_id and meta['population']['dockets'] == 3
@@ -114,8 +114,7 @@ def test_a_release_describes_every_column_and_runs_every_example(released):
     for table in [t['name'] for t in meta['tables'] if t['form'] != 'view']:
         actual = [r[0] for r in release.data.execute(f'DESCRIBE "{table}"').fetchall()]
         assert {(table, c) for c in actual} <= described, table
-    examples = [e for a in meta['answers'] for e in a['examples']]
-    assert examples and all('result' in e for e in examples)
+    assert 'answers' not in meta                   # no built-in research questions: the data is for any question
     assert meta['conventions'] and meta['graph']['description']
     links = release.query('SELECT docket, linked_docket FROM docket_links ORDER BY 1')['rows']
     assert links == [['12-1-20 Vtec', '13-1-20 Vtec'], ['13-1-20 Vtec', '12-1-20 Vtec']]
@@ -187,8 +186,7 @@ def test_docket_returns_quotes_for_a_few_dockets_only(released):
 def test_the_guide_explains_columns_and_the_pipeline(released):
     *_, releases, release = released
     o = guide.overview(release, releases.current_id())
-    assert o['release']['current'] and len(o['research_questions']) == 7 and o['conventions']
-    assert {c['area'] for c in guide.describe(release, 'E')['columns']} == {'E'}
+    assert o['release']['current'] and 'research_questions' not in o and o['conventions']
     assert guide.describe(release, 'court_result')['columns'][0]['options']
     assert 'index' in guide.describe(release)
     d4 = guide.explain(release, 'D4')

@@ -19,14 +19,14 @@ store ──make release──▶ data/releases/<id>/ ──make publish──�
 |---|---|
 | `data.duckdb` | The research tables, the only data `query` can read |
 | `evidence.duckdb` | The quotes behind the answers. They are read only through `docket`, a few dockets at a time, so quotes never come back from bulk queries |
-| `release.json` | The release's identity and provenance (run, graph hash, models, git commit, file hashes). It also holds the run's full graph description, the data dictionary with a profile and query tips for every column, the codebook's examples with their results, and what changed since the previous release |
+| `release.json` | The release's identity and provenance (run, graph hash, models, git commit, file hashes). It also holds the run's full graph description, the data dictionary with a profile and query tips for every column, and what changed since the previous release |
 
 The tables:
 
 | Table | Grain |
 |---|---|
-| `dockets` | One row per docket the run covered: status, whether it's in scope, document count and dates, then one column per answer. Answers outside the scope area are NULL for out-of-scope dockets |
-| `appeals` | A view of `dockets WHERE in_scope`. Research questions start here |
+| `dockets` | One row per docket the run covered: status, whether it's in scope, document count and dates, then one column per fact and derived value. Only the scope columns are filled for out-of-scope dockets |
+| `appeals` | A view of `dockets WHERE in_scope`. Questions about appeals start here |
 | long tables | One per yes/no or choice set (`permission_kinds`, `judgment_grounds`), list (`appellants`, …) or count by option (`appellant_mix_roles`, …) |
 | `documents` | Each docket's documents, numbered as quotes cite them, with the court's PDF link |
 | `docket_links` | Dockets that share a decision, which often means the same project |
@@ -46,11 +46,10 @@ So changing the codebook changes the next release with no other edits:
 - **A new field or derived value** gets its columns, its dictionary entry,
   its profile and its tips automatically.
 - **Labels, codes, option meanings, notes and conventions** come from the
-  codebook (`conventions.py`, and `notes` on fields, derived values and
-  answers).
-- **Examples** are `examples` on each `Answer`, written as SQL over the
-  release tables. Building a release runs every one, and one that fails
-  stops the build until it's fixed.
+  codebook (`conventions.py`, and `notes` on fields and derived values).
+- **Example queries** for the research questions are in
+  [RESEARCH-QUESTIONS.md](RESEARCH-QUESTIONS.md). Releases don't carry or
+  check them: the release is for any question, not a fixed set.
 - **A value that doesn't match its declared type** stops the build, listing
   the problems, because the tables depend on the types.
 - **A value type with no rule** stops the build until a rule is added to
@@ -87,8 +86,8 @@ release that isn't current.
 
 | Tool | What it returns |
 |---|---|
-| `overview` | Start here. What the data is, the release and its provenance, the population, each research question with the columns that answer it, the tables, the conventions, how to work with the data, the limits and what changed |
-| `describe` | Full descriptions of a table, an area (`scope`, `A`–`F`), a code (`A4`, `X4`), a node or named columns. Each has its meaning, options, notes, how it's settled, a profile (counts, share known, sources) and tips. With no target, a compact index |
+| `overview` | Start here. What the data is, the release and its provenance, the population, the tables, the conventions, how to work with the data, the limits and what changed |
+| `describe` | Full descriptions of a table, a code (`A4`, `X4`), a node or named columns. Each has its meaning, options, notes, how it's settled, a profile (counts, share known, sources) and tips. With no target, a compact index |
 | `explain` | `pipeline` describes the whole flow: layers, gates, steps in order, thresholds and what the run did. A column, node or code returns that node and everything upstream of it: questions, gates, prompts, the field's rule and derived-value code |
 | `query` | One read-only DuckDB SELECT: at most 1,000 rows, 256 KB and 5 seconds |
 | `docket` | Up to 10 dockets in full, with confidence, quotes, document links and linked dockets |

@@ -9,7 +9,7 @@ from collections import defaultdict, deque
 import hashlib
 import json
 
-from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, ChoiceSet, Derive, Field, Gate, Question, Step, YesNoSet
+from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, ChoiceSet, Derive, Gate, Question, Step, YesNoSet
 from appeals.graph.values import ListOf
 
 AREAS = {
@@ -28,7 +28,7 @@ class GraphError(Exception):
 
 
 class Pipeline:
-    def __init__(self, name, scan, gates, base, steps, fields, derives, answers, proceed, thresholds, in_scope=None,
+    def __init__(self, name, scan, gates, base, steps, fields, derives, proceed, thresholds, in_scope=None,
                  conventions=(), description=''):
         self.name = name
         self.description = description         # what the data is, in a sentence or two, for readers of it
@@ -39,12 +39,11 @@ class Pipeline:
         self.steps = steps            # in execution order
         self.fields = fields
         self.derives = derives
-        self.answers = answers
         self.proceed = proceed        # expression: does a docket go on to the reasoning steps?
         self.in_scope = in_scope      # derive ID that is True for dockets in scope; the row blanks the rest
         self.thresholds = dict(thresholds)
         self.nodes = {}
-        for node in [scan, *scan.questions, *gates, base, *steps, *fields, *derives, *answers]:
+        for node in [scan, *scan.questions, *gates, base, *steps, *fields, *derives]:
             if node.id in self.nodes:
                 raise GraphError(f'duplicate node ID {node.id}')
             self.nodes[node.id] = node
@@ -115,10 +114,10 @@ class Pipeline:
             self.order()
         except GraphError as error:
             problems.append(str(error))
-        reaches = self._reaches_answer()
+        reaches = self._reaches_output()
         for node in self.nodes.values():
-            if isinstance(node, (Question, YesNoSet, ChoiceSet, Field, Derive, Step)) and node.id not in reaches:
-                problems.append(f'{node.id} reaches no Answer')
+            if isinstance(node, (Question, YesNoSet, ChoiceSet, Step)) and node.id not in reaches:
+                problems.append(f'{node.id} feeds no fact or derived value')
         position = {s.id: i for i, s in enumerate(self.steps)}
         for step in self.steps:
             for ref in step.refs():
@@ -154,12 +153,13 @@ class Pipeline:
                 problems.append(f'threshold {name} is used but not set in config.toml')
         return problems
 
-    def _reaches_answer(self):
+    def _reaches_output(self):
+        """Every node from which a fact or a derived value can be reached: the pipeline's output."""
         forward = defaultdict(set)
         for e in self.edges:
             if e['kind'] != 'asked':
                 forward[e['from']].add(e['to'])
-        reached, queue = set(), deque(a.id for a in self.answers)
+        reached, queue = set(), deque(n.id for n in [*self.fields, *self.derives])
         backward = defaultdict(set)
         for a, targets in forward.items():
             for b in targets:
@@ -248,7 +248,7 @@ class Pipeline:
         questions = len(self.scan.flat())
         return (f'{self.name}: {questions} decision-model questions in one scan, {len(self.gates)} gates, '
                 f'{len(self.steps)} reasoning steps, {len(self.fields)} fields, {len(self.derives)} derived, '
-                f'{len(self.answers)} answers; {len(self.edges)} edges; every question and field reaches an answer.')
+                f'{len(self.edges)} edges; every question and step feeds a fact or derived value.')
 
 
 def _hash(body):

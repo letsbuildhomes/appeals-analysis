@@ -1,9 +1,10 @@
 """The codebook: docs/PIPELINE.md as code.
 
 Files follow the layers, top to bottom, and each imports only from the files
-above it: questions → gates → steps → fields → derived → answers.
+above it: questions → gates → steps → fields → derived. The fields and derived
+values are the output: a general set of facts about each docket, for any question.
 """
-from appeals.codebook import answers, derived, fields, gates, questions, steps
+from appeals.codebook import derived, fields, gates, questions, steps
 from appeals.codebook.conventions import CONVENTIONS
 from appeals.graph.nodes import Scan
 from appeals.graph.pipeline import Pipeline
@@ -22,7 +23,6 @@ def build(thresholds):
         steps=steps.ORDER,
         fields=fields.ALL,
         derives=derived.ALL,
-        answers=answers.ALL,
         proceed=gates.PROCEED,
         thresholds=thresholds,
         in_scope=derived.X1.id,

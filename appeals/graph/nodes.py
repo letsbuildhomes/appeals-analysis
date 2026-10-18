@@ -10,7 +10,8 @@ Layers (a node reads only from earlier layers, except where noted):
     3 steps   Base, Step (a step may chain after earlier steps)
     4 facts   Field
     5 derive  Derive (may read earlier derives)
-    6 answers Answer
+
+The facts and derived values are the pipeline's output: one row per docket.
 """
 from dataclasses import dataclass, field
 import inspect
@@ -21,7 +22,7 @@ from typing import Callable, ClassVar
 from appeals.graph import expr as E
 from appeals.graph.values import NOT_STATED, OneOf, Record, ValueType, YesNo
 
-LAYERS = ['input', 'scan', 'plan', 'steps', 'facts', 'derive', 'answers']
+LAYERS = ['input', 'scan', 'plan', 'steps', 'facts', 'derive']
 LAYER_GUIDE = {
     'input': 'The docket text: every document whose heading names the docket, in posting order, marked by document '
              'and page so quotes can cite them.',
@@ -36,9 +37,8 @@ LAYER_GUIDE = {
     'facts': 'One settled value per field: the step\'s answer when its quote checks out, otherwise the scan\'s most '
              'likely answer, otherwise "not stated". A rule can make a field "not stated" when an earlier answer '
              'makes it moot.',
-    'derive': 'Plain code combines settled fields into research values, such as a duration in days. No model is '
+    'derive': 'Plain code combines settled fields into derived values, such as a duration in days. No model is '
               'involved; the source code is part of the description.',
-    'answers': 'Each research answer groups the fields and derived values that answer one research question.',
 }
 PLACEHOLDER = re.compile(r'\{([A-Z][A-Za-z0-9_]*(?:\.[a-z_]+)?)\}')
 
@@ -421,32 +421,5 @@ class Derive(Node):
                                      'source': self.source(), 'notes': self.notes}
 
 
-# ---- layer 6: answers ------------------------------------------------------------
-
-@dataclass(eq=False)
-class Answer(Node):
-    """One research answer: the fields and derived values that make it up.
-
-    `notes`: what a reader must know to use the answer's data. `examples`: SQL over a
-    published release that answers a typical question, as {"question", "sql"}; building a
-    release runs each one, so an example that no longer works stops the release.
-    """
-    title: str = ''
-    question: str = ''
-    parts: list = field(default_factory=list)
-    notes: list = field(default_factory=list)
-    examples: list = field(default_factory=list)
-    kind: ClassVar[str] = 'answer'
-    layer: ClassVar[int] = 6
-
-    def refs(self):
-        return {n.id for n in self.parts}
-
-    def describe(self):
-        return super().describe() | {'title': self.title, 'question': self.question,
-                                     'parts': [n.id for n in self.parts], 'notes': self.notes,
-                                     'examples': self.examples}
-
-
-__all__ = ['Node', 'Question', 'YesNoSet', 'ChoiceSet', 'Scan', 'Gate', 'Base', 'Step', 'Field', 'Derive', 'Answer',
+__all__ = ['Node', 'Question', 'YesNoSet', 'ChoiceSet', 'Scan', 'Gate', 'Base', 'Step', 'Field', 'Derive',
            'LAYERS', 'NOT_STATED', 'YesNo', 'OneOf', 'Record']

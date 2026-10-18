@@ -2,10 +2,10 @@
 
 A release is a folder under data/releases/<id>/:
 
-    data.duckdb      the research tables (what the `query` tool and the dashboard read)
+    data.duckdb      the data tables (what the `query` tool and the dashboard read)
     evidence.duckdb  every quote behind the answers, read one docket at a time
     release.json     identity and provenance, the run's graph description, the data
-                     dictionary with each column's profile and query tips, and checked examples
+                     dictionary with each column's profile and query tips
 
 Everything about the tables comes from the run's stored graph description, not
 from today's codebook, so a release always describes the pipeline that made it.
@@ -25,7 +25,7 @@ import duckdb
 from appeals.graph.values import OUT_OF_SCOPE, from_description
 from appeals.ingest.dockets import docket_documents
 from appeals.release import catalog, schema
-from appeals.release.read import Release, Releases, _sha256, connect, run_query
+from appeals.release.read import Release, Releases, _sha256, connect
 
 FORMAT = 'appeals-release-1'
 
@@ -298,13 +298,8 @@ def _meta(run, description, layout, counts, records, folder, releases, tags):
     con = connect(folder / 'data.duckdb')
     try:
         tables = catalog.tables(con, description, layout)
-        examples = catalog.examples(description, lambda sql: run_query(con, sql, max_rows=10))
     finally:
         con.close()
-    failed = [e for e in examples if 'error' in e]
-    if failed:
-        raise BuildError('codebook examples that no longer run on this release:\n  ' + '\n  '.join(
-            f'{e["answer"]}: {e["question"]}: {e["error"]}' for e in failed))
     previous = releases.current()
     files = {name: _sha256(folder / name) for name in ('data.duckdb', 'evidence.duckdb')}
     created = datetime.now(timezone.utc)
@@ -320,7 +315,6 @@ def _meta(run, description, layout, counts, records, folder, releases, tags):
         'population': population,
         'table_rows': counts,
         'tables': tables,
-        'answers': catalog.answers(description, layout, examples),
         'conventions': description.get('conventions', []),
         'previous': previous.id if previous else None,
         'changes': catalog.changes(previous.meta if previous else None, description, tables),

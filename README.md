@@ -5,9 +5,11 @@ Superior Court, Environmental Division. The court publishes its decisions as
 PDFs. This project turns them into one row of research data per docket, and
 every answer carries a quote from the decision it came from.
 
-The research questions and every extraction question are listed in
-[docs/PIPELINE.md](docs/PIPELINE.md). Background for anyone starting work here
-is in [docs/CONTEXT.md](docs/CONTEXT.md).
+Every extraction question is listed in [docs/PIPELINE.md](docs/PIPELINE.md).
+The research questions that shaped what we extract, and the columns and queries
+that answer them, are in [docs/RESEARCH-QUESTIONS.md](docs/RESEARCH-QUESTIONS.md):
+they are analysis over the data, not part of the pipeline. Background for
+anyone starting work here is in [docs/CONTEXT.md](docs/CONTEXT.md).
 
 ## What the system does
 
@@ -109,7 +111,6 @@ execution, renders as a diagram, and checks itself.
   over a for-each step turns each iteration into entries (`per_item`).
 - **`Derive`**: a plain function from named fields to a new field, such as a
   duration in days or the town's overall decision. No model is involved.
-- **`Answer`**: one research answer, which groups the fields that make it up.
 
 The models sit behind two small interfaces: a **decision model**, which answers
 closed questions with probabilities (TypeSafe's Jev is the first
@@ -120,7 +121,7 @@ with structured output. Nothing else in the code names a model.
 
 The graph refuses to build when:
 - it has a cycle,
-- a `Question` or `Field` reaches no `Answer`,
+- a `Question` or `Step` feeds no `Field` or `Derive`,
 - a gate refers to something that doesn't exist, or
 - a structured field has no scoring rule.
 

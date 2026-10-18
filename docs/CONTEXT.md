@@ -36,7 +36,9 @@ decisions. "New housing" means the permission at issue lets someone build,
 place or convert a structure that will contain dwelling units, or create lots
 for housing. Enforcement, changes of occupancy and accessory work are out of
 scope, and so are permits for something already built. The research questions
-are in [PIPELINE.md](PIPELINE.md#research-questions).
+are in [RESEARCH-QUESTIONS.md](RESEARCH-QUESTIONS.md). They guided what we
+extract, but the pipeline's output is a general set of facts about each docket,
+and the MCP server lets users ask their own questions of it.
 
 The decisions are the only source, which sets hard limits on what can be
 claimed:
