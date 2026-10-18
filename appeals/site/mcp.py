@@ -19,7 +19,7 @@ INSTRUCTIONS = """\
 This server publishes the current release of a research dataset that an extraction pipeline built from published \
 court decisions: one row of facts per docket, for any question you want to ask of them. Call overview first: it \
 says what the data is, its population, its tables, the conventions every answer follows, and what changed since \
-the previous release. Then describe the tables or columns you need (meaning, options, notes, a profile of what the \
+the previous release. Then describe the tables, topics or columns you need (meaning, options, notes, a profile of what the \
 data actually holds, and query tips) and query them with read-only DuckDB SQL. explain traces any column back through the \
 pipeline: the questions asked, gates and thresholds, prompts and the code that combines answers. docket reads a \
 few dockets in full, with their quotes: use it for individual cases, never for bulk analysis. Keep "not stated" \
@@ -59,15 +59,15 @@ def make_server(releases, name='Research data', streamable_http_path='/mcp', all
     @server.tool(annotations=READ_ONLY)
     def describe(target: str | None = None, page: int = 1) -> dict[str, Any]:
         """Describe columns: meaning, options, notes, how each answer is settled, a profile of what the data holds
-        (counts, share known, sources), and query tips. `target` is a table name, a code such as A4 or X4, a node ID
-        such as duration, or comma-separated column names. Without a target,
+        (counts, share known, sources), and query tips. `target` is a table name, a topic such as "Units added", a field
+        name such as duration, or comma-separated column names. Without a target,
         returns a compact index of every table and column. Long results are paged."""
         return guide.describe(current(), target, page)
 
     @server.tool(annotations=READ_ONLY)
     def explain(target: str = 'pipeline') -> dict[str, Any]:
         """How values are produced. "pipeline" describes the whole flow: layers, gates, the reasoning steps in
-        order, thresholds and what the run did. A column, table, node ID (such as L5a or duration) or code (such as D4 or X4)
+        order, thresholds and what the run did. A column, table or node ID (such as duration, L5a or the scan question C4)
         returns that node and everything upstream of it: scan questions and options, gates, step prompts and
         return types, the rule that settles each field, and the code of derived values."""
         return guide.explain(current(), target)

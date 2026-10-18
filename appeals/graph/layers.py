@@ -15,7 +15,7 @@ The executor (run.py) calls these in order and stores what they return.
 import re
 
 from appeals.graph import expr as E
-from appeals.graph.nodes import ChoiceSet, YesNoSet
+from appeals.graph.nodes import SCOPE, ChoiceSet, YesNoSet
 from appeals.graph.values import NONE_FOUND, NOT_STATED, OUT_OF_SCOPE, ListOf
 
 
@@ -317,14 +317,14 @@ def derive(pipeline, facts):
 def row(pipeline, docket, facts, derived):
     """The flat research row: one column per field and derived value.
 
-    When the docket is out of scope, every value outside the scope area reads
+    When the docket is out of scope, every value outside the scope topic reads
     "out of scope": we did not study it, which is different from the documents
     being silent. Facts and derived values keep everything, for the trace.
     """
     in_scope = pipeline.in_scope is None or derived.get(pipeline.in_scope) is True
     out = {'docket': docket}
     for f in pipeline.fields:
-        out[f.id] = facts[f.id]['answer'] if in_scope or f.area == 'scope' else OUT_OF_SCOPE
+        out[f.id] = facts[f.id]['answer'] if in_scope or f.topic == SCOPE else OUT_OF_SCOPE
     for d in pipeline.derives:
-        out[d.id] = derived.get(d.id) if in_scope or d.area == 'scope' else OUT_OF_SCOPE
+        out[d.id] = derived.get(d.id) if in_scope or d.topic == SCOPE else OUT_OF_SCOPE
     return out

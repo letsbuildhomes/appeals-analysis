@@ -86,9 +86,9 @@ release that isn't current.
 
 | Tool | What it returns |
 |---|---|
-| `overview` | Start here. What the data is, the release and its provenance, the population, the tables, the conventions, how to work with the data, the limits and what changed |
-| `describe` | Full descriptions of a table, a code (`A4`, `X4`), a node or named columns. Each has its meaning, options, notes, how it's settled, a profile (counts, share known, sources) and tips. With no target, a compact index |
-| `explain` | `pipeline` describes the whole flow: layers, gates, steps in order, thresholds and what the run did. A column, node or code returns that node and everything upstream of it: questions, gates, prompts, the field's rule and derived-value code |
+| `overview` | Start here. What the data is, the release and its provenance, the population, the topics, the tables, the conventions, how to work with the data, the limits and what changed |
+| `describe` | Full descriptions of a table, a topic ("Units added"), a field name (`duration`) or named columns. Each has its meaning, options, notes, how it's settled, a profile (counts, share known, sources) and tips. With no target, a compact index |
+| `explain` | `pipeline` describes the whole flow: layers, gates, steps in order, thresholds and what the run did. A column or node ID (`duration`, `L5a`, the scan question `C4`) returns that node and everything upstream of it: questions, gates, prompts, the field's rule and derived-value code |
 | `query` | One read-only DuckDB SELECT: at most 1,000 rows, 256 KB and 5 seconds |
 | `docket` | Up to 10 dockets in full, with confidence, quotes, document links and linked dockets |
 

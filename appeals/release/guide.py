@@ -9,8 +9,8 @@ from collections import deque
 from appeals.release.read import LIMITS
 
 HOW_TO_WORK = [
-    'Read this overview first. Then use describe on the tables or columns you need: it gives each column\'s '
-    'meaning, options, notes, a profile of what the data holds, and query tips.',
+    'Read this overview first. Then use describe on the tables, topics or columns you need: it gives each '
+    'column\'s meaning, options, notes, a profile of what the data holds, and query tips.',
     'Count appeals from the appeals view (in-scope dockets). Use dockets for the whole population, scope and '
     'failures. Always state the population you counted and how many were "not stated".',
     'Keep "not stated" (and NULL) separate from "no" and from zero. Report shares of known answers next to the '
@@ -47,6 +47,7 @@ def overview(release, current_id):
         'release': _brief_release(release, current_id),
         'what_this_is': graph.get('description', ''),
         'population': m['population'],
+        'topics': [t['title'] for t in graph.get('topics', [])],
         'tables': [{'name': t['name'], 'grain': t['grain'], 'description': t['description'],
                     'rows': m['table_rows'].get(t['name'])} for t in m['tables']],
         'conventions': m['conventions'],
@@ -74,7 +75,7 @@ def index(release):
     for t in release.meta['tables']:
         entry = {'table': t['name'], 'grain': t['grain'], 'description': t['description']}
         if isinstance(t['columns'], list):
-            entry['columns'] = {c['name']: ' · '.join(x for x in (c.get('code'), c.get('label') or c.get('meaning', ''))
+            entry['columns'] = {c['name']: ' · '.join(x for x in (c.get('topic'), c.get('label') or c.get('meaning', ''))
                                                       if x)[:120] for c in t['columns']}
         else:
             entry['columns'] = t['columns']
@@ -83,11 +84,12 @@ def index(release):
 
 
 def describe(release, target=None, page=1, per_page=25):
-    """Full descriptions of the columns a target names: a table, a node ID or code, or column names
-    (comma-separated). Without a target, a compact index of everything."""
+    """Full descriptions of the columns a target names: a table, a topic (such as "Units added"), a field
+    name, or column names (comma-separated). Without a target, a compact index of everything."""
     if not target:
         return {'release': release.id, 'index': index(release),
-                'next': 'describe a table, a code such as A4, or column names for detail'}
+                'topics': [t['title'] for t in release.meta['graph'].get('topics', [])],
+                'next': 'describe a table, a topic, a field name such as duration, or column names for detail'}
     wanted = [w.strip() for w in str(target).split(',') if w.strip()]
     tables = {t['name']: t for t in release.meta['tables']}
     matches, tables_out = [], []
@@ -101,9 +103,9 @@ def describe(release, target=None, page=1, per_page=25):
             continue
         hits = [(tn, c) for tn, c in _columns(release)
                 if c['name'].casefold() == key or str(c.get('node', '')).casefold() == key
-                or str(c.get('code', '')).casefold() == key]
+                or str(c.get('topic', '')).casefold() == key]
         for t in tables.values():
-            if t.get('node') and (t['node'].casefold() == key or str(t.get('code', '')).casefold() == key):
+            if t.get('node') and (t['node'].casefold() == key or str(t.get('topic', '')).casefold() == key):
                 tables_out.append({k: v for k, v in t.items() if k != 'columns'})
         matches += hits
     seen, unique = set(), []
@@ -151,12 +153,11 @@ def pipeline(release):
             'steps_in_order': steps, 'thresholds': g['thresholds'],
             'this_run': {k: release.meta['run'][k] for k in ('dockets_proceeding_to_steps',
                                                               'reasoning_calls_per_proceeding_docket', 'endpoints')},
-            'next': 'explain a column, table, node ID (such as L5a or duration) or code (such as D4 or X4) to trace it back'}
+            'next': 'explain a column, table or node ID (such as duration, L5a or the scan question C4) to trace it back'}
 
 
 def _resolve(release, target):
-    """The nodes a target names: a release column or table, else a field or derived value by ID or code
-    (so "D4" means the field coded D4, not only the scan question D4), else any node by ID."""
+    """The nodes a target names: a release column or table, else any node by ID."""
     g = release.meta['graph']
     key = target.casefold()
     for t in release.meta['tables']:
@@ -166,11 +167,6 @@ def _resolve(release, target):
             for c in t['columns']:
                 if c['name'].casefold() == key and c.get('node'):
                     return [c['node']]
-    values = [n for n in g['nodes'] if n['kind'] in ('field', 'derive')]
-    for match in (lambda n: n['id'].casefold() == key, lambda n: str(n.get('code', '')).casefold() == key):
-        found = [n['id'] for n in values if match(n)]
-        if found:
-            return found
     return [n['id'] for n in g['nodes'] if n['id'].casefold() == key]
 
 
@@ -184,7 +180,7 @@ def explain(release, target='pipeline'):
     found = _resolve(release, target.strip())
     if not found:
         return {'release': release.id, 'target': target,
-                'hint': 'Nothing matched. Try "pipeline", a column or table name, a node ID or a code such as A4.'}
+                'hint': 'Nothing matched. Try "pipeline", a column or table name, or a node ID such as duration, L5a or C4.'}
     backward, forward = {}, {}
     for e in g['edges']:
         if e['kind'] == 'asked':                 # every question feeds the scan; don't expand them all

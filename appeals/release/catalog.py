@@ -5,6 +5,7 @@ Meanings, notes and options come from the graph description; profiles come
 from the built tables; tips come from each column's type and profile. Nothing
 here names a field.
 """
+from appeals.graph.nodes import SCOPE
 from appeals.graph.values import NOT_STATED
 
 NULLABLE = ('count', 'integer', 'text', 'name', 'date')
@@ -48,10 +49,10 @@ FIXED_COLUMNS = {
 }
 TABLE_TEXT = {
     'dockets': ('one row per docket the run covered',
-                'Every docket, in scope or not, with one column per answer. Answers outside the scope area are '
-                'NULL for dockets out of scope: the pipeline did not study them.'),
+                'Every docket, in scope or not, with one column per fact and derived value. Columns outside the '
+                'scope topic are NULL for dockets out of scope: the pipeline did not study them.'),
     'appeals': ('one row per in-scope docket',
-                'The dockets in scope (dockets WHERE in_scope), with the same columns. Start research here.'),
+                'The dockets in scope (dockets WHERE in_scope), with the same columns. Start here for questions about appeals.'),
     'documents': ('one row per docket and document', 'The published decisions behind each docket.'),
     'docket_links': ('one row per pair of dockets sharing a document',
                      'Dockets that share a decision often concern the same project. Use it to avoid counting the '
@@ -68,8 +69,9 @@ LONG_TEXT = {
 }
 
 
-def _node_info(node):
-    info = {'node': node['id'], 'label': node.get('label', ''), 'code': node.get('code', '')}
+def _node_info(node, topics):
+    info = {'node': node['id'], 'label': node.get('label', ''),
+            'topic': topics.get(node.get('topic'), node.get('topic'))}
     if node['kind'] == 'field':
         info['how_settled'] = node.get('rule', '')
     else:
@@ -154,10 +156,11 @@ def tables(con, description, layout):
     in_scope = description.get('in_scope')
     in_scope_label = layout.nodes.get(in_scope, {}).get('label', '') if in_scope else ''
     confidence = {nid: _sources(con, nid) for nid, n in layout.nodes.items() if n['kind'] == 'field'}
+    topics = {t['id']: t['title'] for t in description.get('topics', [])}
     out = []
 
     def population(node_id):
-        if layout.nodes[node_id]['area'] == 'scope':
+        if layout.nodes[node_id]['topic'] == SCOPE:
             return "status = 'complete'", 'complete dockets'
         return 'in_scope', 'dockets in scope'
 
@@ -167,12 +170,12 @@ def tables(con, description, layout):
     columns[1]['profile'] = {'values': _pairs(con, 'SELECT status, count(*) FROM dockets GROUP BY 1 ORDER BY 2 DESC')}
     columns[3]['profile'] = {'values': _pairs(con, 'SELECT in_scope, count(*) FROM dockets GROUP BY 1 ORDER BY 2 DESC')}
     if in_scope in layout.nodes:
-        columns[3] = {**columns[3], 'type': 'BOOLEAN', **_node_info(layout.nodes[in_scope])}
+        columns[3] = {**columns[3], 'type': 'BOOLEAN', **_node_info(layout.nodes[in_scope], topics)}
     for c in layout.wide:
         where, who = population(c.node)
         profile = _profile(con, c, 'dockets', where)
         conf = confidence.get(c.node) if c.kind not in ('precision',) else None
-        entry = {**c.describe(), **_node_info(layout.nodes[c.node]), 'population': who, 'profile': profile,
+        entry = {**c.describe(), **_node_info(layout.nodes[c.node], topics), 'population': who, 'profile': profile,
                  'tips': _column_tips(c, profile, who, conf)}
         if conf and c.kind != 'count of items':
             entry['confidence'] = conf
@@ -218,7 +221,7 @@ def tables(con, description, layout):
             tips.append('Options that don\'t occur have no row: a missing option means zero.')
         entry = {'name': t.name, 'form': t.form, 'node': t.node, 'grain': grain,
                  'description': f'{node.get("label", t.node)} ({node.get("code", "")}). {text}',
-                 **_node_info(node), 'population': who, 'columns': columns, 'tips': tips}
+                 **_node_info(node, topics), 'population': who, 'columns': columns, 'tips': tips}
         if confidence.get(t.node):
             entry['confidence'] = confidence[t.node]
         out.append(entry)

@@ -40,13 +40,14 @@ LAYER_GUIDE = {
     'derive': 'Plain code combines settled fields into derived values, such as a duration in days. No model is '
               'involved; the source code is part of the description.',
 }
+SCOPE = 'scope'       # the topic whose values every docket's row reports, in scope or not
 PLACEHOLDER = re.compile(r'\{([A-Z][A-Za-z0-9_]*(?:\.[a-z_]+)?)\}')
 
 
 @dataclass(eq=False)
 class Node:
     id: str
-    area: str
+    topic: str | None             # what it's about (codebook/topics.py); None for the scan and the base
     kind: ClassVar[str] = 'node'
     layer: ClassVar[int] = 0
 
@@ -55,7 +56,7 @@ class Node:
         return set()
 
     def describe(self):
-        return {'id': self.id, 'kind': self.kind, 'area': self.area, 'layer': LAYERS[self.layer]}
+        return {'id': self.id, 'kind': self.kind, 'topic': self.topic, 'layer': LAYERS[self.layer]}
 
 
 # ---- layer 1: the scan -----------------------------------------------------------
@@ -109,7 +110,7 @@ class YesNoSet(Node):
     layer: ClassVar[int] = 1
 
     def questions(self):
-        return [Question(f'{self.id}.{key}', self.area, ask=f'{self.ask} Item: {meaning}', yes_no=True,
+        return [Question(f'{self.id}.{key}', self.topic, ask=f'{self.ask} Item: {meaning}', yes_no=True,
                          options={'yes': f'Yes: {meaning}', 'no': f'No, not {key}.'}) for key, meaning in self.items.items()]
 
     def ids(self):
@@ -140,7 +141,7 @@ class ChoiceSet(Node):
     layer: ClassVar[int] = 1
 
     def questions(self):
-        return [Question(f'{self.id}.{key}', self.area, ask=self.ask.format(item=meaning), options=self.options)
+        return [Question(f'{self.id}.{key}', self.topic, ask=self.ask.format(item=meaning), options=self.options)
                 for key, meaning in self.items.items()]
 
     def ids(self):
@@ -329,7 +330,6 @@ class Field(Node):
     where a step that can't tell should not take a docket out of the study.
     `notes`: what a reader of the data must know to use the value correctly.
     """
-    code: str = ''
     label: str = ''
     type: ValueType = None
     scan: Question | YesNoSet | ChoiceSet | None = None
@@ -377,7 +377,7 @@ class Field(Node):
         if self.not_stated_if:
             rule += f'; "not stated" when {self.not_stated_if.text()}'
         d = super().describe() | {
-            'code': self.code, 'label': self.label, 'value_type': self.type.describe(), 'scored': self.type.scored,
+            'label': self.label, 'value_type': self.type.describe(), 'scored': self.type.scored,
             'from_step': (', '.join(f'{s.id}.{self.path}' for s in self.steps.values()) if self.steps
                           else f'{self.step.id}.{self.path}' if self.step else None),
             'from_scan': self.scan.id if self.scan else None,
@@ -400,7 +400,6 @@ class Derive(Node):
 
     `notes`: what a reader of the data must know to use the value correctly.
     """
-    code: str = ''
     label: str = ''
     type: ValueType = None
     inputs: list = field(default_factory=list)
@@ -416,7 +415,7 @@ class Derive(Node):
         return textwrap.dedent(inspect.getsource(self.fn))
 
     def describe(self):
-        return super().describe() | {'code': self.code, 'label': self.label, 'value_type': self.type.describe(),
+        return super().describe() | {'label': self.label, 'value_type': self.type.describe(),
                                      'scored': self.type.scored, 'inputs': [n.id for n in self.inputs],
                                      'source': self.source(), 'notes': self.notes}
 

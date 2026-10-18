@@ -55,8 +55,6 @@ export function header(active, stats) {
   }).catch(() => { document.getElementById('stats').textContent = 'store busy: a run is writing'; });
 }
 
-export const AREA_ORDER = ['scope', 'A', 'B', 'C', 'D', 'E', 'F'];
-
 export function params() {
   return new URLSearchParams(location.search);
 }

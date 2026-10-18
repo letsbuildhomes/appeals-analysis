@@ -2,7 +2,8 @@
 
 Threshold values live in config.toml under [thresholds].
 """
-from appeals.codebook.questions import A4, A5, A6, C1, D1, D2, F1, F2, F3, F5, S1, S2, S3, S4
+from appeals.codebook import topics
+from appeals.codebook.questions import U1, U2, U3, G1, C1, C2, D1, U4, U5, D2, S1, S2, S3, S4
 from appeals.graph.expr import Max, T
 from appeals.graph.nodes import Gate
 
@@ -12,38 +13,38 @@ IN_SCOPE = ((S1.p('municipal permit application') + S1.p('several, including a m
             * (1 - S2.p('authorize something already built') - S2.p('no physical change'))
             * Max(S4.p('adds') + S4.p('replaces'), S2.p('create building lots')))
 
-scope = Gate('scope', 'scope', title='In scope',
+scope = Gate('scope', topics.SCOPE, title='In scope',
     when=IN_SCOPE >= T.scope_high,
     why='Confidently a municipal appeal about new housing: go on to the reasoning steps.')
 
-scope_check = Gate('scope_check', 'scope', title='Scope unclear',
+scope_check = Gate('scope_check', topics.SCOPE, title='Scope unclear',
     when=(IN_SCOPE > T.scope_low) & (IN_SCOPE < T.scope_high),
     why='Between the thresholds: L1 checks scope with quotes before anything else runs.')
 
-counts = Gate('counts', 'A', title='Any count in play',
-    when=(A4.p('yes') >= T.counts) | (A5.p('yes') >= T.counts) | (A6.p('yes') >= T.counts)
-         | (1 - F2.p('same') - F2.p('not stated') >= T.counts) | (1 - F3.p('same') - F3.p('not stated') >= T.counts),
+counts = Gate('counts', topics.UNITS, title='Any count in play',
+    when=(U1.p('yes') >= T.counts) | (U2.p('yes') >= T.counts) | (U3.p('yes') >= T.counts)
+         | (1 - U4.p('same') - U4.p('not stated') >= T.counts) | (1 - U5.p('same') - U5.p('not stated') >= T.counts),
     why='Some count is stated, or the court likely changed the number of units.')
 
-grounds = Gate('grounds', 'C', title='Arguments may be stated',
-    when=C1.p('yes') >= T.grounds,
+grounds = Gate('grounds', topics.GROUNDS, title='Arguments may be stated',
+    when=G1.p('yes') >= T.grounds,
     why='The documents may say what the appellant argued: confirm it, then follow up each kind of judgment standard '
         'the scan flags. Low on purpose, so a docket with arguments is rarely skipped.')
 
-review = Gate('review', 'D', title='Review standard stated',
-    when=1 - D1.p('not stated') >= T.review,
+review = Gate('review', topics.COURT, title='Review standard stated',
+    when=1 - C1.p('not stated') >= T.review,
     why='Quote how the court heard the appeal.')
 
-final = Gate('final', 'D', title='Final decision',
-    when=D2.p('yes') >= T.final,
+final = Gate('final', topics.COURT, title='Final decision',
+    when=C2.p('yes') >= T.final,
     why='A decision likely ended the docket: identify it, then date it.')
 
-stay = Gate('stay', 'F', title='Stay likely',
-    when=F1.p('yes') >= T.stay,
+stay = Gate('stay', topics.STAY_DESIGN, title='Stay likely',
+    when=D1.p('yes') >= T.stay,
     why='Confirm the stay and its dates.')
 
-design = Gate('design', 'F', title='Design change likely',
-    when=F5.p('yes') >= T.design,
+design = Gate('design', topics.STAY_DESIGN, title='Design change likely',
+    when=D2.p('yes') >= T.design,
     why='Confirm and describe the court-imposed change.')
 
 ALL = [scope, scope_check, counts, grounds, review, final, stay, design]

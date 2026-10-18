@@ -53,17 +53,19 @@ def test_expression_evaluates_traces_and_prints():
 
 # ---- the pipeline checks itself -------------------------------------------------------
 
-def _tiny(extra_question=False):
+def _tiny(extra_question=False, topics=None):
+    topics = {'A': 'A'} if topics is None else topics
     q = Question('Q1', 'A', ask='?', yes_no=True)
     gate = Gate('g', 'A', title='g', when=q.p('yes') >= 0.5)
     f = Field('f', 'A', label='f', type=OneOf(q.options), scan=q)
     questions = [q, Question('Q2', 'A', ask='?', yes_no=True)] if extra_question else [q]
-    return Pipeline('tiny', Scan('scan', 'A', questions=questions), [gate], _base(), [], [f], [], gate.passed(), {})
+    return Pipeline('tiny', Scan('scan', None, questions=questions), [gate], _base(), [], [f], [], gate.passed(), {},
+                    topics=topics)
 
 
 def _base():
     from appeals.graph.nodes import Base
-    return Base('base', 'steps', framing='x')
+    return Base('base', None, framing='x')
 
 
 def test_a_question_that_feeds_no_fact_fails_the_build():
@@ -81,14 +83,13 @@ def test_codebook_builds_and_every_question_feeds_a_fact():
     assert pipeline.hash() != build(THRESHOLDS | {'final': 0.6}).hash()     # thresholds are part of the identity
 
 
-def test_every_step_sits_in_exactly_one_topic(monkeypatch):
+def test_every_node_names_a_known_topic():
     description = build(THRESHOLDS).describe()
-    placed = [s for t in description['topics'] for s in t['steps']]
-    assert sorted(placed) == sorted(description['step_order'])
-    from appeals.codebook import steps
-    monkeypatch.setitem(steps.TOPICS, 'Scope', steps.TOPICS['Scope'][:-1])
-    with pytest.raises(GraphError, match='L1d is in no topic'):
-        build(THRESHOLDS)
+    known = {t['id'] for t in description['topics']}
+    assert {n['topic'] for n in description['nodes'] if n['kind'] not in ('scan', 'base')} == known
+    _tiny()
+    with pytest.raises(GraphError, match="Q1 names no known topic"):
+        _tiny(topics={})
 
 
 def test_a_chain_keeps_its_whole_line_in_context_but_draws_one_edge_per_step():
@@ -200,7 +201,7 @@ def _quoted(value):
 
 def test_a_moot_question_is_not_stated_whatever_the_scan_says():
     pipeline = build(THRESHOLDS)
-    scan = {'D3': {'decided on the merits': 0.9, 'dismissed': 0.1}, 'D4': {'granted': 0.9, 'denied': 0.1}}
+    scan = {'C3': {'decided on the merits': 0.9, 'dismissed': 0.1}, 'C4': {'granted': 0.9, 'denied': 0.1}}
     steps = _facts(L5a={'final': _quoted('yes')}, L5b={'ended': _quoted('dismissed')})
     facts = layers.resolve(pipeline, scan, steps, '116-11-18 Vtec')
     assert facts['how_ended']['answer'] == 'dismissed'
@@ -210,7 +211,7 @@ def test_a_moot_question_is_not_stated_whatever_the_scan_says():
 
 def test_set_items_come_from_their_own_steps():
     pipeline = build(THRESHOLDS)
-    scan = {'A7.subdivision': {'yes': 0.8, 'no': 0.2}, 'A7.variance': {'yes': 0.7, 'no': 0.3}}
+    scan = {'K1.subdivision': {'yes': 0.8, 'no': 0.2}, 'K1.variance': {'yes': 0.7, 'no': 0.3}}
     steps = _facts(L3_subdivision={'at_issue': _quoted('no')})
     kinds = layers.resolve(pipeline, scan, steps)['permission_kinds']
     assert kinds['answer']['subdivision'] == 'no' and kinds['source']['subdivision'] == 'step'
@@ -220,9 +221,9 @@ def test_set_items_come_from_their_own_steps():
 
 def test_each_kind_of_judgment_standard_comes_from_its_own_step():
     pipeline = build(THRESHOLDS)
-    scan = {'C1': {'yes': 0.9, 'no': 0.1},
-            'C2.character': {'decided, disputed': 0.9, 'not at issue': 0.1},
-            'C2.traffic': {'decided, not disputed': 0.95, 'not at issue': 0.05}}
+    scan = {'G1': {'yes': 0.9, 'no': 0.1},
+            'G2.character': {'decided, disputed': 0.9, 'not at issue': 0.1},
+            'G2.traffic': {'decided, not disputed': 0.95, 'not at issue': 0.05}}
     steps = _facts(L7a={'stated': _quoted('yes')},
                    L8_character={'level': _quoted('decided, not disputed'), 'result': 'met', 'condition': 'no'})
     facts = layers.resolve(pipeline, scan, steps)
@@ -240,7 +241,7 @@ def test_a_result_without_a_verified_level_is_not_used():
     unverified = {'answer': 'decided, disputed', 'quotes': [{'doc': 1, 'page': 1, 'quote': 'x', 'verified': False}]}
     steps = _facts(L7a={'stated': _quoted('yes')},
                    L8_water={'level': unverified, 'result': 'not met', 'condition': 'yes'})
-    facts = layers.resolve(pipeline, {'C1': {'yes': 0.9}, 'C2.water': {'decided, disputed': 0.8}}, steps)
+    facts = layers.resolve(pipeline, {'G1': {'yes': 0.9}, 'G2.water': {'decided, disputed': 0.8}}, steps)
     assert facts['judgment_results']['answer']['water'] == NOT_STATED
     assert facts['judgment_grounds']['answer']['water'] == 'decided, disputed'        # the scan's answer
     assert layers.derive(pipeline, facts)['judgment_central'] == 'yes'
@@ -248,7 +249,7 @@ def test_a_result_without_a_verified_level_is_not_used():
 
 def test_grounds_are_not_stated_when_no_arguments_are():
     pipeline = build(THRESHOLDS)
-    facts = layers.resolve(pipeline, {'C1': {'yes': 0.1, 'no': 0.9}, 'C2.character': {'decided, disputed': 0.9}}, {})
+    facts = layers.resolve(pipeline, {'G1': {'yes': 0.1, 'no': 0.9}, 'G2.character': {'decided, disputed': 0.9}}, {})
     assert facts['judgment_grounds']['answer'] == NOT_STATED and facts['other_questions']['answer'] != NOT_STATED
     assert layers.derive(pipeline, facts)['judgment_central'] == NOT_STATED
 
@@ -295,25 +296,25 @@ IN_SCOPE_SCAN = {'S1': {'municipal permit application': 1.0}, 'S2': {'build a ne
 
 def test_flagged_items_get_a_prompt_for_how_sure_the_scan_was():
     pipeline = build(THRESHOLDS)
-    scan = {**IN_SCOPE_SCAN, 'A7.subdivision': {'yes': 0.9, 'no': 0.1}, 'A7.variance': {'yes': 0.45, 'no': 0.55},
-            'A7.site plan': {'yes': 0.2, 'no': 0.8}}
+    scan = {**IN_SCOPE_SCAN, 'K1.subdivision': {'yes': 0.9, 'no': 0.1}, 'K1.variance': {'yes': 0.45, 'no': 0.55},
+            'K1.site plan': {'yes': 0.2, 'no': 0.8}}
     steps = {s['step']: s for s in layers.plan(pipeline, scan)['steps']}
     assert steps['L3_subdivision']['runs'] and steps['L3_subdivision']['variant'] == 'scan fairly confident'
     assert steps['L3_variance']['runs'] and steps['L3_variance']['variant'] == 'scan uncertain'
-    assert layers.claim(pipeline, {'B1': {'denied': 0.6, 'approved': 0.4}}, 'B1').startswith('What did the municipal decision')
-    assert layers.claim(pipeline, {'B1': {'denied': 0.55, 'approved': 0.45}}, 'B1').endswith(
+    assert layers.claim(pipeline, {'T1': {'denied': 0.6, 'approved': 0.4}}, 'T1').startswith('What did the municipal decision')
+    assert layers.claim(pipeline, {'T1': {'denied': 0.55, 'approved': 0.45}}, 'T1').endswith(
         'The scan answered "denied" and was uncertain.')
 
 
 def test_the_base_states_every_scan_answer_and_a_step_repeats_only_its_own():
     pipeline = build(THRESHOLDS)
-    scan = {**IN_SCOPE_SCAN, 'B1': {'denied': 0.9, 'approved': 0.1}, 'D1': {'de novo': 0.9},
-            'A7.subdivision': {'yes': 0.9, 'no': 0.1}}
+    scan = {**IN_SCOPE_SCAN, 'T1': {'denied': 0.9, 'approved': 0.1}, 'C1': {'de novo': 0.9},
+            'K1.subdivision': {'yes': 0.9, 'no': 0.1}}
     base = pipeline.base.render('DOCKET', layers.claims(pipeline, scan))
     assert base.startswith(pipeline.base.framing.strip() + '\n\nDOCKET\n\n<scan>\n') and base.endswith('</scan>')
     assert '- How did the Environmental Court hear this appeal of the municipal decision? The scan answered "de novo"' in base
     assert 'Item: subdivision approval. The scan answered "yes" and was fairly confident.' in base
-    assert 'B1' not in base                                                   # no question IDs
+    assert 'T1' not in base                                                   # no question IDs
     prompt = layers.render_prompt(pipeline, pipeline.nodes['L3a'], '', scan)
     assert 'The scan answered "denied"' in prompt and 'How did the Environmental Court hear' not in prompt
 
@@ -321,9 +322,9 @@ def test_the_base_states_every_scan_answer_and_a_step_repeats_only_its_own():
 def test_a_step_confirms_the_scan_questions_it_states_or_reads():
     pipeline = build(THRESHOLDS)
     confirms = {s.id: s.confirms for s in pipeline.steps}
-    assert confirms['L6e'] == [] and confirms['L6f'] == ['F2', 'F3']
-    assert confirms['L8_traffic'] == ['C2'] and confirms['L3_variance'] == ['A7']
-    assert confirms['L7b'] == ['C4'] and confirms['L3b'] == []
+    assert confirms['L6e'] == [] and confirms['L6f'] == ['U4', 'U5']
+    assert confirms['L8_traffic'] == ['G2'] and confirms['L3_variance'] == ['K1']
+    assert confirms['L7b'] == ['G4'] and confirms['L3b'] == []
 
 
 def test_prompts_are_paragraphs_without_line_wrapping():
@@ -347,7 +348,7 @@ def test_none_found_needs_no_quote_and_is_recorded_as_no():
     stayed = pipeline.nodes['L11a'].returns
     assert stayed.validate({'stayed': {'answer': 'none found', 'quotes': []}}, '') == []
     assert stayed.validate({'stayed': {'answer': 'no', 'quotes': []}}, '')          # a stated no still needs its quote
-    scan = {**IN_SCOPE_SCAN, 'F1': {'yes': 0.7, 'no': 0.3}, 'A7.subdivision': {'yes': 0.8, 'no': 0.2}}
+    scan = {**IN_SCOPE_SCAN, 'D1': {'yes': 0.7, 'no': 0.3}, 'K1.subdivision': {'yes': 0.8, 'no': 0.2}}
     steps = {'L11a': {'answer': {'stayed': {'answer': 'none found', 'quotes': []}}},
              'L3_subdivision': {'answer': {'at_issue': {'answer': 'none found', 'quotes': []}}}}
     facts = layers.resolve(pipeline, scan, steps)
@@ -383,10 +384,10 @@ def _runs(pipeline, scan, step_id, answers):
 
 def test_a_kind_of_judgment_standard_is_followed_up_when_it_may_be_at_issue():
     pipeline = build(THRESHOLDS)
-    scan = {**IN_SCOPE_SCAN, 'C1': {'yes': 0.9, 'no': 0.1},
-            'C2.character': {'decided, disputed': 0.9, 'not at issue': 0.1},
-            'C2.traffic': {'not at issue': 0.55, 'raised only': 0.45},
-            'C2.historic': {'not at issue': 0.9, 'raised only': 0.1},
+    scan = {**IN_SCOPE_SCAN, 'G1': {'yes': 0.9, 'no': 0.1},
+            'G2.character': {'decided, disputed': 0.9, 'not at issue': 0.1},
+            'G2.traffic': {'not at issue': 0.55, 'raised only': 0.45},
+            'G2.historic': {'not at issue': 0.9, 'raised only': 0.1},
 }
     stated = {'L7a': {'stated': {'answer': 'yes', 'quotes': []}}}
     assert _runs(pipeline, scan, 'L8_character', stated) == (True, 'scan fairly confident')
@@ -401,10 +402,10 @@ def test_a_kind_of_judgment_standard_is_followed_up_when_it_may_be_at_issue():
 
 def test_other_questions_are_followed_up_at_a_higher_threshold():
     pipeline = build(THRESHOLDS)
-    scan = {**IN_SCOPE_SCAN, 'C1': {'yes': 0.9},
-            'C3.appeal': {'decided, disputed': 0.8, 'not at issue': 0.2},
-            'C3.process': {'not at issue': 0.55, 'raised only': 0.45},     # at issue 0.45: below 0.5, no follow-up
-            'C3.meaning': {'not at issue': 0.45, 'decided, disputed': 0.35, 'raised only': 0.2}}
+    scan = {**IN_SCOPE_SCAN, 'G1': {'yes': 0.9},
+            'G3.appeal': {'decided, disputed': 0.8, 'not at issue': 0.2},
+            'G3.process': {'not at issue': 0.55, 'raised only': 0.45},     # at issue 0.45: below 0.5, no follow-up
+            'G3.meaning': {'not at issue': 0.45, 'decided, disputed': 0.35, 'raised only': 0.2}}
     stated = {'L7a': {'stated': {'answer': 'yes', 'quotes': []}}}
     assert _runs(pipeline, scan, 'L9_appeal', stated) == (True, 'scan fairly confident')
     assert _runs(pipeline, scan, 'L9_process', stated)[0] is False
@@ -428,14 +429,14 @@ def test_what_was_central_reads_both_families():
 
 def test_other_questions_run_when_no_arguments_are_stated():
     pipeline = build(THRESHOLDS)
-    scan = {**IN_SCOPE_SCAN, 'C1': {'yes': 0.01, 'no': 0.99}, 'C3.appeal': {'decided, not disputed': 0.9}}
+    scan = {**IN_SCOPE_SCAN, 'G1': {'yes': 0.01, 'no': 0.99}, 'G3.appeal': {'decided, not disputed': 0.9}}
     assert _runs(pipeline, scan, 'L9_appeal', {}) == (True, 'scan fairly confident')
     assert not _runs(pipeline, scan, 'L7a', {})[0]                       # the grounds gate still holds
 
 
 def test_the_kind_of_relief_is_asked_only_when_relief_was_at_issue():
     pipeline = build(THRESHOLDS)
-    scan = {**IN_SCOPE_SCAN, 'C1': {'yes': 0.9}, 'C2.relief': {'decided, disputed': 0.8, 'not at issue': 0.2}}
+    scan = {**IN_SCOPE_SCAN, 'G1': {'yes': 0.9}, 'G2.relief': {'decided, disputed': 0.8, 'not at issue': 0.2}}
     at_issue = {'L8_relief': {'level': {'answer': 'decided, disputed', 'quotes': []}}}
     assert _runs(pipeline, scan, 'L8_relief_kind', at_issue)[0] is True
     assert _runs(pipeline, scan, 'L8_relief_kind', {'L8_relief': {'level': {'answer': 'not at issue', 'quotes': []}}})[0] is False
@@ -447,7 +448,7 @@ def test_each_challenged_condition_gets_its_own_answers():
              'L7d': {'answer': {'each': [{'item': 'a recreational easement', 'answer': {'challenged_by': _quoted('applicant or owner')}},
                                          {'item': 'a fence', 'answer': {'challenged_by': {'answer': 'municipality', 'quotes': []}}}]}},
              'L7e': {'answer': {'each': [{'item': 'a recreational easement', 'answer': {'outcome': _quoted('struck')}}]}}}
-    facts = layers.resolve(pipeline, {'C1': {'yes': 0.9}}, steps)
+    facts = layers.resolve(pipeline, {'G1': {'yes': 0.9}}, steps)
     assert facts['conditions_challenged_by']['answer'] == [{'condition': 'a recreational easement',
                                                             'challenged_by': 'applicant or owner'}]
     assert facts['conditions_challenged_by']['dropped'] == 1
@@ -463,7 +464,7 @@ def test_a_challenged_condition_needs_a_quote():
 def test_an_out_of_scope_row_keeps_only_its_scope_values():
     pipeline = build(THRESHOLDS)
     facts = layers.resolve(pipeline, {'S1': {'municipal enforcement': 1.0},
-                                      'B1': {'approved': 0.9, 'denied': 0.1}}, {}, '12-1-20 Vtec')
+                                      'T1': {'approved': 0.9, 'denied': 0.1}}, {}, '12-1-20 Vtec')
     derived = layers.derive(pipeline, facts)
     assert derived['in_scope'] is False and facts['town_decision']['answer'] == 'approved'      # the trace keeps it
     out = layers.row(pipeline, '12-1-20 Vtec', facts, derived)

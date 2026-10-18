@@ -219,7 +219,7 @@ def _write_data(store, description, layout, records, folder):
 
 
 def _reported(record, nid):
-    """Whether a docket's row reports a node: the scope area always, the rest only when in scope."""
+    """Whether a docket's row reports a node: the scope topic always, the rest only when in scope."""
     row = record.get('row')
     return row is not None and row.get(nid) != OUT_OF_SCOPE
 

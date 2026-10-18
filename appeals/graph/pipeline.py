@@ -9,19 +9,8 @@ from collections import defaultdict, deque
 import hashlib
 import json
 
-from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, ChoiceSet, Derive, Gate, Question, Step, YesNoSet
+from appeals.graph.nodes import LAYER_GUIDE, LAYERS, Base, ChoiceSet, Derive, Gate, Question, Scan, Step, YesNoSet
 from appeals.graph.values import ListOf
-
-AREAS = {
-    'scope': 'Scope',
-    'A': 'A · Which decisions',
-    'B': 'B · Who appeals',
-    'C': 'C · Grounds',
-    'D': 'D · The court',
-    'E': 'E · How long',
-    'F': 'F · Cost to housing',
-}
-
 
 class GraphError(Exception):
     pass
@@ -37,7 +26,7 @@ class Pipeline:
         self.gates = gates
         self.base = base
         self.steps = steps            # in execution order
-        self.topics = {title: [s.id for s in members] for title, members in (topics or {}).items()}  # rows, for reading
+        self.topics = dict(topics or {})      # topic ID → title, in reading order
         self.fields = fields
         self.derives = derives
         self.proceed = proceed        # expression: does a docket go on to the reasoning steps?
@@ -65,7 +54,7 @@ class Pipeline:
     # ---- edges -----------------------------------------------------------------
 
     def _node_for(self, ref):
-        """A reference to a set item ("C2.traffic") is an edge from the set ("C2")."""
+        """A reference to a set item ("G2.traffic") is an edge from the set ("G2")."""
         if ref in self.nodes:
             return ref
         stem = ref.split('.')[0]
@@ -119,11 +108,9 @@ class Pipeline:
         for node in self.nodes.values():
             if isinstance(node, (Question, YesNoSet, ChoiceSet, Step)) and node.id not in reaches:
                 problems.append(f'{node.id} feeds no fact or derived value')
-        if self.topics:
-            placed = [sid for members in self.topics.values() for sid in members]
-            for sid in {s.id for s in self.steps} ^ set(placed):
-                problems.append(f'{sid} is in no topic' if sid in self.nodes else f'topic step {sid} is not a step')
-            problems += [f'{sid} is in more than one topic' for sid in sorted({x for x in placed if placed.count(x) > 1})]
+        for node in self.nodes.values():
+            if not isinstance(node, (Scan, Base)) and node.topic not in self.topics:
+                problems.append(f'{node.id} names no known topic ({node.topic!r})')
         position = {s.id: i for i, s in enumerate(self.steps)}
         for step in self.steps:
             for ref in step.refs():
@@ -233,13 +220,12 @@ class Pipeline:
             'description': self.description,
             'layers': LAYERS[1:],
             'layer_guide': LAYER_GUIDE,
-            'areas': AREAS,
             'thresholds': self.thresholds,
             'proceed': self.proceed.text(),
             'in_scope': self.in_scope,
             'conventions': self.conventions,
             'step_order': [s.id for s in self.steps],
-            'topics': [{'title': t, 'steps': members} for t, members in self.topics.items()],
+            'topics': [{'id': t, 'title': title} for t, title in self.topics.items()],
             'nodes': [n.describe() for n in self.nodes.values()],
             'edges': self.edges,
         }

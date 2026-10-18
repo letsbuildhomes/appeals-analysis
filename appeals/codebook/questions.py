@@ -4,6 +4,7 @@ Each question is self-contained: the decision model sees only its text and
 options, never its ID. IDs and answer sets follow docs/PIPELINE.md.
 """
 
+from appeals.codebook import topics
 from appeals.graph.nodes import ChoiceSet, Question, YesNoSet
 
 NOT_STATED = 'not stated'
@@ -11,7 +12,7 @@ NS = 'The documents do not establish it.'
 
 # ---- Scope ---------------------------------------------------------------------------
 
-S1 = Question('S1', 'scope',
+S1 = Question('S1', topics.SCOPE,
     ask='What kind of proceeding is this docket? Answer for the decision appealed in this docket.',
     options={'municipal permit application': 'An appeal of a decision by a municipal body or officer (such as a '
                  'development review board, planning commission, zoning board of adjustment or zoning '
@@ -41,7 +42,7 @@ S1 = Question('S1', 'scope',
     why='The study covers appeals of municipal decisions on applications for permission. The other kinds show what '
         'the rest of the court\'s docket is, and the stormwater and wastewater permits are of separate interest.')
 
-S2 = Question('S2', 'scope',
+S2 = Question('S2', topics.SCOPE,
     ask='Physically, what would the permission at issue allow?',
     options={'build a new structure': 'Constructing a new building or structure.',
              'place a structure': 'Placing a structure, such as a mobile home.',
@@ -52,14 +53,14 @@ S2 = Question('S2', 'scope',
              NOT_STATED: NS},
     why='Scope comes from what would be built, placed, converted or subdivided.')
 
-S3 = Question('S3', 'scope',
+S3 = Question('S3', topics.SCOPE,
     ask='Will the structure, building or lots at issue be used for housing (dwelling units where people live)?',
     options={'yes': 'The documents say the structure or lots are for housing.',
              'no': 'The use is not housing, such as commercial, industrial or accessory use.',
              NOT_STATED: NS},
     why='New housing must be explicit in the documents.')
 
-S4 = Question('S4', 'scope',
+S4 = Question('S4', topics.SCOPE,
     ask='Does the project add dwelling units, replace existing dwelling units one for one, or neither?',
     options={'adds': 'It adds one or more dwelling units.',
              'replaces': 'It replaces existing dwelling units, such as rebuilding a house or replacing a mobile home.',
@@ -70,12 +71,12 @@ S4 = Question('S4', 'scope',
 
 # ---- A · Which decisions -------------------------------------------------------------
 
-A1 = Question('A1', 'A',
+F1 = Question('F1', topics.FILING,
     ask='Does any document state the date this appeal was filed with the court (the notice of appeal)?',
     options={'yes': 'A document states when the appeal was filed.', 'no': 'No document states the filing date.'},
     why='The filing date starts the duration. When it is not stated, the earliest dated event is used instead.')
 
-A4 = Question('A4', 'A',
+U1 = Question('U1', topics.UNITS,
     ask='Do the documents state how many new dwelling units the project would add? Existing units that would remain '
         'are not part of that number.',
     options={'yes': 'The number of dwelling units the project would add is stated, or can be read directly from '
@@ -83,18 +84,18 @@ A4 = Question('A4', 'A',
              'no': 'The documents do not say how many units the project would add.'},
     why='Units added are the measure of new housing. Decides whether the counts steps run.')
 
-A5 = Question('A5', 'A',
+U2 = Question('U2', topics.UNITS,
     ask='Is the appeal limited to part of the proposal, such as some areas, phases or units?',
     options={'yes': 'Only part of the proposal is under appeal.', 'no': 'The whole proposal is under appeal.',
              NOT_STATED: NS},
     why='The units at stake may be fewer than the units proposed.')
 
-A6 = Question('A6', 'A',
+U3 = Question('U3', topics.UNITS,
     ask='Do the documents state how many new building lots for housing the application would create?',
     options={'yes': 'A number of new housing lots is stated.', 'no': 'No number of new housing lots is stated.'},
     why='Subdivisions create housing capacity before any house is proposed.')
 
-A7 = YesNoSet('A7', 'A',
+K1 = YesNoSet('K1', topics.KINDS,
     ask='Is this kind of municipal permission at issue in this appeal?',
     items={'subdivision': 'subdivision approval', 'site plan': 'site plan approval',
            'planned development': 'planned unit development or master plan approval',
@@ -105,7 +106,7 @@ A7 = YesNoSet('A7', 'A',
 
 # ---- B · Who appeals -------------------------------------------------------------------
 
-B1 = Question('B1', 'B',
+T1 = Question('T1', topics.TOWN,
     ask='What did the municipal decision appealed to this court decide on the application? When several municipal '
         'bodies decided in turn, this is the last decision, the one appealed to the court.',
     options={'approved': 'Approved the application as proposed, without conditions. A deemed approval, where the '
@@ -117,7 +118,7 @@ B1 = Question('B1', 'B',
              NOT_STATED: NS},
     why='What the appeal is against. The outcomes are exclusive, so one question asks for one of them.')
 
-B2 = Question('B2', 'B',
+A1 = Question('A1', topics.APPELLANTS,
     ask='Are all of the appellants in this docket named, rather than only "X, et al." or a similar unnamed group?',
     options={'yes': 'Every appellant is named.', 'no': 'Some appellants are not named.'},
     why='Whether the list of appellants can be complete.')
@@ -126,7 +127,7 @@ B2 = Question('B2', 'B',
 # ---- C · Grounds ----------------------------------------------------------------------
 # The definitions here were settled by the grounds experiments (scored against a 46-docket answer key).
 
-C1 = Question('C1', 'C',
+G1 = Question('G1', topics.GROUNDS,
     ask='Do the documents say what the appellant argued in this appeal?',
     options={'yes': 'The appellant\'s arguments are described.',
              'no': 'The documents do not say what the appellant argued, for example a dismissal on procedural grounds.'},
@@ -179,7 +180,7 @@ GROUP_NAMES = {'character': 'character and fit', 'historic': 'historic', 'neighb
                'traffic': 'traffic and services', 'water': 'water and environment', 'site': 'site design',
                'relief': 'dimensional relief (variances and waivers)'}
 
-C2 = ChoiceSet('C2', 'C',
+G2 = ChoiceSet('G2', topics.GROUNDS,
     ask=f'The kind of standard: {{item}}. How far did this docket get with a standard of this kind? {JUDGMENT} '
         f'{FURTHEST}',
     items=GROUPS, options=LEVELS, null='not at issue',
@@ -247,14 +248,14 @@ OTHER_NAMES = {'measurable': 'measurable rules', 'meaning': 'allowed use and def
                'appeal': 'who can appeal', 'earlier': 'earlier permits and approvals', 'property': 'property rights',
                'claims': 'constitutional and equitable claims', 'permits': 'other permits'}
 
-C3 = ChoiceSet('C3', 'C',
+G3 = ChoiceSet('G3', topics.GROUNDS,
     ask=f'The kind of question: {{item}}. How far did this docket get with a question of this kind? Count it only '
         f'for this docket\'s appeal. {FURTHEST}',
     items=OTHER_KINDS, options=OTHER_LEVELS, null='not at issue',
     why='Every other kind of question the appeal dealt with, so the appeals without a central judgment standard show '
         'what they turned on, and a docket can show several kinds at once.')
 
-C4 = Question('C4', 'C',
+G4 = Question('G4', topics.GROUNDS,
     ask='Did a party challenge a condition the municipality attached to the permit, or ask the court to add, change or '
         'remove one, arguing whether it should be imposed or how strict it should be? A dispute over whether a '
         'condition was met, or what it means, does not count, nor do conditions an applicant offers that no party '
@@ -266,21 +267,21 @@ C4 = Question('C4', 'C',
 
 # ---- D · The court ---------------------------------------------------------------------
 
-D1 = Question('D1', 'D',
+C1 = Question('C1', topics.COURT,
     ask='How did the Environmental Court hear this appeal of the municipal decision?',
     options={'de novo': 'The court heard the matter anew, taking its own evidence and deciding the application itself.',
              'on the record': 'The court reviewed the municipal record and findings (an on-the-record appeal).',
              NOT_STATED: NS},
     why='De novo review gives opponents a second full hearing.')
 
-D2 = Question('D2', 'D',
+C2 = Question('C2', topics.COURT,
     ask='Do the documents include a decision of the Environmental Court that leaves nothing pending in this docket?',
     options={'yes': 'A decision ends the docket in this court: a final judgment, dismissal, approved settlement or '
                     'withdrawal.',
              'no': 'Only interim rulings appear; something is still pending.'},
     why='The first final decision ends the duration.')
 
-D3 = Question('D3', 'D',
+C3 = Question('C3', topics.COURT,
     ask='If a decision ended this docket, how did it end?',
     options={'decided on the merits': 'The court decided the appeal on its merits.',
              'dismissed': 'The appeal was dismissed without a decision on the merits.',
@@ -288,14 +289,14 @@ D3 = Question('D3', 'D',
              NOT_STATED: 'No decision ended the docket, or how it ended is not stated.'},
     why='What the court did.')
 
-D4 = Question('D4', 'D',
+C4 = Question('C4', topics.COURT,
     ask='If the court decided the appeal on its merits, what did it do with the application?',
     options={'granted': 'Granted or approved it.', 'granted with conditions': 'Granted or approved it with conditions.',
              'denied': 'Denied it.', 'sent back': 'Sent it back (remanded) to the municipality.',
              NOT_STATED: 'Not decided on the merits, or not stated.'},
     why='Compared with the town\'s decision, shows whether the appeal changed the outcome.')
 
-D5 = Question('D5', 'D',
+C5 = Question('C5', topics.COURT,
     ask='If the appeal was dismissed, on what basis?',
     options={'standing': 'The appellant lacked standing.', 'timeliness': 'The appeal was late.',
              'jurisdiction': 'The court lacked jurisdiction.', 'mootness': 'The appeal was moot.',
@@ -305,30 +306,30 @@ D5 = Question('D5', 'D',
 
 # ---- F · Cost to housing -----------------------------------------------------------------
 
-F1 = Question('F1', 'F',
+D1 = Question('D1', topics.STAY_DESIGN,
     ask='Did the court order construction stopped or stay the permit while the appeal was pending?',
     options={'yes': 'The court stopped construction or stayed the permit.', 'no': 'No such order appears.'},
     why='Whether the appeal paused the project by court order.')
 
-F2 = Question('F2', 'F',
+U4 = Question('U4', topics.UNITS,
     ask='Compared with what the municipality approved, did the court\'s result change the number of new dwelling '
         'units the project would add?',
     options={'more': 'More units added than the municipality approved.', 'fewer': 'Fewer units added.',
              'same': 'The same number.', NOT_STATED: NS},
     why='The appeal\'s effect on the town\'s decision.')
 
-F3 = Question('F3', 'F',
+U5 = Question('U5', topics.UNITS,
     ask='Compared with what the application proposed, did the court\'s result change the number of new dwelling '
         'units the project would add?',
     options={'more': 'More units added than proposed.', 'fewer': 'Fewer units added.', 'same': 'The same number.',
              NOT_STATED: NS},
     why='The appeal\'s effect on the original proposal.')
 
-F5 = Question('F5', 'F',
+D2 = Question('D2', topics.STAY_DESIGN,
     ask='Did the court impose conditions that change the buildings\' size or design?',
     options={'yes': 'The court imposed such conditions.', 'no': 'It did not.'},
     why='Design changes the court imposed, short of denial.')
 
 
-ALL = [S1, S2, S3, S4, A1, A4, A5, A6, A7, B1, B2, C1, C2, C3, C4, D1, D2, D3, D4, D5,
-       F1, F2, F3, F5]
+ALL = [S1, S2, S3, S4, F1, U1, U2, U3, K1, T1, A1, G1, G2, G3, G4, C1, C2, C3, C4, C5,
+       D1, U4, U5, D2]

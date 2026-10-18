@@ -81,7 +81,7 @@ execution, renders as a diagram, and checks itself.
   over the same docket text. The questions run in parallel and can't see each
   other's answers. Each answer comes back as a probability or a probability
   distribution.
-- **`Gate`**: a condition over earlier answers, such as "C1 is yes with a
+- **`Gate`**: a condition over earlier answers, such as "G1 is yes with a
   probability of at least 0.3". A gate is written as a small expression
   object, not a function, so code can evaluate it and the diagram can show it
   as text.
@@ -122,6 +122,7 @@ with structured output. Nothing else in the code names a model.
 The graph refuses to build when:
 - it has a cycle,
 - a `Question` or `Step` feeds no `Field` or `Derive`,
+- a node names no known topic,
 - a gate refers to something that doesn't exist, or
 - a structured field has no scoring rule.
 
@@ -163,8 +164,8 @@ scope, goes in long-context mode. The threshold is set in the configuration.
 
 A small web app over the stored runs, with two views:
 
-- **Graph**: the extraction graph, one row per topic (the steps about one
-  subject, read together), with columns for the scan, gates, steps, facts
+- **Graph**: the extraction graph, one row per topic (every node names
+  one, in `codebook/topics.py`), with columns for the scan, gates, steps, facts
   and derived values. A conversation reads top to bottom, like a transcript.
   Clicking a box lights its neighbours (or, with Trace lineage, everything up
   and down the line) and opens a panel with its question, options, condition,
@@ -173,7 +174,7 @@ A small web app over the stored runs, with two views:
   (`static/vendor/elk.bundled.js`, EPL-2.0, license beside it) lays out the
   rows and routes the lines.
 - **Case**: one docket's text with every cited quote highlighted, beside the
-  answers that cite it. Reference answers are shown alongside where they exist.
+  facts that cite it, grouped by topic. Reference answers are shown alongside where they exist.
 
 The dashboard only reads stored data and never changes it.
 

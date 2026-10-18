@@ -27,11 +27,11 @@ Is this docket a municipal appeal about new housing?
 
 Columns that answer it:
 
-- `in_scope` (X1): In scope
-- `proceeding` (S1): Kind of proceeding
-- `physical_change` (S2): What the permission allows
-- `housing_use` (S3): Used for housing
-- `units_effect` (S4): Adds or replaces units
+- `in_scope`: In scope
+- `proceeding`: Kind of proceeding
+- `physical_change`: What the permission allows
+- `housing_use`: Used for housing
+- `units_effect`: Adds or replaces units
 
 **How many dockets were studied, how many are in scope, and how many failed?**
 
@@ -58,16 +58,16 @@ When the appeal was filed, in which town, how many units added and lots, what ki
 
 Columns that answer it:
 
-- `filing_date` (A1): Filing date
-- `earliest_event` (A2): Earliest dated event
-- `docket_filing` (A2): Filing month or year from the docket number
-- `municipality` (A3): Municipality
-- `place_within_town` (A3): Place within the town
-- `units_added_proposed` (A4): Units added: proposed
-- `appeal_partial` (A5): Appeal covers only part
-- `units_added_under_appeal` (A5): Units added: under appeal
-- `housing_lots` (A6): New housing lots
-- `permission_kinds` (A7): Kinds of permission
+- `filing_date`: Filing date
+- `earliest_event`: Earliest dated event
+- `docket_filing`: Filing month or year from the docket number
+- `municipality`: Municipality
+- `place_within_town`: Place within the town
+- `units_added_proposed`: Units added: proposed
+- `appeal_partial`: Appeal covers only part
+- `units_added_under_appeal`: Units added: under appeal
+- `housing_lots`: New housing lots
+- `permission_kinds`: Kinds of permission
 
 **How many appeals were filed each year? (the filing date, else the docket number)**
 
@@ -103,13 +103,13 @@ Whether the town approved or denied, who the appellants are, whether they had la
 
 Columns that answer it:
 
-- `town_decision` (B1): Town's decision
-- `town_decision_date` (B1): Date of the town's decision
-- `appellant_mix` (X6): Appellant mix
-- `appellants_named` (B2): All appellants named
-- `appellants` (B3): Appellants
-- `appellant_lawyers` (B4): Appellants' representation
-- `units_added_town_approved` (B5): Units added: town approved
+- `town_decision`: Town's decision
+- `town_decision_date`: Date of the town's decision
+- `appellant_mix`: Appellant mix
+- `appellants_named`: All appellants named
+- `appellants`: Appellants
+- `appellant_lawyers`: Appellants' representation
+- `units_added_town_approved`: Units added: town approved
 
 **Who appeals which town decisions? (appeals with at least one neighbor appellant)**
 
@@ -137,20 +137,20 @@ Whether the appeal turned on standards that leave the outcome to judgment, which
 
 Columns that answer it:
 
-- `arguments_stated` (C1): Arguments stated
-- `judgment_grounds` (C2): Judgment standards: how far each got
-- `judgment_results` (C2): Judgment standards: the court's result
-- `judgment_conditions` (C2): Judgment standards: dispute about a condition
-- `relief_kind` (C2): Kind of dimensional relief
-- `other_questions` (C3): Other questions: how far each got
-- `conditions_challenged` (C4): A condition was challenged
-- `conditions_challenged_by` (C4): Who challenged each condition
-- `conditions_outcome` (C4): What the court did with each condition
-- `judgment_central` (X7): A judgment standard was central
-- `judgment_at_issue` (X8): A judgment standard was at issue
-- `what_was_central` (X9): What was central
+- `arguments_stated`: Arguments stated
+- `judgment_grounds`: Judgment standards: how far each got
+- `judgment_results`: Judgment standards: the court's result
+- `judgment_conditions`: Judgment standards: dispute about a condition
+- `relief_kind`: Kind of dimensional relief
+- `other_questions`: Other questions: how far each got
+- `conditions_challenged`: A condition was challenged
+- `conditions_challenged_by`: Who challenged each condition
+- `conditions_outcome`: What the court did with each condition
+- `judgment_central`: A judgment standard was central
+- `judgment_at_issue`: A judgment standard was at issue
+- `what_was_central`: What was central
 
-Central (X7) means disputed and decided; at issue (X8) is broader. Report both, and keep "not stated" (arguments not described) apart from "no".
+Central (`judgment_central`) means disputed and decided; at issue (`judgment_at_issue`) is broader. Report both, and keep "not stated" (arguments not described) apart from "no".
 
 **How often was a judgment standard central to the appeal?**
 
@@ -206,12 +206,12 @@ How the court heard the appeal, and how the docket ended.
 
 Columns that answer it:
 
-- `review_standard` (D1): Review standard
-- `final_decision` (D2): A decision ends the docket
-- `how_ended` (D3): How the docket ended
-- `court_result` (D4): What the court did
-- `dismissal_basis` (D5): Dismissal basis
-- `court_changed_outcome` (X2): Court ended somewhere different from the town
+- `review_standard`: Review standard
+- `final_decision`: A decision ends the docket
+- `how_ended`: How the docket ended
+- `court_result`: What the court did
+- `dismissal_basis`: Dismissal basis
+- `court_changed_outcome`: Court ended somewhere different from the town
 
 **How did dockets end, and what did the court do?**
 
@@ -239,9 +239,9 @@ Days from filing (or the town's decision, when no filing date is stated) to the 
 
 Columns that answer it:
 
-- `duration` (X4): Duration in days
-- `final_decision_date` (E1): Date of the first final decision
-- `latest_order_date` (E2): Date of the latest order
+- `duration`: Duration in days
+- `final_decision_date`: Date of the first final decision
+- `latest_order_date`: Date of the latest order
 
 **How long do appeals take? (median days by filing year; exact durations and lower bounds kept apart)**
 
@@ -259,16 +259,16 @@ Stays, unit changes and design changes the court imposed, and where permission e
 
 Columns that answer it:
 
-- `stayed` (F1): Court stayed the permit
-- `stay_start` (F1): Stay start
-- `stay_end` (F1): Stay end
-- `units_vs_town` (F2): Units added vs the town's decision
-- `units_vs_application` (F3): Units added vs the application
-- `units_added_court_approved` (F4): Units added: court approved
-- `design_changed` (F5): Court changed size or design
-- `design_change` (F5): The size or design change
-- `unit_change` (X3): Change in units added
-- `last_permission` (X5): Last observed permission
+- `stayed`: Court stayed the permit
+- `stay_start`: Stay start
+- `stay_end`: Stay end
+- `units_vs_town`: Units added vs the town's decision
+- `units_vs_application`: Units added vs the application
+- `units_added_court_approved`: Units added: court approved
+- `design_changed`: Court changed size or design
+- `design_change`: The size or design change
+- `unit_change`: Change in units added
+- `last_permission`: Last observed permission
 
 **Where did permission end up after the appeal?**
 

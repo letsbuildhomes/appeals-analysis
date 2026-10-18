@@ -139,46 +139,22 @@ function buildModel() {
   // What a line is drawn between: a step in a set is drawn as its set.
   const shown = id => (groupOf[id]?.startsWith('set:') ? groupOf[id] : id);
 
-  // Rows: the pipeline's topics. A pipeline stored before topics borrows the current ones for the steps they
-  // share; any other step gets a row of its own step number.
-  let topics = graph.topics;
-  if (!topics?.length) {
-    topics = (current.topics || []).map(t => ({ title: t.title, steps: t.steps.filter(s => byId[s]) }));
-    for (const id of order.filter(s => !topics.some(t => t.steps.includes(s)))) {
-      const key = id.match(/^L\d+/)?.[0] || id;
-      let t = topics.find(x => x.key === key);
-      if (!t) topics.push(t = { key, title: key, steps: [] });
-      t.steps.push(id);
-    }
-    topics = topics.filter(t => t.steps.length);
-  }
+  // Rows: the pipeline's topics, in order; every node names its own. A node with no known topic (from a
+  // pipeline stored before nodes named one) goes in a last row of its own.
+  const topics = (graph.topics || []).map(t => ({ ...t }));
+  const index = Object.fromEntries(topics.map((t, i) => [t.id, i]));
   const row = {};
-  topics.forEach((t, i) => t.steps.forEach(s => { row[s] = i; }));
-  for (const g of Object.values(groups)) g.steps.forEach(s => { row[s] = row[g.steps[0]]; });
-
-  const lines = graph.edges.filter(e => LINES.includes(e.kind) && byId[e.from] && byId[e.to]);
-  const ins = {}, outs = {};
-  for (const e of lines) { (ins[e.to] = ins[e.to] || []).push(e.from); (outs[e.from] = outs[e.from] || []).push(e.to); }
-  const placed = (ids, pick) => {
-    const rows = (ids || []).map(x => row[x]).filter(r => r !== undefined);
-    return rows.length ? pick(...rows) : undefined;
-  };
-  const kinds = k => graph.nodes.filter(n => k.includes(n.kind)).map(n => n.id);
-  // Each node goes in the row it belongs with: a gate with the first steps it opens, a fact with the steps that
-  // settle it, a scan question with the first row that reads it, a derived value with the last row it reads.
-  for (const id of kinds(['gate'])) row[id] = placed(outs[id], Math.min);
-  for (const id of kinds(['field'])) row[id] = placed((ins[id] || []).filter(x => byId[x].kind === 'step'), Math.max);
-  for (const id of kinds(['question', 'question set', 'choice set'])) row[id] = placed(outs[id], Math.min);
-  for (const id of kinds(['field'])) if (row[id] === undefined) row[id] = placed(ins[id], Math.max);
-  for (const id of kinds(['gate'])) if (row[id] === undefined) row[id] = placed(ins[id], Math.min);
-  for (let pass = 0; pass < 3; pass++) for (const id of kinds(['derive'])) row[id] = placed(ins[id], Math.max) ?? row[id];
-  const firstOfArea = area => {
-    const step = order.find(s => byId[s].area === area);
-    return step === undefined ? 0 : row[step];
-  };
-  for (const id of Object.keys(byId)) {
-    if (row[id] === undefined && COLUMN_OF[byId[id].kind] !== undefined) row[id] = firstOfArea(byId[id].area);
+  for (const n of Object.values(byId)) {
+    if (COLUMN_OF[n.kind] === undefined) continue;
+    if (index[n.topic] === undefined) {
+      index[n.topic] = topics.length;
+      topics.push({ id: n.topic, title: 'Other' });
+    }
+    row[n.id] = index[n.topic];
   }
+  for (const g of Object.values(groups)) g.steps.forEach(s => { row[s] = row[g.steps[0]]; });
+  topics.forEach((t, i) => { t.steps = order.filter(s => row[s] === i); });
+  const lines = graph.edges.filter(e => LINES.includes(e.kind) && byId[e.from] && byId[e.to]);
 
   // The things drawn: nodes, groups; and the lines between them, merged where several join the same two boxes.
   const items = {};
@@ -199,7 +175,7 @@ function buildModel() {
   for (const w of Object.values(wires)) {
     if (COLUMN_OF[byId[w.from]?.kind] === 0 && byId[w.to]?.kind === 'field') w.kind = 'scan';
   }
-  return { byId, order, children, groups, groupOf, shown, topics, row, items, wires: Object.values(wires), lines, ins, outs };
+  return { byId, order, children, groups, groupOf, shown, topics, row, items, wires: Object.values(wires), lines };
 }
 
 // ---- sizes --------------------------------------------------------------------------
@@ -853,9 +829,10 @@ function expression(text) {
   return el('pre', { class: 'code' }, out);
 }
 
-// Facts go by their field name, which is also their column in a release; the rest by their code.
+// Every box goes by its ID: a question's or a step's short ID, or a fact's or derived value's field name, which is
+// also its column in a release.
 function code(n) {
-  return n.kind === 'field' ? n.id : n.code || n.id;
+  return n.id;
 }
 
 function prose(text) {

@@ -1,5 +1,5 @@
 // The case view: one docket's text beside the answers that cite it.
-import { api, el, short, header, AREA_ORDER, params, setParams } from '/common.js';
+import { api, el, short, header, params, setParams } from '/common.js';
 
 let graph, current = null, runId = null;
 
@@ -71,16 +71,16 @@ async function renderAnswers(docket) {
   const plan = records.plan?.value;
   if (plan) box.append(el('p', { class: 'why' }, plan.proceeds ? `Proceeded: ${plan.calls} reasoning calls.` : 'Stopped after the scan: not in scope.'));
   const nodes = graph.nodes;
-  for (const area of AREA_ORDER) {
-    const items = nodes.filter(n => n.area === area && (n.kind === 'field' || n.kind === 'derive'));
+  for (const topic of graph.topics) {
+    const items = nodes.filter(n => n.topic === topic.id && (n.kind === 'field' || n.kind === 'derive'));
     if (!items.length) continue;
-    box.append(el('h3', {}, graph.areas[area]));
+    box.append(el('h3', {}, topic.title));
     for (const n of items) {
       const f = n.kind === 'field' ? facts[n.id] : { answer: derived[n.id], source: 'derived', quotes: [] };
       if (!f) continue;
       const ref = docket.reference[n.id];
       box.append(el('div', { class: 'fact' },
-        el('div', { class: 'lbl' }, el('code', {}, n.code || n.id), n.label,
+        el('div', { class: 'lbl' }, el('code', {}, n.id), n.label,
           el('span', { class: 'src' }, typeof f.source === 'string' ? f.source : 'mixed')),
         el('div', { class: 'ans' }, short(f.answer, 120) || '—'),
         ref !== undefined ? el('div', { class: 'ref' }, `reference: ${short(ref, 80)}`) : null,

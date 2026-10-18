@@ -65,13 +65,13 @@ def released(tmp_path):
 def test_every_value_type_has_a_place_in_the_tables():
     yes_no = {'type': 'one of', 'options': {'yes': '', 'no': ''}}
     nodes = [
-        {'id': 'kind', 'kind': 'field', 'area': 'A', 'value_type': yes_no},
-        {'id': 'when', 'kind': 'field', 'area': 'A', 'value_type': {'type': 'date'}},
-        {'id': 'items', 'kind': 'field', 'area': 'A', 'value_type': {'type': 'record', 'fields': {'x': yes_no, 'y': yes_no}}},
-        {'id': 'people', 'kind': 'field', 'area': 'B', 'value_type': {
+        {'id': 'kind', 'kind': 'field', 'topic': 'filing', 'value_type': yes_no},
+        {'id': 'when', 'kind': 'field', 'topic': 'filing', 'value_type': {'type': 'date'}},
+        {'id': 'items', 'kind': 'field', 'topic': 'filing', 'value_type': {'type': 'record', 'fields': {'x': yes_no, 'y': yes_no}}},
+        {'id': 'people', 'kind': 'field', 'topic': 'appellants', 'value_type': {
             'type': 'list', 'not_stated': True, 'item': {'type': 'record', 'fields': {'name': {'type': 'name'},
                                                                                      'role': yes_no}}}},
-        {'id': 'D', 'kind': 'derive', 'area': 'E', 'value_type': {'type': 'record', 'fields': {
+        {'id': 'D', 'kind': 'derive', 'topic': 'court', 'value_type': {'type': 'record', 'fields': {
             'days': {'type': 'count'}, 'start': {'type': 'or not stated', 'value': {'type': 'record', 'fields': {
                 'date': {'type': 'date'}}}}, 'mix': {'type': 'counts by', 'options': {'a': '', 'b': ''}}}}},
     ]
@@ -90,9 +90,9 @@ def test_every_value_type_has_a_place_in_the_tables():
 
 def test_a_type_without_a_rule_or_a_name_used_twice_stops_the_layout():
     with pytest.raises(schema.LayoutError, match='no release rule'):
-        schema.layout({'nodes': [{'id': 'x', 'kind': 'field', 'area': 'A', 'value_type': {'type': 'mystery'}}]})
+        schema.layout({'nodes': [{'id': 'x', 'kind': 'field', 'topic': 'filing', 'value_type': {'type': 'mystery'}}]})
     with pytest.raises(schema.LayoutError, match='used twice'):
-        schema.layout({'nodes': [{'id': 'status', 'kind': 'field', 'area': 'A', 'value_type': {'type': 'count'}}]})
+        schema.layout({'nodes': [{'id': 'status', 'kind': 'field', 'topic': 'filing', 'value_type': {'type': 'count'}}]})
 
 
 def test_the_current_codebook_lays_out():
@@ -189,9 +189,11 @@ def test_the_guide_explains_columns_and_the_pipeline(released):
     assert o['release']['current'] and 'research_questions' not in o and o['conventions']
     assert guide.describe(release, 'court_result')['columns'][0]['options']
     assert 'index' in guide.describe(release)
-    d4 = guide.explain(release, 'D4')
-    assert [n['id'] for n in d4['explains']] == ['court_result']
-    assert {'D4', 'L5c', 'base'} <= {n['id'] for n in d4['upstream']}
+    result = guide.explain(release, 'court_result')
+    assert [n['id'] for n in result['explains']] == ['court_result']
+    assert {'C4', 'L5c', 'base'} <= {n['id'] for n in result['upstream']}
+    assert 'court_result' in guide.explain(release, 'C4')['used_by']       # a scan question by its ID
+    assert guide.describe(release, 'The court\'s decision')['columns']        # a topic
     flow = guide.explain(release, 'pipeline')
     assert flow['steps_in_order'] and all(layer['what_happens'] for layer in flow['layers'])
 

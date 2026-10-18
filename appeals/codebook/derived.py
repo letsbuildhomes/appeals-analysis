@@ -8,6 +8,7 @@ from datetime import date
 
 from appeals.codebook import fields as F
 from appeals.codebook import steps as L
+from appeals.codebook import topics
 from appeals.graph.nodes import Derive
 from appeals.graph.values import (NOT_STATED, Boolean, Count, CountsBy, DateValue, Integer, OneOf, OrNotStated,
                                   Record, Text, YesNo)
@@ -128,51 +129,51 @@ def appellant_mix(v):
     return {'count': count, 'roles': roles, 'representation': representation, 'representation_of': len(first)}
 
 
-X1 = Derive('in_scope', 'scope', code='X1', label='In scope', type=Boolean(),
-            inputs=[F.proceeding, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
-            notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change."])
-X2 = Derive('court_changed_outcome', 'D', code='X2', label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
-            inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome,
-            notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".'])
-X3 = Derive('unit_change', 'F', code='X3', label='Change in units added',
-            type=Record(vs_town=Integer(), vs_application=Integer(), direction_vs_town=F.units_vs_town.type,
-                        direction_vs_application=F.units_vs_application.type),
-            inputs=[F.units_added_court_approved, F.units_added_town_approved, F.units_added_proposed,
-                    F.units_added_under_appeal, F.units_vs_town, F.units_vs_application], fn=unit_change,
-            notes=['Measured two ways: against what the town approved (vs_town) and against what the application proposed, or the part under appeal (vs_application). Positive means the court allowed more units.',
-                   "The directions come from the scan and stand in when the counts aren't stated."])
+IN_SCOPE = Derive('in_scope', topics.SCOPE, label='In scope', type=Boolean(),
+                  inputs=[F.proceeding, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
+                  notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change."])
+COURT_CHANGED_OUTCOME = Derive('court_changed_outcome', topics.COURT, label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
+                               inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome,
+                               notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".'])
+UNIT_CHANGE = Derive('unit_change', topics.UNITS, label='Change in units added',
+                     type=Record(vs_town=Integer(), vs_application=Integer(), direction_vs_town=F.units_vs_town.type,
+                                 direction_vs_application=F.units_vs_application.type),
+                     inputs=[F.units_added_court_approved, F.units_added_town_approved, F.units_added_proposed,
+                             F.units_added_under_appeal, F.units_vs_town, F.units_vs_application], fn=unit_change,
+                     notes=['Measured two ways: against what the town approved (vs_town) and against what the application proposed, or the part under appeal (vs_application). Positive means the court allowed more units.',
+                            "The directions come from the scan and stand in when the counts aren't stated."])
 DATE_BOUND = Record(date=DateValue(), bound=OneOf({'closed': 'Exact.', 'open': 'A bound only.'}), **{'from': Text()},
                     inferred=Boolean())
-X4 = Derive('duration', 'E', code='X4', label='Duration in days',
-            type=Record(kind=OneOf({'exact': 'Both ends are exact dates.',
-                                   'at least': 'An end is only a bound, so the case lasted at least this many days.',
-                                   'unknown': 'An end is missing, or the start is not before the end.'},
-                                  not_stated=False),
-                        days=Count(),
-                        start=OrNotStated(DATE_BOUND), end=OrNotStated(DATE_BOUND)),
-            inputs=[F.filing_date, F.earliest_event, F.docket_filing, F.town_decision_date,
-                    F.final_decision_date, F.latest_order_date],
-            fn=duration,
-            notes=['A duration is exact or a lower bound ("at least"). Keep them apart: averaging the two together understates durations.',
-                   'A month or year counts as its latest possible day at the start and its earliest possible day at the end. The duration is unknown when an end is missing or the start is not before the end.',
-                   'The end is never extended to today.',
-                   "Without a filing date stated to the day, the duration starts at the town's decision when that is dated to the day: a closed start marked inferred (start.inferred). It lengthens the duration by the days until the appeal was filed, usually under 30, the appeal period. It is used even when the appeal was dismissed as untimely, since the permit was in doubt from the town's decision; filter on dismissal_basis to leave those out."])
-X5 = Derive('last_permission', 'F', code='X5', label='Last observed permission',
-            type=OneOf({'allowed': 'The project may go ahead as proposed.',
-                        'allowed with conditions': 'The project may go ahead with conditions.',
-                        'allowed in part': 'Part of the project may go ahead.',
-                        'denied': 'The project may not go ahead.'}),
-            inputs=[F.court_result, F.town_decision], fn=last_permission,
-            notes=["The court's result when it decided on the merits, otherwise the town's decision. It is not whether the appeal succeeded, and not whether anything was built."])
+DURATION = Derive('duration', topics.COURT, label='Duration in days',
+                  type=Record(kind=OneOf({'exact': 'Both ends are exact dates.',
+                                          'at least': 'An end is only a bound, so the case lasted at least this many days.',
+                                          'unknown': 'An end is missing, or the start is not before the end.'},
+                                         not_stated=False),
+                              days=Count(),
+                              start=OrNotStated(DATE_BOUND), end=OrNotStated(DATE_BOUND)),
+                  inputs=[F.filing_date, F.earliest_event, F.docket_filing, F.town_decision_date,
+                          F.final_decision_date, F.latest_order_date],
+                  fn=duration,
+                  notes=['A duration is exact or a lower bound ("at least"). Keep them apart: averaging the two together understates durations.',
+                         'A month or year counts as its latest possible day at the start and its earliest possible day at the end. The duration is unknown when an end is missing or the start is not before the end.',
+                         'The end is never extended to today.',
+                         "Without a filing date stated to the day, the duration starts at the town's decision when that is dated to the day: a closed start marked inferred (start.inferred). It lengthens the duration by the days until the appeal was filed, usually under 30, the appeal period. It is used even when the appeal was dismissed as untimely, since the permit was in doubt from the town's decision; filter on dismissal_basis to leave those out."])
+LAST_PERMISSION = Derive('last_permission', topics.COURT, label='Last observed permission',
+                         type=OneOf({'allowed': 'The project may go ahead as proposed.',
+                                     'allowed with conditions': 'The project may go ahead with conditions.',
+                                     'allowed in part': 'Part of the project may go ahead.',
+                                     'denied': 'The project may not go ahead.'}),
+                         inputs=[F.court_result, F.town_decision], fn=last_permission,
+                         notes=["The court's result when it decided on the merits, otherwise the town's decision. It is not whether the appeal succeeded, and not whether anything was built."])
 NEIGHBORS = ('individual neighbor', 'group of neighbors')
 ROLE_MIX = {'neighbor': 'An individual neighbor or a group of neighbors.',
             **{k: v for k, v in L.ROLE.options.items() if k not in NEIGHBORS}}
-X6 = Derive('appellant_mix', 'B', code='X6', label='Appellant mix',
-            type=Record(count=Count(), roles=CountsBy(ROLE_MIX),
-                        representation=CountsBy(L.REPRESENTATION_KIND.options), representation_of=Count()),
-            inputs=[F.appellants_named, F.appellants, F.appellant_lawyers], fn=appellant_mix,
-            notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.',
-                   'Representation is asked for the first 10 appellants only: representation_of says how many appellants the representation counts cover.'])
+APPELLANT_MIX = Derive('appellant_mix', topics.APPELLANTS, label='Appellant mix',
+                       type=Record(count=Count(), roles=CountsBy(ROLE_MIX),
+                                   representation=CountsBy(L.REPRESENTATION_KIND.options), representation_of=Count()),
+                       inputs=[F.appellants_named, F.appellants, F.appellant_lawyers], fn=appellant_mix,
+                       notes=['Groups of neighbors fold into "neighbor". The count is "not stated" when the documents don\'t name every appellant.',
+                              'Representation is asked for the first 10 appellants only: representation_of says how many appellants the representation counts cover.'])
 
 
 def judgment_central(v):
@@ -182,12 +183,12 @@ def judgment_central(v):
     return 'yes' if 'decided, disputed' in levels.values() else 'no'
 
 
-X7 = Derive('judgment_central', 'C', code='X7', label='A judgment standard was central',
-            type=YesNo(not_stated=True), inputs=[F.judgment_grounds], fn=judgment_central,
-            notes=['Central: a party contested whether the project meets a judgment standard, and the court ruled on '
-                   'it, in an interim or final decision. Any one kind of standard is enough.',
-                   'When the documents don\'t say what the appellant argued, "other questions only" can still be '
-                   'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
+JUDGMENT_CENTRAL = Derive('judgment_central', topics.GROUNDS, label='A judgment standard was central',
+                          type=YesNo(not_stated=True), inputs=[F.judgment_grounds], fn=judgment_central,
+                          notes=['Central: a party contested whether the project meets a judgment standard, and the court ruled on '
+                                 'it, in an interim or final decision. Any one kind of standard is enough.',
+                                 'When the documents don\'t say what the appellant argued, "other questions only" can still be '
+                                 'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
 
 
 def judgment_at_issue(v):
@@ -197,10 +198,10 @@ def judgment_at_issue(v):
     return 'yes' if any(level not in ('not at issue', NOT_STATED) for level in levels.values()) else 'no'
 
 
-X8 = Derive('judgment_at_issue', 'C', code='X8', label='A judgment standard was at issue',
-            type=YesNo(not_stated=True), inputs=[F.judgment_grounds], fn=judgment_at_issue,
-            notes=['At issue: any kind of judgment standard got past "not at issue", including one only raised or set '
-                   'aside. Broader than central (X7).'])
+JUDGMENT_AT_ISSUE = Derive('judgment_at_issue', topics.GROUNDS, label='A judgment standard was at issue',
+                           type=YesNo(not_stated=True), inputs=[F.judgment_grounds], fn=judgment_at_issue,
+                           notes=['At issue: any kind of judgment standard got past "not at issue", including one only raised or set '
+                                  'aside. Broader than central (judgment_central).'])
 
 
 def what_was_central(v):
@@ -212,16 +213,16 @@ def what_was_central(v):
     return NOT_STATED if judgment == NOT_STATED else 'nothing'
 
 
-X9 = Derive('what_was_central', 'C', code='X9', label='What was central',
-            type=OneOf({'a judgment standard': 'At least one judgment standard was disputed and decided (X7 yes); '
+WHAT_WAS_CENTRAL = Derive('what_was_central', topics.GROUNDS, label='What was central',
+                          type=OneOf({'a judgment standard': 'At least one judgment standard was disputed and decided (judgment_central yes); '
                                                'other questions may have been too.',
-                        'other questions only': 'No judgment standard was central, but at least one other question '
-                                                '(C3) was disputed and decided.',
-                        'nothing': 'Nothing was disputed and decided, such as an unopposed dismissal or a docket still '
+                                      'other questions only': 'No judgment standard was central, but at least one other question '
+                                                '(G3) was disputed and decided.',
+                                      'nothing': 'Nothing was disputed and decided, such as an unopposed dismissal or a docket still '
                                    'pending.'}, not_stated=True),
-            inputs=[F.judgment_grounds, F.other_questions], fn=what_was_central,
-            notes=['For "other questions only", which ones were central is in other_questions.',
-                   'When the documents don\'t say what the appellant argued, "other questions only" can still be '
-                   'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
+                          inputs=[F.judgment_grounds, F.other_questions], fn=what_was_central,
+                          notes=['For "other questions only", which ones were central is in other_questions.',
+                                 'When the documents don\'t say what the appellant argued, "other questions only" can still be '
+                                 'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
 
-ALL = [X1, X2, X3, X4, X5, X6, X7, X8, X9]
+ALL = [IN_SCOPE, COURT_CHANGED_OUTCOME, UNIT_CHANGE, DURATION, LAST_PERMISSION, APPELLANT_MIX, JUDGMENT_CENTRAL, JUDGMENT_AT_ISSUE, WHAT_WAS_CENTRAL]

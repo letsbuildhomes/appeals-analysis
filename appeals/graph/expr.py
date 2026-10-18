@@ -4,8 +4,8 @@ An expression can evaluate itself against a docket's answers, print itself
 as text for the dashboard, and list the nodes it reads (which become edges in
 the graph). Build them with operators:
 
-    P(C1, 'yes') >= T.grounds           P(S1, 'yes') * P(S4, 'yes')
-    Is(C1, 'yes') & (… | …)             1 - P(S3, 'no physical change')
+    P(G1, 'yes') >= T.grounds           P(S1, 'yes') * P(S4, 'yes')
+    Is(G1, 'yes') & (… | …)             1 - P(S3, 'no physical change')
 """
 import operator
 
