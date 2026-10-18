@@ -21,6 +21,7 @@ def build(thresholds):
         gates=gates.ALL,
         base=steps.base,
         steps=steps.ORDER,
+        topics=steps.TOPICS,
         fields=fields.ALL,
         derives=derived.ALL,
         proceed=gates.PROCEED,

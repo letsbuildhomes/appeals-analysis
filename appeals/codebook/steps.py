@@ -436,6 +436,20 @@ L12b = Step('L12b', 'F', title='The size or design change', when=G.design, after
     returns=Record(description=Quoted(Text())))
 
 
+# The steps by topic: the conversations about one subject, read together. The dashboard draws one row per topic,
+# in this order, with the scan questions, gates and facts that belong to its steps. Execution order is ORDER.
+TOPICS = {
+    'Scope': [L1a, L1b, L1c, L1d],
+    'Filing dates': [L2a, L2b],
+    'The town\'s decision': [L3a, L3b, L3c],
+    'Kinds of permission': list(KINDS.values()),
+    'Appellants and their lawyers': [L4a, L4b],
+    'Arguments and grounds': [L7a, L7b, L7c, L7d, L7e, *GROUND_STEPS.values(), L8_relief_kind, *OTHER_STEPS.values()],
+    'The court\'s decision': [L5a, L5b, L5c, L5d, L5e, L5f, L10],
+    'Units added': [L6a, L6b, L6c, L6d, L6e, L6f],
+    'Stay and design change': [L11a, L11b, L12a, L12b],
+}
+
 ORDER = [L1a, L1b, L1c, L1d,
          L2a, L2b,
          L3a, L3b, L3c, *KINDS.values(),

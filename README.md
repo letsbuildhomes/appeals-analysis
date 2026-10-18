@@ -163,10 +163,15 @@ scope, goes in long-context mode. The threshold is set in the configuration.
 
 A small web app over the stored runs, with two views:
 
-- **Graph**: the extraction graph drawn from `graph.json`. Nodes are laid out
-  by research area and stage. Clicking a node shows its question, options,
-  gate and result type. Choosing a run and a docket replays its execution:
-  which steps ran, which gates passed, and what each node answered.
+- **Graph**: the extraction graph, one row per topic (the steps about one
+  subject, read together), with columns for the scan, gates, steps, facts
+  and derived values. A conversation reads top to bottom, like a transcript.
+  Clicking a box lights its neighbours (or, with Trace lineage, everything up
+  and down the line) and opens a panel with its question, options, condition,
+  prompt or code. Choosing a run and a docket replays its execution: which
+  steps ran, which gates passed, and what each box answered. ELK
+  (`static/vendor/elk.bundled.js`, EPL-2.0, license beside it) lays out the
+  rows and routes the lines.
 - **Case**: one docket's text with every cited quote highlighted, beside the
   answers that cite it. Reference answers are shown alongside where they exist.
 

@@ -81,6 +81,16 @@ def test_codebook_builds_and_every_question_feeds_a_fact():
     assert pipeline.hash() != build(THRESHOLDS | {'final': 0.6}).hash()     # thresholds are part of the identity
 
 
+def test_every_step_sits_in_exactly_one_topic(monkeypatch):
+    description = build(THRESHOLDS).describe()
+    placed = [s for t in description['topics'] for s in t['steps']]
+    assert sorted(placed) == sorted(description['step_order'])
+    from appeals.codebook import steps
+    monkeypatch.setitem(steps.TOPICS, 'Scope', steps.TOPICS['Scope'][:-1])
+    with pytest.raises(GraphError, match='L1d is in no topic'):
+        build(THRESHOLDS)
+
+
 def test_a_chain_keeps_its_whole_line_in_context_but_draws_one_edge_per_step():
     pipeline = build(THRESHOLDS)
     units_court = pipeline.nodes['L6f']

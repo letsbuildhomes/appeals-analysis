@@ -5,15 +5,17 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Graph · Housing appeals</title>
 <link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/graph.css">
 </head>
 <body>
 <header class="top"></header>
 <div id="notice"></div>
 <div class="graph-page" id="page">
-  <div class="zoom" id="zoom"></div>
-  <div class="canvas-wrap" id="wrap"><div class="canvas" id="canvas"><svg class="edges" id="edges"></svg></div></div>
+  <div class="dock" id="dock"></div>
+  <div class="canvas-wrap" id="wrap"><div class="canvas" id="canvas"></div></div>
   <aside class="panel" id="panel"></aside>
 </div>
+<script src="/vendor/elk.bundled.js"></script>
 <script type="module" src="/graph.js"></script>
 </body>
 </html>

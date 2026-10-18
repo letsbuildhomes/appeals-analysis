@@ -29,7 +29,7 @@ class GraphError(Exception):
 
 class Pipeline:
     def __init__(self, name, scan, gates, base, steps, fields, derives, proceed, thresholds, in_scope=None,
-                 conventions=(), description=''):
+                 conventions=(), description='', topics=None):
         self.name = name
         self.description = description         # what the data is, in a sentence or two, for readers of it
         self.conventions = list(conventions)   # rules every answer follows, for readers of the data
@@ -37,6 +37,7 @@ class Pipeline:
         self.gates = gates
         self.base = base
         self.steps = steps            # in execution order
+        self.topics = {title: [s.id for s in members] for title, members in (topics or {}).items()}  # rows, for reading
         self.fields = fields
         self.derives = derives
         self.proceed = proceed        # expression: does a docket go on to the reasoning steps?
@@ -118,6 +119,11 @@ class Pipeline:
         for node in self.nodes.values():
             if isinstance(node, (Question, YesNoSet, ChoiceSet, Step)) and node.id not in reaches:
                 problems.append(f'{node.id} feeds no fact or derived value')
+        if self.topics:
+            placed = [sid for members in self.topics.values() for sid in members]
+            for sid in {s.id for s in self.steps} ^ set(placed):
+                problems.append(f'{sid} is in no topic' if sid in self.nodes else f'topic step {sid} is not a step')
+            problems += [f'{sid} is in more than one topic' for sid in sorted({x for x in placed if placed.count(x) > 1})]
         position = {s.id: i for i, s in enumerate(self.steps)}
         for step in self.steps:
             for ref in step.refs():
@@ -233,6 +239,7 @@ class Pipeline:
             'in_scope': self.in_scope,
             'conventions': self.conventions,
             'step_order': [s.id for s in self.steps],
+            'topics': [{'title': t, 'steps': members} for t, members in self.topics.items()],
             'nodes': [n.describe() for n in self.nodes.values()],
             'edges': self.edges,
         }

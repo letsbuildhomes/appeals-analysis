@@ -366,6 +366,10 @@ records the stop reason the API reported.
 Steps are numbered by chain, in the order the chains run, and lettered by
 their order within the chain: L5 is the court's chain, L5a to L5f. A step that
 is asked once per flagged item is named after its item, as in L3_variance.
+Each step also belongs to one topic, such as "Units added" or "Arguments and
+grounds": the chains about one subject, read together. Topics only organize
+reading: the dashboard draws one row per topic, with the scan questions,
+gates and facts that belong to its steps.
 Steps run in the order listed. A step can depend on an answer from another
 chain only through its *only if*, never through context: the units the court
 approved (L6f) follow the other counts, and run only if the court's chain
