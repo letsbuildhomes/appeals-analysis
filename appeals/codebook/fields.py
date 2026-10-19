@@ -133,8 +133,10 @@ NO_ARGUMENTS = (Q.G1.p('yes') < T.grounds) | (A('L7a', 'stated').in_(['no', NONE
 arguments_stated = Field('arguments_stated', topics.GROUNDS, label='Arguments stated', type=_choice(Q.G1),
                          scan=Q.G1, step=L.L7a, path='stated',
                          notes=['Only arguments about the municipal decision itself (why it should be upheld, reversed '
-                                'or changed) count; arguments only about procedure, such as reinstatement, deadlines, '
-                                'standing or jurisdiction, do not.',
+                                'or changed) count, including that the municipality\'s process was defective (a deemed '
+                                'approval, inadequate findings); arguments only about the procedure of the court appeal, '
+                                'such as reinstatement, the filing deadline, standing or jurisdiction, do not. A Statement of Questions asking only whether the '
+                                'project complies counts, though it disputes no standard in particular.',
                                 'A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
                                 'judgment standards (G2) and conditions (G4) "not stated"; the other questions (G3) are '
                                 'still answered.'])

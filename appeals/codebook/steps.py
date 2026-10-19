@@ -205,7 +205,8 @@ L5a = Step('L5a', topics.COURT, title='A final decision', when=G.final,
         'dismissal, approved settlement or withdrawal? Partial rulings do not count. A decision on the merits that '
         'decides every issue counts even if it asks the parties to submit a judgment order. If there is, quote the '
         'concluding passage of the first such decision; later post-judgment proceedings do not change which decision '
-        'was first.'),
+        'was first. The decision can also be shown by a later document that recounts it, such as a Supreme Court order '
+        'describing this court\'s decision after a hearing on the merits; then quote that account.'),
     returns=Record(final=_yes_none()))
 
 FINAL = A('L5a', 'final').is_('yes')
@@ -308,12 +309,15 @@ L6g = Step('L6g', topics.UNITS, title='Units added: court against town and appli
 
 # ---- C · Grounds: arguments stated, challenged conditions, each judgment standard, each other question ----
 
-# The project owner's ruling (October 2026): arguments only about procedure don't count. L7a's "no" with no standard
-# at issue gives "not stated" (fields.NO_ARGUMENTS).
+# The project owner's rulings (October 2026): arguments only about procedure don't count; a general compliance
+# question does. L7a's "no" with no standard at issue gives "not stated" (fields.NO_ARGUMENTS).
 ARGUMENTS_MEANING = ('Count only arguments about the municipal decision itself: why it should be upheld, reversed or '
                      'changed, including such arguments made on a motion for summary judgment. Arguments only about '
-                     'procedure, such as reinstating a dismissed appeal, deadlines, standing or jurisdiction, do not '
-                     'count.')
+                     'the procedure of this court appeal, such as reinstating a dismissed appeal, the deadline for '
+                     'filing this appeal, standing or jurisdiction, do not count. Arguments that the municipality\'s '
+                     'process was defective do count, such as a deemed approval because it decided late, or inadequate '
+                     'findings: they ask the court to change the decision. A Statement of Questions that asks only whether the project complies with the bylaw counts: '
+                     'it argues against the decision, though it disputes no standard in particular.')
 
 L7a = Step('L7a', topics.GROUNDS, title='Arguments stated', when=G.grounds,
     prompt=_paragraphs('{G1}', ARGUMENTS_MEANING, QUOTE_IT),

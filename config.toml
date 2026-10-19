@@ -49,7 +49,9 @@ grounds = 0.3
 # chance of being at issue. 0.5 lost no case in the answer key and saves about one call per docket.
 other_check = 0.5
 review = 0.5
-final = 0.5
+# Final decision (C2): low so L5a checks the ending with a quote even when the scan doubts one. At 0.5 a
+# remand with a judgment order (scanned 0.12) was never checked (pass 4).
+final = 0.1
 stay = 0.5
 design = 0.5
 

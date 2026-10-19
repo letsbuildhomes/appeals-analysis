@@ -286,6 +286,51 @@ Regressions and their causes:
   30-foot right-of-way exists).
 - **118-7-03, 23-2-06 judgment standards (medium):** levels and conditions moved with no prompt change. Rerun noise.
 
+### Pass 5a: arguments ruling and ending gate (2026-10-18)
+
+Run `20261019-013457-fcec`, $0.07, against pass 4. The scan was unchanged, so only L7a–e and the ending steps on
+dockets the lower gate now lets through reran. **Wash, −2 units** (band ±6). The question-first L9 runs alone as 5b.
+
+Changed:
+- **Arguments ruling** (project owner): a Statement of Questions asking only whether the project complies counts as
+  arguments stated, disputing no standard. In L7a, the codebook note and `edge_cases.md`; the key's 40-4-13 label
+  updated to match.
+- **Ending gate** `final` from 0.5 to 0.1, so L5a checks endings the scan doubts.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| Arguments ruling | 38 → 50 | 0 | 12 | +0/−6 | within noise, but every move a break |
+| Ending gate | 23 → 19 | 6 | 2 | +6/−2 | within noise; all 6 fixes on 40-4-13 |
+| Untouched | 87 → 87 | 0 | 0 | — | cached, no noise reading |
+
+The ruling's gain doesn't show in the table, because the key changed for both runs: with it and the gate, 40-4-13
+went from 27 wrong answers (pass 4, old key) to 5.
+
+Regressions:
+- **27-2-10 and 35-3-04, `arguments_stated` yes → none found (high on 27-2-10: the judgment standards went "not
+  stated", 7 answers).** Both appeals argue that the application was deemed approved because the town decided late.
+  L7a's list of procedural arguments includes "deadlines", meant as the appeal's filing deadline, and the model read
+  the town's decision deadline into it. A definition gap in our wording.
+- **39-2-06 ending (medium, 2 answers).** The lower gate let L5a run, and it answered "no final decision" from the
+  interim decision. The ending appears only in a later Supreme Court entry order reciting the Environmental
+  Division's merits decision. The existing rule then blanked `how_ended` and `court_result`, which the scan had right.
+- **Condition-challenge lists on 121-10-16 (medium).** L7b–e reran because L7a's prompt changed; the lists' wording
+  moved. Rerun noise.
+
+**Rerun as 5a2** (run `20261019-014137-abc4`, $0.11), with two fixes: L7a names the procedural arguments that don't
+count as those about the court appeal itself (reinstatement, the filing deadline, standing, jurisdiction) and counts
+arguments that the town's process was defective (a deemed approval, inadequate findings); L5a accepts an ending
+shown by a later document that recounts it. The project owner set the bar: keep the batch only if it beats pass 4.
+Against pass 4: **net improvement, +10 units**.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| Arguments ruling | 38 → 38 | 3 | 3 | +3/−3 | within noise; its gain is the key's 40-4-13 (14 answers) |
+| Ending gate | 23 → 13 | 10 | 0 | +10/−0 | real gain |
+
+27-2-10, 35-3-04 and 39-2-06 recovered. The only breaks are in the condition-challenge chain, which reruns whenever
+L7a changes: 121-10-16's list wording, and 196-9-08's challenge dropped (yes → no). Rerun noise, unconfirmed.
+
 ## Open ideas, not yet tried
 
 Roughly in order of expected value.
