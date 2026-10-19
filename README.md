@@ -189,9 +189,10 @@ last release. The tables are laid out from the codebook's value types, so a
 release follows the codebook with no hand-kept mapping.
 
 The public site serves the current release at `/appeals/`. It has a
-dashboard, which is a placeholder for now, and an MCP server at
-`/appeals/mcp`. Through the MCP server, an AI assistant can query the data,
-read what each column means, and trace any value back through the pipeline.
+landing page, which explains the data and how to connect an AI assistant,
+and an MCP server at `/appeals/mcp`. Through the MCP server, an AI assistant
+can query the data, read what each column means, and trace any value back
+through the pipeline.
 [docs/RELEASES.md](docs/RELEASES.md) has the details and the deployment.
 
 ## Using it
@@ -239,15 +240,14 @@ unusual pricing (such as DeepSeek's peak hours) gets its own kind. Keys go in
 
 ## Status
 
-Ingest holds every PDF, the September 2026 listing snapshot and all page
-text, imported once from the prototype, with dockets recomputed by the new
-rules. The extraction graph is built and checked, and can be inspected in the
-dashboard. It has been improved pass by pass against a 64-docket answer key
-(Jev for the scan, DeepSeek Flash for the steps), with the gate thresholds set
-from it; [docs/IMPROVING.md](docs/IMPROVING.md) has the method and where
+Ingest holds every PDF, the September and October 2026 listing snapshots
+and all page text. The September material was imported once from the
+prototype, and dockets are recomputed by the new rules. The extraction graph
+is built and checked, and can be inspected in the dashboard. It has been
+improved pass by pass against a 64-docket answer key (Jev for the scan,
+DeepSeek Flash for the steps), with the gate thresholds set from it; [docs/IMPROVING.md](docs/IMPROVING.md) has the method and where
 things stand. The whole corpus has been scanned once, for drawing the key;
-the production run, which rescans it, comes after iterating ends. Releases,
-the public site and the MCP server are built and tested on fake-model runs;
-no release has been published yet.
+the production run rescanned it on October 19, 2026, after a fresh crawl, and
+became the first published release (v0.0.1, release `0faee78a2c22`).
 [docs/PIPELINE.md](docs/PIPELINE.md) is the design, and
 [docs/CONTEXT.md](docs/CONTEXT.md) explains how we got here.

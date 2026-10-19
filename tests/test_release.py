@@ -239,6 +239,21 @@ def test_the_site_serves_everything_under_its_base_path(released):
         assert refused.status_code == 421
 
 
+def test_the_landing_page_and_its_files_respect_the_base_path(tmp_path):
+    from starlette.testclient import TestClient
+    from appeals.site.app import make_app
+    releases = Releases(tmp_path / 'releases')                  # nothing published yet
+    for base in ('/appeals', ''):
+        with TestClient(make_app(releases, base, 'Test')) as client:
+            page = client.get(f'{base}/').text
+            assert '{{' not in page and 'role="tablist"' in page
+            assert f'src="{base}/static/site.js" data-base="{base}"' in page
+            for name in ('site.js', 'site.css'):
+                assert client.get(f'{base}/static/{name}').status_code == 200
+            assert client.get(f'{base}/healthz').json()['current_release'] is None    # the page then says data is coming
+            assert client.get(f'{base}/api/releases').json() == []
+
+
 def test_releases_carry_tags_and_can_be_deleted_except_the_current_one(tmp_path):
     store = _store(tmp_path)
     run_id = _run(store, tmp_path)

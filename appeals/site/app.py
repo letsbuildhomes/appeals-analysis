@@ -1,6 +1,6 @@
 """The public site: one ASGI app on one port, every route under the base path.
 
-    {base}/                          the dashboard (a placeholder for now)
+    {base}/                          the landing page (static/index.html)
     {base}/mcp                       the MCP server, over the current release
     {base}/healthz                   which release is current
     {base}/api/releases              every release, newest first, marking the current one

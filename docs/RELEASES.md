@@ -2,10 +2,14 @@
 
 A **release** is one finished run frozen into files that can be published.
 The public site serves releases at `https://data.letsbuildhomes.org/appeals/`.
-It has a dashboard, which is a placeholder for now, a read-only JSON API, and
-an MCP server at `/appeals/mcp`. Through the MCP server, an AI assistant can
-analyse the data, learn what each column means, and trace any value back
-through the pipeline.
+It has a landing page, a read-only JSON API, and an MCP server at
+`/appeals/mcp`. Through the MCP server, an AI assistant can analyse the data,
+learn what each column means, and trace any value back through the pipeline.
+The landing page is written for the public: how to connect the main
+assistants, what the data is and can't show, how it is made, prompts to
+start with, and the current release's numbers, or a note that data is coming
+when none is published. It is static HTML, CSS and JavaScript in
+`appeals/site/static/`, with no build step.
 
 ```text
 store ──make release──▶ data/releases/<id>/ ──make publish──▶ current ──▶ site: dashboard · API · MCP
