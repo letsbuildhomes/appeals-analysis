@@ -586,6 +586,25 @@ def test_a_difference_in_conditions_alone_is_not_a_changed_outcome():
     assert court_changed_outcome(v | {'town_decision': 'not stated'}) == 'not stated'
 
 
+def test_unit_comparisons_come_from_the_counts_when_both_are_known():
+    from appeals.codebook.derived import units_vs_application, units_vs_town
+    v = {'units_added_court_approved': 4, 'units_added_town_approved': 6, 'units_added_proposed': 6,
+         'units_added_under_appeal': NOT_STATED, 'units_vs_town_stated': 'same', 'units_vs_application_stated': 'same'}
+    assert units_vs_town(v) == 'fewer' and units_vs_application(v) == 'fewer'
+    assert units_vs_application(v | {'units_added_under_appeal': 4}) == 'same'
+    missing = v | {'units_added_court_approved': NOT_STATED}
+    assert units_vs_town(missing) == 'same' and units_vs_application(missing) == 'same'
+    assert units_vs_town(missing | {'units_vs_town_stated': NOT_STATED}) == NOT_STATED
+
+
+def test_turning_non_residential_space_into_homes_is_in_scope():
+    from appeals.codebook.derived import in_scope
+    v = {'proceeding': 'municipal permit application', 'physical_change': 'convert a non-residential use to housing',
+         'housing_use': 'yes', 'units_effect': 'adds'}
+    assert in_scope(v)
+    assert not in_scope(v | {'physical_change': 'no physical change'})
+
+
 def test_group_or_care_housing_is_in_scope():
     from appeals.codebook.derived import in_scope
     v = {'proceeding': 'municipal permit application', 'physical_change': 'build a new structure',

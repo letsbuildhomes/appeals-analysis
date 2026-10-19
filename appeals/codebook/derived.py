@@ -32,6 +32,28 @@ COURT_OUTCOME = {'granted': 'allowed', 'granted with conditions': 'allowed', 'gr
                  'denied': 'denied', 'sent back': 'sent back'}
 
 
+def _direction(court, other):
+    return 'more' if court > other else 'fewer' if court < other else 'same'
+
+
+def units_vs_town(v):
+    """The court's count against the town's when both are known, else what the documents state."""
+    court, town = v['units_added_court_approved'], v['units_added_town_approved']
+    if isinstance(court, int) and isinstance(town, int):
+        return _direction(court, town)
+    return v['units_vs_town_stated']
+
+
+def units_vs_application(v):
+    """The court's count against the part under appeal (else the application's) when both are known, else what the
+    documents state."""
+    court, under_appeal = v['units_added_court_approved'], v['units_added_under_appeal']
+    baseline = under_appeal if isinstance(under_appeal, int) else v['units_added_proposed']
+    if isinstance(court, int) and isinstance(baseline, int):
+        return _direction(court, baseline)
+    return v['units_vs_application_stated']
+
+
 def court_changed_outcome(v):
     town, ended, result = v['town_decision'], v['how_ended'], v['court_result']
     if ended == 'decided on the merits':
@@ -147,17 +169,27 @@ IN_SCOPE = Derive('in_scope', topics.SCOPE, label='In scope', type=Boolean(),
                   inputs=[F.proceeding, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
                   notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change.",
                          'Group and care housing (assisted living, nursing homes, dormitories, group homes) counts as housing, adding residents\' rooms or beds instead of units; housing_use marks it, so it can be left out.'])
+COMPARISON_NOTES = ['Worked out from the unit counts when both are known; otherwise what the documents state with a '
+                    'quote (L6g), such as a court upholding the town\'s approval without restating its size; else "not '
+                    'stated". The scan\'s guess is never used.']
+UNITS_VS_TOWN = Derive('units_vs_town', topics.UNITS, label='Units added vs the town\'s decision',
+                       type=F.units_vs_town_stated.type, fn=units_vs_town, notes=COMPARISON_NOTES,
+                       inputs=[F.units_added_court_approved, F.units_added_town_approved, F.units_vs_town_stated])
+UNITS_VS_APPLICATION = Derive('units_vs_application', topics.UNITS, label='Units added vs the application',
+                              type=F.units_vs_application_stated.type, fn=units_vs_application, notes=COMPARISON_NOTES,
+                              inputs=[F.units_added_court_approved, F.units_added_under_appeal, F.units_added_proposed,
+                                      F.units_vs_application_stated])
 COURT_CHANGED_OUTCOME = Derive('court_changed_outcome', topics.COURT, label='Court ended somewhere different from the town', type=YesNo(not_stated=True),
-                               inputs=[F.town_decision, F.how_ended, F.court_result, F.units_vs_town], fn=court_changed_outcome,
+                               inputs=[F.town_decision, F.how_ended, F.court_result, UNITS_VS_TOWN], fn=court_changed_outcome,
                                notes=['"no" when a dismissal or withdrawal leaves the town\'s decision standing; a settlement leaves it "not stated".',
                                       'Compares outcomes only (allowed, allowed in part, denied, sent back): a difference in conditions alone is not a change, since "approved" and "granted" only mean the documents don\'t mention conditions.'])
 UNIT_CHANGE = Derive('unit_change', topics.UNITS, label='Change in units added',
-                     type=Record(vs_town=Integer(), vs_application=Integer(), direction_vs_town=F.units_vs_town.type,
-                                 direction_vs_application=F.units_vs_application.type),
+                     type=Record(vs_town=Integer(), vs_application=Integer(), direction_vs_town=UNITS_VS_TOWN.type,
+                                 direction_vs_application=UNITS_VS_APPLICATION.type),
                      inputs=[F.units_added_court_approved, F.units_added_town_approved, F.units_added_proposed,
-                             F.units_added_under_appeal, F.units_vs_town, F.units_vs_application], fn=unit_change,
+                             F.units_added_under_appeal, UNITS_VS_TOWN, UNITS_VS_APPLICATION], fn=unit_change,
                      notes=['Measured two ways: against what the town approved (vs_town) and against what the application proposed, or the part under appeal (vs_application). Positive means the court allowed more units.',
-                            "The directions come from the scan and stand in when the counts aren't stated."])
+                            'The directions are units_vs_town and units_vs_application.'])
 DATE_BOUND = Record(date=DateValue(), bound=OneOf({'closed': 'Exact.', 'open': 'A bound only.'}), **{'from': Text()},
                     inferred=Boolean())
 DURATION = Derive('duration', topics.COURT, label='Duration in days',
@@ -241,4 +273,4 @@ WHAT_WAS_CENTRAL = Derive('what_was_central', topics.GROUNDS, label='What was ce
                                  'When the documents don\'t say what the appellant argued, "other questions only" can still be '
                                  'known (an appeal dismissed as untimely, say); otherwise it is "not stated".'])
 
-ALL = [IN_SCOPE, COURT_CHANGED_OUTCOME, UNIT_CHANGE, DURATION, LAST_PERMISSION, APPELLANT_MIX, JUDGMENT_CENTRAL, JUDGMENT_AT_ISSUE, WHAT_WAS_CENTRAL]
+ALL = [IN_SCOPE, UNITS_VS_TOWN, UNITS_VS_APPLICATION, COURT_CHANGED_OUTCOME, UNIT_CHANGE, DURATION, LAST_PERMISSION, APPELLANT_MIX, JUDGMENT_CENTRAL, JUDGMENT_AT_ISSUE, WHAT_WAS_CENTRAL]

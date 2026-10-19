@@ -49,10 +49,14 @@ S2 = Question('S2', topics.SCOPE,
     options={'build a new structure': 'Constructing a new building or structure.',
              'place a structure': 'Placing a structure, such as a mobile home.',
              'convert or renovate an existing building': 'Converting or substantially renovating an existing building.',
+             'convert a non-residential use to housing': 'Turning all or part of a non-residential building or space, '
+                                                         'such as an office, store or barn, into dwelling units, with or '
+                                                         'without construction.',
              'create building lots': 'Subdividing land into building lots, or releasing a restriction (such as '
                                      'open space) so an existing lot becomes a building lot.',
              'authorize something already built': 'Approving, after the fact, something already built or done.',
-             'no physical change': 'A change of use, occupancy or operations without construction.',
+             'no physical change': 'A change of use, occupancy or operations without construction that creates no '
+                                   'dwelling units.',
              NOT_STATED: NS},
     why='Scope comes from what would be built, placed, converted or subdivided.')
 
@@ -217,48 +221,57 @@ OTHER_LEVELS = {
                  'withdrawn.',
 }
 
+# Each kind is the question the court must answer, with examples of how a decision puts it (the project owner,
+# October 2026: affirmative definitions with examples, rather than lists of exclusions).
 OTHER_KINDS = {
-    'measurable': 'whether the project meets a rule with a measurable test, such as a setback, height limit, minimum '
-                  'lot size or frontage, density limit or required number of parking spaces. If only the measuring '
-                  'method is disputed, the method itself is a question of what the rule\'s words mean, and whether '
-                  'the project meets the rule is still "decided, disputed" here, even if the figures under the adopted '
-                  'method are agreed. Not: a variance or waiver from '
-                  'such a rule, what the rule\'s words mean, or a number set by an earlier permit\'s condition (earlier permits '
-                  'and approvals)',
-    'meaning': 'what the words of the bylaw or a permit mean: whether the proposed use is allowed in the zoning district '
-               'or which use category it falls in (permitted, conditional or prohibited), what a defined term such as '
-               '"dwelling unit", "structure" or "lot" covers, how a measurable rule is to be measured when the parties '
-               'dispute the method (such as whether lot width is taken at its narrowest point), or whether the bylaw '
-               'must be read to include 24 V.S.A. § 4412\'s required provisions (such as for accessory dwelling '
-               'units), under any version of the bylaw a party relies on. A disputed reading of an earlier permit\'s '
-               'condition counts here, and whether it binds or is met under earlier permits and approvals. Count it '
-               'only where a party argued about what the words mean, not where their meaning is clear and only '
-               'whether the project meets them is disputed; a court only stating or applying a definition is "not at '
-               'issue", so "decided, not disputed" never applies here. Not: whether the project meets a measurable '
-               'rule (measurable rules), or meets a standard calling for judgment (the judgment groups)',
-    'nonconforming': 'a nonconforming use, structure or lot: whether it may continue, expand or change',
-    'process': 'the municipal process: notice of the application, hearing or decision, how the hearing was held, '
-               'whether the application was complete, or a defect in the municipal decision itself, such as '
-               'inadequate findings, a late decision or a deemed approval. Not: the court\'s own handling of the '
-               'appeal or of its Statement of Questions, or a remand for the panel to look first (who can appeal)',
-    'appeal': 'whether the appeal can be heard: an appellant\'s standing or party status, whether the appeal was filed '
-              'on time, or the court\'s jurisdiction, such as whether the decision appealed was final, or whether it '
-              'can review an application changed on appeal or a question the municipal panel never considered',
-    'earlier': 'earlier permits and approvals: vested rights, the binding effect of an earlier permit or decision that '
-               'was not appealed, whether a plat label or permit condition is specific enough to be enforced, a repeat '
-               'application or a permit amendment, or compliance with an earlier permit or its conditions. Not: the '
-               'finality of the decision under appeal because the appeal was late (who can appeal)',
-    'property': 'a private property dispute: who owns the land or holds rights in it, such as title, the location or '
-                'width of an easement or right-of-way, or a deed covenant or restriction. This includes a property '
-                'question the court declines to decide because it lacks jurisdiction over private property rights. '
-                'Not: whether the bylaw allows the project or its use (allowed use and defined terms), or whether the '
-                'project meets a zoning rule',
-    'claims': 'a constitutional or equitable claim against the municipality: a bylaw standard too vague to enforce '
-              'constitutionally (void for vagueness), a taking or exaction, due process or equal protection, a claim of '
-              'discrimination under federal or state fair housing statutes, or estoppel. Not: whether a permit '
-              'condition or plat label is specific enough to bind (earlier permits and approvals)',
-    'permits': 'whether another permit is needed or was obtained, such as Act 250, a state wastewater or water supply '
-               'permit, or a state stormwater permit',
+    'measurable': 'measurable rules. The question: does the project meet a rule with a measurable test, such as a '
+                  'setback, height limit, minimum lot size or frontage, density limit or required number of parking '
+                  'spaces? It reads like: "the addition sits 18 feet from the side line where 25 are required"; "the '
+                  'lot has 140 feet of frontage, short of the 200 the district requires". When the parties also '
+                  'dispute how the rule is measured, the method is a question of allowed use and defined terms, and '
+                  'whether the project meets the rule is still this kind',
+    'meaning': 'allowed use and defined terms. The question: what do the words of the bylaw or a permit mean for this '
+               'project? Such as whether the use is allowed in the district or which use category it falls in, what a '
+               'defined term such as "dwelling unit", "structure" or "lot" covers, how a measurable rule is measured, '
+               'what an earlier permit\'s condition says, or whether the bylaw must be read to include 24 V.S.A. '
+               '§ 4412\'s required provisions. It reads like: "Neighbors argue a sober house is not a \'single-family '
+               'dwelling\'"; "Applicant contends lot width is measured at the building line". It counts when a party '
+               'argues for a reading of the words, so its level is never "decided, not disputed"',
+    'nonconforming': 'nonconforming uses and structures. The question: may a use, structure or lot that predates the '
+                     'current rules continue, expand or change? It reads like: "the duplex is a preexisting '
+                     'nonconforming use that was never abandoned"; "the addition increases the degree of '
+                     'nonconformity"',
+    'process': 'municipal process. The question: did the town handle the application lawfully, in its notice, its '
+               'hearing, its review of completeness, or its decision (the findings, the timing, a deemed approval)? It '
+               'reads like: "the DRB failed to warn the hearing"; "the decision issued more than 45 days after the '
+               'hearing closed, so the permit is deemed approved"; "the findings do not explain the denial"',
+    'appeal': 'who can appeal. The question: can this appeal, or this appellant, be heard by this court? Such as an '
+              'appellant\'s standing or party status, whether the notice of appeal was on time, or whether the '
+              'decision appealed was final and within the court\'s jurisdiction, or whether the court can review the '
+              'application as changed on appeal. It reads like: "Neighbors lack '
+              'interested-person status"; "the notice of appeal was filed 31 days after the decision"; "the zoning '
+              'administrator\'s letter was not an appealable decision". It concerns the appeal or an appellant as a '
+              'whole; the court narrowing single questions in the Statement of Questions is the court managing the '
+              'appeal',
+    'earlier': 'earlier permits and approvals. The question: does an earlier permit or decision control what may be '
+               'approved now? Such as vested rights, the binding effect of an unappealed permit or decision, a '
+               'successive application for the same project, amending an earlier permit, compliance with an earlier '
+               'permit\'s conditions, or whether a plat label or condition is specific enough to enforce. It reads '
+               'like: "Applicant has vested rights under the 2004 bylaw"; "the unappealed 2006 variance is binding"; '
+               '"the application is barred as a successive application". It counts when a party relies on the '
+               'earlier permit or decision as settling something now',
+    'property': 'property rights. The question: who owns the land or holds rights in it, such as title, the location '
+                'or width of an easement or right-of-way, or a deed covenant or restriction, including when the court '
+                'declines to decide it for lack of jurisdiction over private rights? It reads like: "Neighbors claim '
+                'the driveway crosses their deeded right-of-way"; "the deed restricts the parcel to one dwelling"',
+    'claims': 'constitutional and equitable claims. The question: does a constitutional or equitable claim against the '
+              'municipality succeed, such as void for vagueness, a taking or exaction, due process, equal protection, '
+              'discrimination under federal or state fair housing statutes, or estoppel? It reads like: "the bylaw\'s '
+              '\'character of the area\' standard is unconstitutionally vague"; "the Town is estopped by its zoning '
+              'administrator\'s assurances"',
+    'permits': 'other permits. The question: is another permit needed, or was it obtained, such as Act 250, a state '
+               'wastewater or water supply permit, or a state stormwater permit? It reads like: "the project cannot '
+               'proceed without an Act 250 permit"; "Applicant has not obtained a state wastewater permit"',
 }
 OTHER_NAMES = {'measurable': 'measurable rules', 'meaning': 'allowed use and defined terms',
                'nonconforming': 'nonconforming uses and structures', 'process': 'municipal process',

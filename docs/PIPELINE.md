@@ -180,7 +180,7 @@ and "Feeds" the derived values that read them.
 | ID | Question | Answers | Asked by | Feeds |
 |---|---|---|---|---|
 | S1 | What kind of proceeding is this docket? | municipal permit application · several, including a municipal permit application · municipal enforcement · municipal bylaw or policy · other municipal decision · Act 250 permit · ANR stormwater permit · ANR wastewater permit · other state permit or decision · state enforcement · other · not stated | Scan (Choice) | `in_scope` |
-| S2 | What would the permission allow physically? | build a new structure · place a structure · convert or renovate an existing building · create building lots · authorize something already built · no physical change · not stated | Scan (Choice) | `in_scope` |
+| S2 | What would the permission allow physically? | build a new structure · place a structure · convert or renovate an existing building · convert a non-residential use to housing · create building lots · authorize something already built · no physical change · not stated | Scan (Choice) | `in_scope` |
 | S3 | Will the structure or lots be used for housing? | yes (dwelling units; lots in a residential district unless shown otherwise; a mostly other project that adds a unit) · group or care housing (assisted living, nursing homes, dormitories, group homes) · no (including seasonal camps, RVs and condominium hotels unless described as year-round dwellings) · not stated | Scan (Choice) | `in_scope` |
 | S4 | Does the project add dwelling units (or, for group or care housing, residents' rooms or beds), replace existing ones, or neither? | adds · replaces · neither · not stated | Scan (Choice) | `in_scope` |
 
@@ -304,8 +304,8 @@ whole.
 | U1 | How many new dwelling units would the project add, as proposed? (`units_added_proposed`) | stated? → count | Scan (Choice); value from L6a | `unit_change` |
 | U2 | Is the appeal limited to part of the proposal? How many units added in that part? (`appeal_partial`, `units_added_under_appeal`) | yes · no · not stated → count | Scan (Choice); values from L6b, L6c | `unit_change` |
 | U3 | How many new building lots for housing would the application create? (`housing_lots`) | stated? → count | Scan (Choice); value from L6d | — |
-| U4 | Did the court's result change the number of units added from what the municipality approved? (`units_vs_town`) | more · fewer · same · not stated | Scan (Choice); count from L6 | `court_changed_outcome`, `unit_change` |
-| U5 | Did it change the number of units added from what the application proposed? (`units_vs_application`) | more · fewer · same · not stated | Scan (Choice); count from L6 | `unit_change` |
+| U4 | Did the court's result change the number of units added from what the municipality approved? (`units_vs_town`) | more · fewer · same · not stated | Derived: from the L6 counts when both are known, else L6g with a quote (`units_vs_town_stated`). The scan's U4 only opens the counts gate | `court_changed_outcome`, `unit_change` |
+| U5 | Did it change the number of units added from what the application proposed? (`units_vs_application`) | more · fewer · same · not stated | Derived: from the L6 counts when both are known, else L6g with a quote (`units_vs_application_stated`). The scan's U5 only opens the counts gate | `unit_change` |
 | `units_added_town_approved` | How many new dwelling units did the municipality approve? | count · not stated | L6e (LLM value) | `unit_change` |
 | `units_added_court_approved` | How many new dwelling units did the court approve? | count · not stated | L6f (LLM value) | `unit_change` |
 
@@ -427,6 +427,7 @@ can't tell doesn't take a docket out of the study.
 | L6d Housing lots | counts | — | U3 | L6a |
 | L6e Units added: town | counts | — | the units the town approved | L6c |
 | L6f Units added: court | counts | L5c granted (with or without conditions) or denied | the units the court approved | L6e |
+| L6g Units added: court against town and application | counts | as L6f | U4 and U5 with a quote, used only when a count is missing | L6f |
 | L7a Arguments stated | grounds | — | G1 | — |
 | L7b Condition challenged | grounds | G4 yes at or above `check` | G4 | L7a |
 | L7c Which conditions | grounds | L7b yes | each challenged condition, described in a few words | L7b |
@@ -436,7 +437,7 @@ can't tell doesn't take a docket out of the study.
 | L8_…_result | grounds | that kind decided (disputed or not) | the court's result: met, met with conditions, partly met or not met | L8 for that kind |
 | L8_…_condition | grounds | that kind "decided, disputed" | whether the dispute was about a condition | L8_…_result |
 | L8_relief_kind | grounds | L8_relief at a level above "not at issue" | which kind of dimensional relief | L8_relief |
-| L9 per other kind of question | — | that G3 kind flagged (every docket that proceeds, arguments stated or not) | G3 for that kind: its level | — |
+| L9 per other kind of question | — | that G3 kind flagged (every docket that proceeds, arguments stated or not) | G3 for that kind: the question in one sentence, then its level | — |
 | L10 Review standard | review | — | the passage establishing how the court heard the appeal | — |
 | L11a Stay | stay | — | whether the court itself stayed the permit | — |
 | L11b Stay dates | stay | L11a yes | start and end | L11a |

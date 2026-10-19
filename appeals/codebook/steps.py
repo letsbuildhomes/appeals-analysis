@@ -21,7 +21,7 @@ from appeals.codebook import towns
 from appeals.codebook import topics
 from appeals.codebook.questions import (FURTHEST, GROUP_NAMES, GROUPS, JUDGMENT, LEVELS, NOT_STATED, OTHER_KINDS,
                                        OTHER_LEVELS, OTHER_NAMES, K1, T1, G2, G3, G4, C1, C3, C4, C5, S1, S2, S3,
-                                       S4)
+                                       S4, U4, U5)
 from appeals.graph.expr import If, T
 from appeals.graph.expr import StepAnswer as A
 from appeals.graph.nodes import Base, Step
@@ -290,11 +290,26 @@ L6f = Step('L6f', topics.UNITS, title='Units added: court approved', when=G.coun
                                        f'the denial. {PART_ONLY}', UNITS_ADDED),
     returns=Record(court_approved=Quoted(Count())))
 
+# The comparisons are worked out from the counts when both are known (fields.py). This step covers the dockets
+# where a count is missing, such as a court upholding the town's approval without restating its size.
+COMPARE_UNITS = ('Answer "same" when a passage shows the court approved the project at the size {what}, such as '
+                 'affirming the town\'s approval or granting the application as submitted. Answer "more" or "fewer" '
+                 'when a passage shows the court\'s result changed the number of new dwelling units. Otherwise answer '
+                 '"not stated".')
+L6g = Step('L6g', topics.UNITS, title='Units added: court against town and application', when=G.counts, after=L6f,
+    only_if=A('L5c', 'result').in_(['granted', 'granted with conditions', 'granted in part', 'denied']),
+    prompt=_paragraphs('Compare the number of new dwelling units under the court\'s decision ending this docket with '
+                       'the municipal decision and with the application, each with a quote.',
+                       'Against the municipal decision: ' + COMPARE_UNITS.format(what='the municipality approved'),
+                       'Against the application: ' + COMPARE_UNITS.format(what='the application proposed'),
+                       PART_ONLY),
+    returns=Record(vs_town=_choice(U4), vs_application=_choice(U5)))
+
 
 # ---- C · Grounds: arguments stated, challenged conditions, each judgment standard, each other question ----
 
-# The project owner's ruling (October 2026): arguments only about procedure don't count. Kept out of the G1 scan
-# wording so the corpus scan stays valid; L7a's "no" with no standard at issue gives "not stated" (fields.NO_ARGUMENTS).
+# The project owner's ruling (October 2026): arguments only about procedure don't count. L7a's "no" with no standard
+# at issue gives "not stated" (fields.NO_ARGUMENTS).
 ARGUMENTS_MEANING = ('Count only arguments about the municipal decision itself: why it should be upheld, reversed or '
                      'changed, including such arguments made on a motion for summary judgment. Arguments only about '
                      'procedure, such as reinstating a dismissed appeal, deadlines, standing or jurisdiction, do not '
@@ -443,12 +458,11 @@ def _other_prompt(key, scan):
         scan,
         'How far did this docket get with a question of this kind? Count it only for this docket\'s appeal, not for a '
         f'sibling docket or a coordinated civil action decided in the same decision. {FURTHEST}',
-        'A rule, permit or doctrine the decision only recites (background facts, the legal standard, a list of '
-        'sections) is "not at issue". Whether the project meets a standard calling for judgment, and variances or '
-        'waivers, are not this kind of question.',
-        'Answer above "not at issue" only for a question of this kind that a party argued or the court ruled on in '
-        'this docket. Your quote must show a question of this kind; a passage about another kind of question, or one '
-        'that only mentions a permit, an earlier approval or a property line, does not count.',
+        'First state, in one sentence, the question of this kind that a party asked the court to decide in this '
+        'docket, or that the court decided, in the words of the kind\'s question above. If there is none, say so: '
+        'the level is then "not at issue", as it is for a rule, permit or doctrine the decision only recites. Whether '
+        'the project meets a standard calling for judgment, and variances or waivers, belong to the judgment '
+        'standards.',
         QUOTE_LEVEL)
 
 
@@ -458,7 +472,7 @@ OTHER_STEPS = {key: Step(f'L9_{key}', topics.GROUNDS, title=f'Other question: {O
     only_if=G3.applies(key) >= T.other_check,
     choose=If(G3.applies(key) >= T.sure, 'scan fairly confident', 'scan uncertain'),
     variants={name: _other_prompt(key, scan) for name, scan in OTHER_SCAN[key].items()},
-    returns=Record(level=Quoted(OneOf(OTHER_LEVELS, not_stated=False))))
+    returns=Record(question=Text(), level=Quoted(OneOf(OTHER_LEVELS, not_stated=False))))
     for key in OTHER_KINDS}
 
 
@@ -504,7 +518,7 @@ ORDER = [L1a, L1b, L1c, L1d,
          L3a, L3b, L3c, *KINDS.values(),
          L4a, L4b,
          L5a, L5b, L5c, L5d, L5e, L5g, L5f,
-         L6a, L6b, L6c, L6d, L6e, L6f,
+         L6a, L6b, L6c, L6d, L6e, L6f, L6g,
          L7a, L7b, L7c, L7d, L7e,
          *(s for k in GROUND_STEPS for s in (GROUND_STEPS[k], GROUND_RESULTS[k], GROUND_CONDITIONS[k])),
          L8_relief_kind, *OTHER_STEPS.values(),

@@ -36,8 +36,10 @@ The study concerns appeals of town land-use decisions about **new housing**
 heard by the Vermont Environmental Division, as seen through its published
 decisions. "New housing" means the permission at issue lets someone build,
 place or convert a structure that will contain dwelling units, or create lots
-for housing. Enforcement, changes of occupancy and accessory work are out of
-scope, and so are permits for something already built. The research questions
+for housing. Turning a non-residential space into dwelling units counts, with
+or without construction. Enforcement, changes of occupancy that create no
+dwelling units, and accessory work are out of scope, and so are permits for
+something already built. The research questions
 are in [RESEARCH-QUESTIONS.md](RESEARCH-QUESTIONS.md). They guided what we
 extract, but the pipeline's output is a general set of facts about each docket,
 and the MCP server lets users ask their own questions of it.

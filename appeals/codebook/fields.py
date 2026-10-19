@@ -255,16 +255,20 @@ stayed = Field('stayed', topics.STAY_DESIGN, label='Court stayed the permit', ty
                notes=['Only stays the court imposed.'])
 stay_start = Field('stay_start', topics.STAY_DESIGN, label='Stay start', type=DateValue(), step=L.L11b, path='start')
 stay_end = Field('stay_end', topics.STAY_DESIGN, label='Stay end', type=DateValue(), step=L.L11b, path='end')
-units_vs_town = Field('units_vs_town', topics.UNITS, label='Units added vs the town\'s decision',
-                      type=_choice(Q.U4), scan=Q.U4,
-                      notes=['From the scan only: a direction with a probability, no quote.'])
-units_vs_application = Field('units_vs_application', topics.UNITS, label='Units added vs the application',
-                             type=_choice(Q.U5), scan=Q.U5,
-                             notes=['From the scan only: a direction with a probability, no quote.'])
 units_added_court_approved = Field('units_added_court_approved', topics.UNITS, label='Units added: court approved',
                                    type=Count(), step=L.L6f, path='court_approved',
                                    notes=['0 when the court denied the application. When only part of the project is '
                                           'under appeal, only that part is counted, as in the town\'s count.'])
+
+# The final comparisons are derived (derived.units_vs_town): from the counts when both are known, else these.
+STATED_NOTES = ['What the documents show with a quote, from L6g: such as a court upholding the town\'s approval '
+                'without restating its size. Used by the derived comparison only when a count is missing. The scan\'s '
+                'guess is never used.']
+units_vs_town_stated = Field('units_vs_town_stated', topics.UNITS, label='Units added vs the town\'s decision, as stated',
+                             type=_choice(Q.U4), step=L.L6g, path='vs_town', notes=STATED_NOTES)
+units_vs_application_stated = Field('units_vs_application_stated', topics.UNITS,
+                                    label='Units added vs the application, as stated',
+                                    type=_choice(Q.U5), step=L.L6g, path='vs_application', notes=STATED_NOTES)
 design_changed = Field('design_changed', topics.STAY_DESIGN, label='Court changed size or design', type=_choice(Q.D2),
                        scan=Q.D2, step=L.L12a, path='changed',
                        notes=["Only changes the court imposed; changes the town made belong to the town's decision."])
@@ -281,5 +285,5 @@ ALL = [proceeding, physical_change, housing_use, units_effect,
        conditions_challenged, conditions_challenged_by, conditions_outcome,
        review_standard, final_decision, how_ended, court_result, dismissal_basis,
        final_decision_date, outcome_changed_later, latest_order_date,
-       stayed, stay_start, stay_end, units_vs_town, units_vs_application, units_added_court_approved,
+       stayed, stay_start, stay_end, units_vs_town_stated, units_vs_application_stated, units_added_court_approved,
        design_changed, design_change]
