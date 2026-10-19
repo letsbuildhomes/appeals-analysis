@@ -3,8 +3,8 @@
   "api": "openai",
   "base_url": "https://api.deepseek.com",
   "key_env": "DEEPSEEK_API_KEY",
-  "concurrent": 32,
-  "per_minute": 1000,
+  "concurrent": 64,
+  "per_minute": 2500,
   "source": "https://api-docs.deepseek.com/quick_start/pricing",
   "checked": "2026-10-16",
   "notes": [

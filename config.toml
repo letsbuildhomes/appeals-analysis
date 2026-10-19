@@ -24,7 +24,7 @@ json_repairs = 2                           # times a malformed reply is sent bac
 resends = 2                                # times a reply cut off at max_output_tokens, or empty, is sent again unchanged
 
 [run]
-workers = 24
+workers = 64
 budget_usd = 20.0
 chars_per_token = 4.0
 
