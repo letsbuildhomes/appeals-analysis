@@ -84,8 +84,13 @@ L1a = Step('L1a', topics.SCOPE, title='Scope: kind of proceeding',
         '{S1}', QUOTE_IT),
     returns=Record(proceeding=_choice(S1)), halt_unless=A('L1a', 'proceeding').in_([*MUNICIPAL_PERMIT, NOT_STATED]))
 
+# Answer scope for the permission under appeal, not the project as a whole (pass 6): a follow-up approval, an
+# after-the-fact approval and an amendment were each judged by the whole project and passed scope wrongly.
+THIS_PERMISSION = ('Answer for what the permission under appeal itself allows, beyond what was already approved or '
+                   'built. An approval that carries out an earlier permit\'s condition, such as a landscaping plan, '
+                   'allows only what it adds. An approval of work already done is "authorize something already built".')
 L1b = Step('L1b', topics.SCOPE, title='Scope: physical change', after=L1a,
-    prompt=_paragraphs('{S2}', QUOTE_IT),
+    prompt=_paragraphs('{S2}', THIS_PERMISSION, QUOTE_IT),
     returns=Record(change=_choice(S2)),
     halt_unless=~A('L1b', 'change').in_(['authorize something already built', 'no physical change']))
 
@@ -94,7 +99,10 @@ L1c = Step('L1c', topics.SCOPE, title='Scope: housing use', after=L1b,
     returns=Record(housing=_choice(S3)), halt_unless=A('L1c', 'housing').in_(['yes', 'group or care housing', NOT_STATED]))
 
 L1d = Step('L1d', topics.SCOPE, title='Scope: dwelling units', after=L1c,
-    prompt=_paragraphs('{S4}', QUOTE_IT),
+    prompt=_paragraphs('{S4}', 'Answer for the dwelling units the permission under appeal itself allows, beyond '
+                               'those that exist or an earlier permit approved. A subdivision whose houses are left '
+                               'to later permits neither adds nor replaces units, even when the decision expects '
+                               'houses on its lots.', QUOTE_IT),
     returns=Record(units=_choice(S4)),
     halt_unless=A('L1d', 'units').in_(['adds', 'replaces', NOT_STATED]) | A('L1b', 'change').is_('create building lots'))
 
@@ -250,10 +258,14 @@ L5f = Step('L5f', topics.COURT, title='Date of the latest order', after=L5a, onl
 
 # ---- A, B, F · Dwelling units added, one count at a time --------------------------------------
 
-UNITS_ADDED = ('Count only the new dwelling units the project would create. Existing units that would remain are not '
-               'counted, even when the documents give a total for the whole property or development, and neither '
-               'are units an earlier permit already approved that the project keeps unchanged, built or not. A unit '
-               'that replaces one removed counts as one. Never derive a number of units from lots or bedrooms.')
+# What to count, said as what it is (pass 6): the step had followed any number a decision states, such as the houses
+# a subdivision is expected to bring, or a property's total.
+UNITS_ADDED = ('Count the new dwelling units this permission would allow to be built: units beyond those that already '
+               'exist or that an earlier permit approved, built or not. A unit that replaces one removed counts as '
+               'one. A subdivision that creates lots, with the houses left to later permits, adds 0 units, even when '
+               'the decision expects houses on the lots. When the documents give only a total for the property or '
+               'development and don\'t say how many units already exist, the answer is "not stated". Never derive a '
+               'number of units from lots or bedrooms.')
 
 L6a = Step('L6a', topics.UNITS, title='Units added: proposed', when=G.counts,
     prompt=_paragraphs('{U1}', 'How many new dwelling units would the project add, as the application proposed it?',
@@ -271,7 +283,8 @@ L6c = Step('L6c', topics.UNITS, title='Units added: under appeal', when=G.counts
 
 L6d = Step('L6d', topics.UNITS, title='New housing lots', when=G.counts, after=L6a,
     prompt=_paragraphs('{U3}', 'How many new building lots for housing would the application create? Count only new '
-                               'lots, not the parcel being divided.'),
+                               'lots, not the parcel being divided, and not a remainder lot that keeps an existing '
+                               'home.'),
     returns=Record(lots=Quoted(Count())))
 
 # The town's and the court's counts are compared (unit_change), so both count the same thing: a denial approved no units,
@@ -280,7 +293,8 @@ PART_ONLY = 'When only part of the project is under appeal, count only that part
 
 L6e = Step('L6e', topics.UNITS, title='Units added: town approved', when=G.counts, after=L6c,
     prompt=_paragraphs('How many new dwelling units did the municipal decision under appeal approve? If it denied the '
-                       f'application, the answer is 0, with a quote of the denial. {PART_ONLY}', UNITS_ADDED),
+                       'application, the answer is 0, with a quote of the denial, for group or care housing too. '
+                       f'{PART_ONLY}', UNITS_ADDED),
     returns=Record(town_approved=Quoted(Count())))
 
 # The scan's two comparisons of the court's result belong with the court's count, not the town's.
@@ -288,7 +302,7 @@ L6f = Step('L6f', topics.UNITS, title='Units added: court approved', when=G.coun
     only_if=A('L5c', 'result').in_(['granted', 'granted with conditions', 'granted in part', 'denied']),
     prompt=_paragraphs('{U4}', '{U5}', 'How many new dwelling units did the court\'s decision ending this docket '
                                        'approve? If the court denied the application, the answer is 0, with a quote of '
-                                       f'the denial. {PART_ONLY}', UNITS_ADDED),
+                                       f'the denial, for group or care housing too. {PART_ONLY}', UNITS_ADDED),
     returns=Record(court_approved=Quoted(Count())))
 
 # The comparisons are worked out from the counts when both are known (fields.py). This step covers the dockets

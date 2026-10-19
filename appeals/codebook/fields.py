@@ -72,13 +72,19 @@ units_added_proposed = Field('units_added_proposed', topics.UNITS, label='Units 
                              step=L.L6a, path='proposed',
                              notes=['Units an earlier permit already approved and the project keeps unchanged are not '
                                     'counted, built or not: a revision of an approved development counts only the units '
-                                    'it changes.'])
+                                    'it changes.',
+                                    '0 when the documents show the project creates no units, such as a subdivision that '
+                                    'only creates lots; "not stated" when they don\'t let you tell.'])
 appeal_partial = Field('appeal_partial', topics.UNITS, label='Appeal covers only part', type=_choice(Q.U2),
                        scan=Q.U2, step=L.L6b, path='partial')
 units_added_under_appeal = Field('units_added_under_appeal', topics.UNITS, label='Units added: under appeal',
                                  type=Count(), step=L.L6c, path='under_appeal')
 housing_lots = Field('housing_lots', topics.UNITS, label='New housing lots', type=Count(),
-                     step=L.L6d, path='lots')
+                     step=L.L6d, path='lots',
+                     notes=['Only the lots a subdivision creates for new housing: not the parcel divided, and not a '
+                            'remainder lot that keeps an existing home.',
+                            '0 when the documents show the project creates no lots; "not stated" when they don\'t let '
+                            'you tell.'])
 permission_kinds = Field('permission_kinds', topics.KINDS, label='Kinds of permission', type=_items(Q.K1),
                          scan=Q.K1, steps=L.KINDS, path='at_issue')
 
@@ -209,11 +215,11 @@ def condition_outcome(item, answer):
 conditions_challenged_by = Field('conditions_challenged_by', topics.GROUNDS, label='Who challenged each condition',
                                  type=ListOf(Record(condition=Text(), challenged_by=OneOf(L.CHALLENGERS)),
                                              not_stated=True),
-                                 step=L.L7d, path='challenged_by', per_item=condition_challengers,
+                                 step=L.L7d, path='challenged_by', per_item=condition_challengers, not_stated_if=NO_ARGUMENTS,
                                  notes=['Up to five conditions per docket; the condition is described in a few words.'])
 conditions_outcome = Field('conditions_outcome', topics.GROUNDS, label='What the court did with each condition',
                            type=ListOf(Record(condition=Text(), outcome=OneOf(L.OUTCOMES)), not_stated=True),
-                           step=L.L7e, path='outcome', per_item=condition_outcome,
+                           step=L.L7e, path='outcome', per_item=condition_outcome, not_stated_if=NO_ARGUMENTS,
                            notes=['Up to five conditions per docket. Match to conditions_challenged_by by the '
                                   'condition\'s description.'])
 

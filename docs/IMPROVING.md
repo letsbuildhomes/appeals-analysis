@@ -383,6 +383,73 @@ What the failed experiment taught:
 - **Before restructuring a field again, measure its noise.** A field that sits at the same error count under three
   designs may be at its noise floor, or limited by its key.
 
+### Noise check (2026-10-18)
+
+Run `20261019-023832-492d`, $1.07: the 5a2 pipeline (same graph hash) on the 64 dockets with `--fresh-steps`, the
+scan reused. Every difference from 5a2 (`20261019-014137-abc4`) is chance. `scripts/noise.py <run> <fresh-run>`
+gives flip rates by area, field and step, comparing what each answer decides rather than its wording.
+
+- **Overall:** 28 answers fixed and 30 broken by chance alone; net −6 units, gross +19/−25. With pass 4's untouched
+  reading (+6), chance has now landed on both edges of the ±6 band.
+- **About a fifth of errors are coin flips:** of about 161 wrong answers per run, 127 are wrong in both runs and 68
+  answers are right in one run only.
+- **Stable areas** (no step answer changed): proceeding and physical change (L1a, L1b), filing date (L2a), the
+  town's decision (L3a), the ending chain (L5a to L5d), the review standard (L10), stays and design changes.
+- **Unstable areas:**
+
+| Field | Flip rate | Wrong in both runs | Coin flips | Step and its flip rate |
+|---|---|---|---|---|
+| other_questions | 12% | 20 | 19 | L9, 18% |
+| appeal_partial | 19% | 2 | 3 | L6b, 30% |
+| permission_kinds | 7% | 5 | 8 | L3 kinds, 13% |
+| appellants, appellant_lawyers | 10–14% | 1 | 5 | L4a, L4b, 31% (partly name formatting) |
+| unit counts and comparisons | 5–10% | 9 | 4 | L6e 17%, L6g 27% |
+| judgment standards | 4–5% | 20 | 13 | L8, 6% |
+
+- **What it means for the passes:** chance alone moves about 19 other-question answers. The 16 fixed and 16 broken
+  in 5b, and 14 and 15 in 5b2, were mostly that. A smaller real effect on other questions can't be seen in one run.
+- One pair of runs is one sample; rates on small counts (L6g ran on 11 dockets) are rough.
+
+### Pass 6a: this permission only, units added said affirmatively, condition lists (2026-10-18)
+
+Run `20261019-033224-3734`, $0.18, against 5a2 (`20261019-014137-abc4`). The scan was unchanged. Scored with the
+wash band at ±8. First scored as a net loss (−9 units) because of the convention below; the project owner ruled
+that a count the documents show to be none is 0, the key was updated in code (27 answers), and the rescore is a
+**net improvement, +21 units**.
+
+Changed:
+- **Scope (L1b, L1d):** answer for what the permission under appeal itself allows, beyond what was already approved
+  or built; a follow-up approval of an earlier condition allows only what it adds; approval of work already done is
+  "authorize something already built"; a subdivision whose houses need later permits neither adds nor replaces.
+- **Units added (L6):** counted as what this permission allows beyond what exists or was approved; a lots-only
+  subdivision adds 0; a property total with no count of existing units is "not stated".
+- **Condition lists** follow the no-arguments rule, like `conditions_challenged`.
+- **Rulings** (project owner): a remainder lot keeping an existing home is not a new lot; a denial approved 0 units
+  for group or care housing too. In L6d to L6f, `housing_lots`'s note and `edge_cases.md`.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| This permission only (scope) | 38 → 38 | 5 | 5 | +4/−4 | 23-ENV-00071 rightly out; 23-2-06 wrongly out |
+| Units added, affirmative | 37 → 15 | 24 | 2 | +24/−2 | real gain (after the ruling; before it, 9 fixed and 17 broken) |
+| Condition lists | 8 → 8 | 0 | 0 | — | 110-6-08 now "not stated" as intended (the lists shifted elsewhere) |
+
+- **The fixes hit their targets:** 121-10-16's property total is now "not stated" (3 answers); 189-11-10's lots-only
+  subdivision counts 0 units and 4 lots (5 answers); 27-2-10 and 39-2-06 lots are right; 23-ENV-00071 left scope,
+  and in held back so did 90-6-01.
+- **The first scoring's 17 unit breaks were one convention:** the pipeline said 0 where the key said "not stated",
+  for units of lots-only subdivisions and lots of projects that create none, and the key itself was split. **Ruling**
+  (project owner): when the documents show a project creates no units or lots, the count is 0; "not stated" is for
+  when they don't let you tell. Applied to the key in code, following the codebook (units 0 when `units_effect` is
+  neither, for each body that decided; lots 0 when the project neither creates lots nor is a subdivision; the
+  comparisons from the counts), except 118-7-03, whose land-condominium house sites the documents leave unclear.
+  In `edge_cases.md` and the notes on `units_added_proposed` and `housing_lots`.
+- **Left after the rescore:** `units_added_under_appeal` 0 on 249-11-05 and 39-2-06, where L6b, the noisiest step,
+  calls the appeal partial.
+- **23-2-06 wrongly out of scope (high):** L1c reran only because it follows L1b, and on this inn with the owners'
+  living quarters it flipped from housing to not housing. Rerun noise on a hard case.
+- **23-ENV-00104, held back, wrongly in (high):** L1b now calls a boundary line adjustment "create building lots",
+  though L1d quotes that it creates no new lot. Unclear whether the new wording or noise caused it.
+
 ## Open ideas, not yet tried
 
 Roughly in order of expected value.
