@@ -34,10 +34,13 @@ much" without adjudication:
   unreviewed answer may be a key error.
 - **Unexpected movement.** Unchanged steps come from the cache, so an answer that moves although none of its inputs
   changed points to a bug.
-- **Verdict** (development dockets only): net loss if scope breaks more than it fixes or net units fall below the
-  wash band; a wash within it; a net improvement above it, noting any field below it. The band is ±6 units, from
-  pass 4: a full rerun moved the fields no change touched by +17/−11 units, so a smaller net change can't be told
-  from chance. A field's own move inside the band is noise too. Revisit the band as passes add readings.
+- **Verdict** (development dockets only). It counts the fields the named changes target, plus every docket that
+  moved into or out of scope; the untouched fields are the noise reading, named only if they move beyond the band
+  (then look for a bug or a missed target). Net loss if more dockets moved wrongly than rightly or the counted net
+  units fall below the band; net improvement if more moved rightly or they rise above it, noting any counted field
+  below it; a wash otherwise. The band is ±8 units: chance alone moved the whole key by +6, −6 and −5 net units
+  (pass 4, the noise check, pass 6b), about 45 units gross each time. Until pass 6c the verdict counted every
+  field, so full reruns were decided by noise. A field's own move inside the band is noise too.
 - **A full rerun is also a noise reading.** When the scan changes, every step reruns, so the fields no change
   targets show what chance alone does. Report them apart from the targeted fields.
 - **Branches.** Some fields answer one chain of questions: a standard's level, result and condition; the ending
@@ -499,6 +502,31 @@ committed.
 option meanings they never see: the placeholder gives the question, not the meanings. Only C2's meanings carried
 rules, now repeated in L5a; the other eleven restate their options. The same leak applies to field notes and
 `edge_cases.md`, which only the key's labelers read: a rule there reaches the pipeline only if a step's prompt says it.
+
+### Review: rules the pipeline can't see (2026-10-19)
+
+No run. Every field note and every rule in `edge_cases.md` was checked against the prompts and option meanings of
+the steps that answer those fields. `tests/test_graph.py` now fails when a step cites a scan question whose option
+meanings it never sees, unless those meanings match a reviewed fingerprint.
+
+Field notes are nearly all repeated in their steps; the care-housing note was stale (now says a denial approved 0).
+These edge-case rules reach no step:
+
+| Area | Rule only in the key | Evidence on the key |
+|---|---|---|
+| Scope | A boundary or lot-line adjustment that creates no new lot is not `create building lots` | 23-ENV-00104 (held back) broke on it in 6a |
+| Scope | After the fact: starting early or a lapsed permit isn't after the fact; if part is built, answer for the proposed part | 38-2-00 (held back) |
+| Scope | Answer scope for what the application proposed, even if it was denied | none yet |
+| Scope | An Act 250 or state appeal with its own docket number is that state proceeding, even when decided with the town's appeal (S1's "several" reads otherwise) | none yet |
+| Scope | An accessory dwelling unit adds a unit | none yet |
+| Counts | Group or care housing: unit counts "not stated" unless the documents describe dwelling units | none yet |
+| Grounds | A question of unclear kind gets no kind (`not at issue`), not a guess | the 15 stable L9 false positives may include some |
+| Grounds | A court noting only that no evidence was offered on a criterion is `not at issue` | none yet |
+| Grounds | Each standard under one kind only | none yet |
+| Outcome | `design_changed` is about the buildings, not site features | none (the field is stable and right) |
+
+The cause is structural: edge cases are written by hand for the key's labelers, and nothing carries them into step
+prompts. The labeling prompt is generated from the codebook; the edge cases should be too.
 
 ## Open ideas, not yet tried
 

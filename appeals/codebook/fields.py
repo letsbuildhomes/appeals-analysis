@@ -43,7 +43,7 @@ housing_use = Field('housing_use', topics.SCOPE, label='Used for housing',
                     type=_choice(Q.S3), scan=Q.S3, step=L.L1c, scan_if_unsure=True, path='housing',
                     notes=['"Group or care housing" (assisted living, nursing homes, dormitories, group homes) is in scope, '
                            'kept apart from "yes" so it can be left out. Its unit counts are "not stated" unless the '
-                           'documents describe dwelling units.'])
+                           'documents describe dwelling units, except that a denial approved 0.'])
 units_effect = Field('units_effect', topics.SCOPE, label='Adds or replaces units',
                      type=_choice(Q.S4), scan=Q.S4, step=L.L1d, scan_if_unsure=True, path='units')
 
