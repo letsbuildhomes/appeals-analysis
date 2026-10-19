@@ -132,7 +132,10 @@ for _key in Q.GROUPS:
 NO_ARGUMENTS = (Q.G1.p('yes') < T.grounds) | (A('L7a', 'stated').in_(['no', NONE_FOUND]) & _NONE_AT_ISSUE)
 arguments_stated = Field('arguments_stated', topics.GROUNDS, label='Arguments stated', type=_choice(Q.G1),
                          scan=Q.G1, step=L.L7a, path='stated',
-                         notes=['A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
+                         notes=['Only arguments about the municipal decision itself (why it should be upheld, reversed '
+                                'or changed) count; arguments only about procedure, such as reinstatement, deadlines, '
+                                'standing or jurisdiction, do not.',
+                                'A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
                                 'judgment standards (G2) and conditions (G4) "not stated"; the other questions (G3) are '
                                 'still answered.'])
 
@@ -149,6 +152,11 @@ GROUND_NOTES = [
     '"Decided, disputed" means a party contested whether the project meets the standard and the court ruled: that is '
     'what makes a standard central (judgment_central). A finding made only because the court runs through every criterion is '
     '"decided, not disputed".',
+    'A general question in the Statement of Questions covering a whole section (such as "all of § 500") disputes '
+    'only the standards a party argued specifically; one the court ruled on without such an argument is "decided, '
+    'not disputed".',
+    'A standard the court found moot or not required, or sent back to the municipal panel to review first, is "set '
+    'aside".',
     'A kind the scan gave less than a 0.3 chance of being at issue gets no follow-up and keeps the scan\'s answer.']
 judgment_grounds = Field('judgment_grounds', topics.GROUNDS, label='Judgment standards: how far each got',
                          type=_per_group(OneOf(Q.LEVELS, not_stated=True)), scan=Q.G2, steps=L.GROUND_STEPS,

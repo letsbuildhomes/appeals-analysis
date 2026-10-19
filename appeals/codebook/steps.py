@@ -293,8 +293,15 @@ L6f = Step('L6f', topics.UNITS, title='Units added: court approved', when=G.coun
 
 # ---- C · Grounds: arguments stated, challenged conditions, each judgment standard, each other question ----
 
+# The project owner's ruling (October 2026): arguments only about procedure don't count. Kept out of the G1 scan
+# wording so the corpus scan stays valid; L7a's "no" with no standard at issue gives "not stated" (fields.NO_ARGUMENTS).
+ARGUMENTS_MEANING = ('Count only arguments about the municipal decision itself: why it should be upheld, reversed or '
+                     'changed, including such arguments made on a motion for summary judgment. Arguments only about '
+                     'procedure, such as reinstating a dismissed appeal, deadlines, standing or jurisdiction, do not '
+                     'count.')
+
 L7a = Step('L7a', topics.GROUNDS, title='Arguments stated', when=G.grounds,
-    prompt=_paragraphs('{G1}', QUOTE_IT),
+    prompt=_paragraphs('{G1}', ARGUMENTS_MEANING, QUOTE_IT),
     returns=Record(stated=Quoted(YesNo(not_stated=False), none_found=True)))
 
 # The follow-ups on conditions and judgment standards run on the scan's flags, not on L7a: a single wrong "no" there
@@ -357,6 +364,21 @@ def _scan_level(placeholder, what):
                           f'likely at the level "{{{placeholder}}}"). Decide from the documents.'}
 
 
+# What lifts a kind above "not at issue", and two rulings on levels (October 2026, after the second pass): kinds
+# were being flagged from a passing word or from text about a neighbouring kind, and decided where the court
+# never reached the standard.
+GROUP_EVIDENCE = ('Answer above "not at issue" only for a standard of this kind that a party argued about this '
+                  'project or that the court applied to it. A passing word (such as "historic" in a description), a '
+                  'fact recited only as background or as the reason for another ruling, and a standard of a '
+                  'neighbouring kind do not count. Your quote must be about a standard of this kind; if the best '
+                  'passage you can find is about another kind, the answer is "not at issue".')
+GENERAL_QUESTION = ('A general question in the Statement of Questions that covers a whole section or list of criteria '
+                    '(such as "all of § 500") disputes only the standards a party argued specifically. A standard it '
+                    'covers that the court ruled on without such an argument is "decided, not disputed".')
+NOT_REACHED = ('A standard the court found moot or not required (such as a variance it held unnecessary), or sent back '
+               'to the municipal panel to review first, is "set aside", not decided or taken up.')
+
+
 def _group_prompt(key, scan):
     return _paragraphs(
         f'The kind of standard: {GROUPS[key]}.',
@@ -367,6 +389,9 @@ def _group_prompt(key, scan):
         f'disputed. {FURTHEST}',
         'A dispute over a condition counts under the group whose standard the condition serves (a challenged phasing '
         'deadline justified by the burden on municipal services is traffic and services).',
+        GROUP_EVIDENCE,
+        GENERAL_QUESTION,
+        NOT_REACHED,
         QUOTE_LEVEL)
 
 
@@ -421,6 +446,9 @@ def _other_prompt(key, scan):
         'A rule, permit or doctrine the decision only recites (background facts, the legal standard, a list of '
         'sections) is "not at issue". Whether the project meets a standard calling for judgment, and variances or '
         'waivers, are not this kind of question.',
+        'Answer above "not at issue" only for a question of this kind that a party argued or the court ruled on in '
+        'this docket. Your quote must show a question of this kind; a passage about another kind of question, or one '
+        'that only mentions a permit, an earlier approval or a property line, does not count.',
         QUOTE_LEVEL)
 
 

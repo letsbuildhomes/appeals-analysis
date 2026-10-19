@@ -13,10 +13,31 @@ The answer key lives in `data/answer-keys/full-2026-10/` (not in git; see its `R
 |---|---|---|
 | Run | `uv run appeals run --model live --dockets "<the 64>" --tag key` | The pipeline on the key's dockets. Scans and steps are cached, so only what changed is paid for; a facts-only change costs nothing. About $0.60 for a full rerun. |
 | Score | `uv run python data/answer-keys/full-2026-10/scripts/score.py <run> --load` | Loads the key into `reference_answers` (source `full-2026-10`) and scores field by field, per item for per-group fields, development and held-back apart. Writes `disagreements-<run>.json`. |
+| Compare | `uv run python data/answer-keys/full-2026-10/scripts/compare.py <before> <after>` | Scores both runs against today's key and gives a verdict (net improvement, wash, net loss) from what the change fixed and broke. See "Judging a change" below. Writes `compare-<before>-<after>.json`. |
 | Sort | `uv run python data/answer-keys/full-2026-10/scripts/classify.py <run>` | Splits disagreements into *settled* (an adjudicator already ruled on that docket and field), *scope-caused* (one side has the docket out of scope, so its fields can't agree), *convention* (the same meaning written two ways) and *real*. Writes `real-<run>.json`. |
 | Adjudicate | one Sonnet subagent per docket; instructions in `adjudication/instructions.md` | Only real disagreements, and only on dockets in scope or where scope itself is disputed. Each verdict says who is right (key, pipeline, both defensible, neither), the cause (pipeline error, key error, definition gap) and why, with a page. |
 | Apply | `uv run python data/answer-keys/full-2026-10/scripts/apply_adjudication.py <folder>` | Writes "pipeline" and "neither" verdicts into the key, marked `adjudicated`. Lists it can't apply go to `unapplied.json` for a labeling pass. |
 | Check | `uv run python data/answer-keys/full-2026-10/scripts/check_labels.py labels` | Every label's shape, values against the codebook's types, the scope rule, and every quote on its page. |
+
+### Judging a change
+
+Run `compare.py` on the run before and the run after a change. It answers "better, worse or a wash, and by how
+much" without adjudication:
+- **One yardstick.** Both runs are scored against the key as it stands, so key corrections don't count.
+- **Moves, not totals.** Each answer is fixed, broken, shifted (wrong to a different wrong) or unchanged; net is
+  fixed minus broken. "Closed" is net as a share of the field's errors before.
+- **Scope first.** A docket moving in or out of scope is listed by name. Field answers on a docket that either run
+  has out of scope are left out of the field counts.
+- **Units damp cascades.** One field on one docket is one unit, better or worse by its error count. The verdict uses
+  net units, so one docket with twenty knock-on answers counts as a few units, not twenty.
+- **Reviewed or not.** A break against a key answer an adjudicator or ruling set is strong evidence; one against an
+  unreviewed answer may be a key error.
+- **Unexpected movement.** Unchanged steps come from the cache, so an answer that moves although none of its inputs
+  changed points to a bug.
+- **Verdict** (development dockets only): net loss if scope breaks more than it fixes or net units fall below the
+  wash band; a wash within it; a net improvement above it, noting any field below it. The band is ±2 units, a
+  guess. Pass 3 gives a rough noise reading: L7b–e reran with unchanged wording (only the L7a turn before them
+  changed) and moved 2 units each way. A rerun with fresh calls on an unchanged pipeline would measure it properly.
 
 Rules learned the hard way:
 - **Use Sonnet for checking.** Opus adjudication of 26 dockets was thorough but expensive; Sonnet did the
@@ -75,6 +96,10 @@ characters left out. Every fourth docket in a stratum is held back: 13 in all.
 | False passes (scope) | 5 | 2 |
 | Field accuracy, dockets in scope on both sides | about 90% (14 dockets) | about 90% (20 dockets, 1,400 answers) |
 | Where field errors are | grounds: other questions 18, judgment standards 16 | grounds: other questions 25, judgment standards 22, results 17 (of 139) |
+
+Pass 3 (run `20261018-234503-a702`) was scored without adjudication, so it isn't in the table. Against the
+same key, raw agreement rose from 1,230 to 1,257 of 1,515 development answers and from 256 to 258 of 275
+held-back answers, and real disagreements fell from 117 to 93. Scope didn't change.
 
 Field accuracy counts adjudicated errors only: "both defensible" counts as agreement, and convention-only
 mismatches are left out.
@@ -136,6 +161,48 @@ Found:
   for the other groups. **Fixed in code** with the codebook's own rule.
 - **The scope errors left** are all old ones (see open ideas).
 
+### Pass 3: grounds evidence rules (pipeline at 9a08818 plus uncommitted changes)
+
+Run `20261018-234503-a702`, $0.31 (estimated $0.27). Only L7a, L8 and L9 changed; the scan and every other step
+came from the cache. Scored and classified only: the project owner asked for no adjudication this pass, so
+nothing below has been checked by a reviewer.
+
+Changed:
+- **L8:** answer above "not at issue" only for a standard a party argued about this project or the court applied
+  to it, with a quote about that kind. Passing words, background facts and neighbouring kinds don't count.
+- **L9:** the same rule for the other questions.
+- **Rulings by the project owner**, in the L8 prompt, the codebook notes and `edge_cases.md`:
+  - a general Statement-of-Questions question (such as "all of § 500") disputes only the standards argued
+    specifically;
+  - a standard found moot or not required, or sent back to the town board to review first, is "set aside";
+  - `arguments_stated` counts only arguments about the town's decision itself, not ones only about procedure
+    (reinstatement, deadlines, standing, jurisdiction). This is in L7a, not the G1 scan, so the corpus scan stays
+    valid.
+- **Key:** 101-5-07 traffic and water to "decided, not disputed", and 93-8-18 water to "set aside", under those
+  rulings.
+
+**Compare verdict** (`compare.py 20261018-224823-fd23 20261018-234503-a702`): net improvement, net units +8 against a
+±2 band, no scope movement, no unexpected movement. By field: judgment standards +9 answers (43% of errors closed),
+results +10 (62%), conditions +3 (50%), other questions −1 (a wash, with 7 fixed and 8 broken). Held back +2.
+
+Found (development answers, both runs scored against the same key):
+
+| Field | Pass 2 | Pass 3 |
+|---|---|---|
+| judgment_grounds | 98/126 | 107/126 |
+| judgment_results | 102/126 | 111/126 |
+| judgment_conditions | 105/126 | 114/126 |
+| other_questions | 130/162 | 129/162 |
+
+- **Judgment standards improved:** for example 164-12-17 water, 189-11-10 historic and 23-2-06 relief (now set
+  aside). 110-6-08 now reads "not stated" throughout. Misses stayed at 2, so the stricter rule cost no recall.
+- **Other questions didn't improve.** False "at issue" answers went from 21 to 22, with churn: several fixed and
+  as many new (110-6-08 earlier and meaning, 209-11-04 meaning, 35-3-04 appeal). The L9 sentence wasn't enough.
+- **New judgment errors to look at:** 164-12-17 traffic is now decided with a condition (round 2 said its
+  cul-de-sac condition is traffic, so the key may be wrong here); 189-11-10 water condition "yes".
+- **124-7-99:** L7a now says no arguments although site was decided and disputed. The follow-ups kept the grounds
+  answered, so the safety net worked, but `arguments_stated` is wrong there.
+
 ## Open ideas, not yet tried
 
 Roughly in order of expected value.
@@ -174,8 +241,6 @@ Roughly in order of expected value.
 ## Open definition questions
 
 Raised as "both defensible" by adjudicators and not yet put to the project owner:
-- Does a general question in the Statement of Questions (such as "all of §500") dispute every standard it
-  covers, or only those argued specifically?
 - Is a party later dismissed as an appellant still listed among the appellants?
 - When decision dates conflict across documents (such as September 12 against 13), which wins?
 - Does a remainder lot that keeps an existing home count as a new lot? (The adjudicators said no.)
@@ -183,5 +248,4 @@ Raised as "both defensible" by adjudicators and not yet put to the project owner
   care-housing rule)?
 - Is a town board's authority against the state's on wastewater a "permits" question?
 - Do arguments made only on motions count as arguments stated?
-- When a standard is remanded to the town board to review first, is it "taken up" or "set aside"?
 - Does a court's hedged recital ("it appears that two lots were sought") state a count?
