@@ -4,7 +4,32 @@ A **release** is one finished run frozen into files that can be published.
 The public site serves releases at `https://data.letsbuildhomes.org/appeals/`.
 It has a landing page, a read-only JSON API, and an MCP server at
 `/appeals/mcp`. Through the MCP server, an AI assistant can analyse the data,
-learn what each column means, and trace any value back through the pipeline.
+learn what each column means, and read the passages of the decisions behind
+any one case's answers.
+
+## What readers see
+
+A release is the product, and the pipeline is how it gets made. Readers get
+the pipeline's final answers, presented as what the decisions show, and
+nothing about how each answer was settled:
+
+- **Final facts only.** No scan answers or probabilities, no record of which
+  step answered, no node IDs, prompts or thresholds. Those stay in the store
+  and the local dashboard, for whoever runs the pipeline. A quoted passage is
+  published only if it was checked against the page.
+- **Method and reliability come first.** `overview` carries a few plain
+  sentences on how the data was made (`METHOD`) and how far to trust it
+  (`RELIABILITY`, in line with the latest answer-key score but never citing it), both in
+  `appeals/codebook/conventions.py`. Update `RELIABILITY` before the
+  production run whenever a pass changes the figures.
+- **Appeals in scope by default.** The main tables hold only appeals in
+  scope. The dockets the study set aside are reachable only through the
+  `all_` tables, which an assistant is told to use only when a question is
+  about them.
+- **A version and a date.** Readers name a release by its version (v0.0.2)
+  and the day it was built in Vermont (October 19, 2026). The 12-character
+  ID is for operators and URLs; run IDs, graph hashes and commits are in
+  `release.json`'s `internal` section, which nothing serves.
 The landing page is written for the public: how to connect the main
 assistants, what the data is and can't show, how it is made, prompts to
 start with, and the current release's numbers, or a note that data is coming
@@ -22,19 +47,22 @@ store ──make release──▶ data/releases/<id>/ ──make publish──�
 | File | What |
 |---|---|
 | `data.duckdb` | The research tables, the only data `query` can read |
-| `evidence.duckdb` | The quotes behind the answers. They are read only through `docket`, a few dockets at a time, so quotes never come back from bulk queries |
-| `release.json` | The release's identity and provenance (run, graph hash, models, git commit, file hashes). It also holds the run's full graph description, the data dictionary with a profile and query tips for every column, and what changed since the previous release |
+| `evidence.duckdb` | The checked passages behind the answers. They are read only through `docket`, a few dockets at a time, so quotes never come back from bulk queries |
+| `release.json` | The version, build date and file hashes; what the data is, its conventions, method and reliability; the data dictionary with a profile and query tips for every column; and what changed since the previous version. An `internal` section keeps the provenance (run, models, git commit) and the run's full graph description for operators; nothing serves it |
 
 The tables:
 
 | Table | Grain |
 |---|---|
-| `dockets` | One row per docket the run covered: status, whether it's in scope, document count and dates, then one column per fact and derived value. Only the scope columns are filled for out-of-scope dockets |
-| `appeals` | A view of `dockets WHERE in_scope`. Questions about appeals start here |
-| long tables | One per yes/no or choice set (`permission_kinds`, `judgment_grounds`), list (`appellants`, …) or count by option (`appellant_mix_roles`, …) |
-| `documents` | Each docket's documents, numbered as quotes cite them, with the court's PDF link |
-| `docket_links` | Dockets that share a decision, which often means the same project |
-| `confidence` | Where each settled answer came from: a quoted step, the scan with its probability, a rule, or nothing |
+| `appeals` | One row per appeal in scope: document count and dates, then one column per fact and derived value. Every question starts here |
+| long tables | One per yes/no or choice set (`permission_kinds`, `judgment_grounds`), list (`appellants`, …) or count by option (`appellant_mix_roles`, …), for appeals in scope |
+| `documents` | Each appeal's documents, numbered as quotes cite them, with the court's PDF link |
+| `docket_links` | Appeals that share a decision, which often means the same project |
+| `all_dockets` | Every docket the run covered, in scope or not: `in_scope` (NULL when it couldn't be determined), document count and dates, and the scope columns |
+| `all_documents`, `all_docket_links` | `documents` and `docket_links` for every docket |
+
+A docket whose run failed is in `all_dockets` with `in_scope` NULL, and
+`overview` counts it as not determined.
 
 ## The codebook drives everything
 
@@ -60,13 +88,16 @@ So changing the codebook changes the next release with no other edits:
   `schema.py`, written once for every field of that type.
 
 A release always describes the graph its run used, not today's codebook. The
-`changes` section compares it with the previous release: columns, nodes,
-thresholds and conventions added, removed or changed.
+`changes` section tells readers which columns were added or removed since the
+previous version; `internal.changes` lists the nodes and thresholds that
+changed, for operators. A release in an older format can't be served (the
+reader refuses it), so rebuild it from its run.
 
 ## Commands
 
 ```sh
-make release RUN_ID=<id> [TAG=preview]   # build; refuses scratch, fake-model and unfinished runs
+make release RUN_ID=<id> [VERSION=v0.0.2] [TAG=preview]   # build; refuses scratch, fake-model and unfinished runs
+                               # VERSION defaults to the version in pyproject.toml
                                # (appeals release <id> --test overrides that and tags the release "test")
 make releases [TAG=test]       # list them, marking the current one
 make publish RELEASE=<id>      # make it current; running servers switch on their next request
@@ -90,11 +121,10 @@ release that isn't current.
 
 | Tool | What it returns |
 |---|---|
-| `overview` | Start here. What the data is, the release and its provenance, the population, the topics, the tables, the conventions, how to work with the data, the limits and what changed |
-| `describe` | Full descriptions of a table, a topic ("Units added"), a field name (`duration`) or named columns. Each has its meaning, options, notes, how it's settled, a profile (counts, share known, sources) and tips. With no target, a compact index |
-| `explain` | `pipeline` describes the whole flow: layers, gates, steps in order, thresholds and what the run did. A column or node ID (`duration`, `L5a`, the scan question `C4`) returns that node and everything upstream of it: questions, gates, prompts, the field's rule and derived-value code |
+| `overview` | Start here. The version and build date, what the data is, what it covers, how it was made, how reliable it is, the topics, the tables (with the `all_` tables listed apart), the conventions, how to work with the data, the limits and what changed |
+| `describe` | Full descriptions of a table, a topic ("Units added"), a field name (`duration`) or named columns. Each has its meaning, options, notes, a profile (counts and how many are known) and tips. With no target, a compact index. Fields and topics match the main tables only; name an `all_` table to see its columns |
 | `query` | One read-only DuckDB SELECT: at most 1,000 rows, 256 KB and 5 seconds |
-| `docket` | Up to 10 dockets in full, with confidence, quotes, document links and linked dockets |
+| `docket` | Up to 10 dockets in full: answers, lists, the passages behind them, document links and linked dockets. A docket out of scope has only its scope answers and a note saying so |
 
 **Query bounds.** Each query is a single SELECT on a DuckDB connection that
 is read-only and has file access, extensions and configuration changes

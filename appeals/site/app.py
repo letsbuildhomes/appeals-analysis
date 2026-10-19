@@ -3,10 +3,9 @@
     {base}/                          the landing page (static/index.html)
     {base}/mcp                       the MCP server, over the current release
     {base}/healthz                   which release is current
-    {base}/api/releases              every release, newest first, marking the current one
+    {base}/api/releases              every release readers can see, newest first, marking the current one
     {base}/api/releases/<id>         a release's overview; `current` is false for old data
     {base}/api/releases/<id>/describe?target=&page=
-    {base}/api/releases/<id>/explain?target=
     {base}/api/releases/<id>/dockets/<number>
 
 The app mounts its own routes under the base path (such as /appeals), so a
@@ -51,11 +50,14 @@ def make_app(releases, base='/appeals', title='Research data', allowed_hosts=Non
         return release, None
 
     async def health(request):
-        return JSONResponse({'status': 'ok', 'current_release': releases.current_id(),
+        current = releases.current()
+        return JSONResponse({'status': 'ok', 'current_release': current.id if current else None,
+                             'current_version': current.version if current else None,
                              'releases': len(releases.ids())})
 
     async def list_releases(request):
-        return JSONResponse(releases.summaries())
+        return JSONResponse([{k: r[k] for k in ('id', 'version', 'built', 'current', 'population')}
+                             for r in releases.summaries() if r['servable']])
 
     async def overview(request):
         release, missing = release_or_404(request)
@@ -72,12 +74,6 @@ def make_app(releases, base='/appeals', title='Research data', allowed_hosts=Non
         except ValueError:
             page_number = 1
         return JSONResponse(guide.describe(release, request.query_params.get('target'), page_number))
-
-    async def explain(request):
-        release, missing = release_or_404(request)
-        if missing:
-            return missing
-        return JSONResponse(guide.explain(release, request.query_params.get('target', 'pipeline')))
 
     async def docket(request):
         release, missing = release_or_404(request)
@@ -98,7 +94,6 @@ def make_app(releases, base='/appeals', title='Research data', allowed_hosts=Non
         Route(api, list_releases),
         Route(f'{api}/{{rid}}', overview),
         Route(f'{api}/{{rid}}/describe', describe),
-        Route(f'{api}/{{rid}}/explain', explain),
         Route(f'{api}/{{rid}}/dockets/{{number:path}}', docket),
         Mount(f'{base}/static', StaticFiles(directory=STATIC), name='static'),
         Route(f'{base}/', dashboard),

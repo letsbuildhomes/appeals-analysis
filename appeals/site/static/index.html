@@ -148,7 +148,7 @@ url = "<span data-mcp>{{BASE}}/mcp</span>"</pre>
   </div>
 
   <p class="tip"><b>Check that it works:</b> ask <q>Give me an overview of the Vermont housing appeals data.</q>
-    The assistant should name the release and say how many cases it covers. <span id="no-data-note" hidden>Until
+    The assistant should name the version and say how many cases it covers. <span id="no-data-note" hidden>Until
     the first release is published, it will say there is no data yet.</span></p>
 </section>
 
@@ -196,9 +196,9 @@ url = "<span data-mcp>{{BASE}}/mcp</span>"</pre>
         And how many new building lots for housing it would create. Only new homes are counted, not existing ones
         that stay.</dd></div>
   </dl>
-  <p><b>Every answer shows its source.</b> An answer from the reasoning model carries a short exact quote with its
-    document and page, which code checks against the decision's text. <q>Not stated</q> is a real answer: it means
-    the decisions were silent, which is different from <q>no</q>.</p>
+  <p><b>Every answer shows its source.</b> Ask about a case and the assistant can show the passage of the decision
+    each answer rests on, with its page and a link to the PDF. <q>Not stated</q> is a real answer: it means the
+    decisions were silent, which is different from <q>no</q>.</p>
 
   <h3>What it can't tell you</h3>
   <ul class="limits">
@@ -223,8 +223,8 @@ url = "<span data-mcp>{{BASE}}/mcp</span>"</pre>
       multiple-choice questions at once, each with a probability.</span></li>
     <li><b>Careful questions</b><span>For the dockets likely in scope, a reasoning model answers one small question
       at a time. Each answer must quote the decision, and code checks the quote.</span></li>
-    <li><b>Releases</b><span>Code combines the answers into research facts, and a finished run is frozen into a
-      numbered release, the data your assistant reads.</span></li>
+    <li><b>Versions</b><span>Code combines the answers into research facts, frozen into a numbered version, such
+      as v0.0.1: the data your assistant reads.</span></li>
   </ol>
 </section>
 
@@ -232,7 +232,7 @@ url = "<span data-mcp>{{BASE}}/mcp</span>"</pre>
   <h2 id="ideas-title">Ideas to start chatting</h2>
   <p>Paste any of these into your assistant once it is connected.</p>
   <ul class="prompts">
-    <li><p id="p1">How many housing appeals does the data cover, and over which years? Which release is it?</p>
+    <li><p id="p1">How many housing appeals does the data cover, and over which years? Which version is it?</p>
       <button type="button" class="copy" data-copy="p1">Copy</button></li>
     <li><p id="p2">How long do housing appeals usually take, from filing to the court's final decision? Has that
       changed over the years? Keep cases with no final decision separate.</p>
@@ -256,7 +256,7 @@ url = "<span data-mcp>{{BASE}}/mcp</span>"</pre>
       the court decided.</p>
       <button type="button" class="copy" data-copy="p9">Copy</button></li>
   </ul>
-  <p class="tip"><b>One piece of advice:</b> ask the assistant to name the release ID and which cases it counted.
+  <p class="tip"><b>One piece of advice:</b> ask the assistant to name the version and which cases it counted.
     <q>Not stated</q> means the decisions were silent, not <q>no</q>, so ask it to report those separately.</p>
 </section>
 

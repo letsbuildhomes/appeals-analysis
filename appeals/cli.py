@@ -168,12 +168,12 @@ def cmd_release(args):
     settings = _settings(args)
     store = Store(settings.db, read_only=True)
     try:
-        meta = build(store, args.run, settings.releases, test=args.test, tags=args.tag or [])
+        meta = build(store, args.run, settings.releases, test=args.test, tags=args.tag or [], version=args.version)
     except BuildError as error:
         sys.exit(f'No release built: {error}')
-    p = meta['population']
-    print(f'{p["dockets"]} dockets: {p["in_scope"]} in scope, {p["out_of_scope"]} out of scope, '
-          f'{p["failed"]} failed, {p["not_run"]} not run')
+    p, q = meta['population'], meta['internal']['population']
+    print(f'{meta["version"]}: {p["dockets"]} dockets: {p["in_scope"]} in scope, {p["out_of_scope"]} out of scope, '
+          f'{q["failed"]} failed, {q["not_run"]} not run')
     if args.publish:
         Releases(settings.releases).publish(meta['id'])
         print(f'release {meta["id"]} is now current')
@@ -193,8 +193,10 @@ def cmd_releases(args):
 def _release_line(r):
     p = r['population']
     tags = f'  [{", ".join(r["tags"])}]' if r['tags'] else ''
-    return (f'{r["id"]}  {r["created_at"][:16].replace("T", " ")} UTC  run {r["run"]}  graph {r["graph_hash"]}  '
-            f'{p["dockets"]:>5} dockets  {p["in_scope"]:>5} in scope{"  current" if r["current"] else ""}{tags}')
+    old = '' if r['servable'] else '  (old format, not served)'
+    return (f'{r["id"]}  {r["version"] or "-":<8} {r["created_at"][:16].replace("T", " ")} UTC  run {r["run"]}  '
+            f'graph {r["graph_hash"]}  {p["dockets"]:>5} dockets  {p["in_scope"]:>5} in scope'
+            f'{"  current" if r["current"] else ""}{tags}{old}')
 
 
 def cmd_delete_releases(args):
@@ -314,6 +316,7 @@ def main(argv=None):
     p.add_argument('--test', action='store_true', help='allow a scratch, fake-model or unfinished run')
     p.add_argument('--publish', action='store_true', help='make it the current release')
     p.add_argument('--tag', action='append', help='label the release, such as "preview"; may be repeated')
+    p.add_argument('--version', help='the version readers see, such as v0.0.2 (default: the project\'s version)')
     p = add('releases', cmd_releases, 'list releases, newest first')
     p.add_argument('--tag', help='only releases with this tag')
     p = add('delete-releases', cmd_delete_releases, 'delete one release, or every release with a tag')

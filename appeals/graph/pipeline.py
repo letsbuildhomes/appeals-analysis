@@ -18,10 +18,12 @@ class GraphError(Exception):
 
 class Pipeline:
     def __init__(self, name, scan, gates, base, steps, fields, derives, proceed, thresholds, in_scope=None,
-                 conventions=(), description='', topics=None):
+                 conventions=(), description='', topics=None, method=(), reliability=()):
         self.name = name
         self.description = description         # what the data is, in a sentence or two, for readers of it
         self.conventions = list(conventions)   # rules every answer follows, for readers of the data
+        self.method = list(method)             # how the data was made, for readers of it
+        self.reliability = list(reliability)   # how far to trust it, for readers of it
         self.scan = scan
         self.gates = gates
         self.base = base
@@ -240,6 +242,8 @@ class Pipeline:
             'proceed': self.proceed.text(),
             'in_scope': self.in_scope,
             'conventions': self.conventions,
+            'method': self.method,
+            'reliability': self.reliability,
             'step_order': [s.id for s in self.steps],
             'topics': [{'id': t, 'title': title} for t, title in self.topics.items()],
             'nodes': [n.describe() for n in self.nodes.values()],

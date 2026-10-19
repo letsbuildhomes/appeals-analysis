@@ -12,11 +12,15 @@ field and derived value in the order the graph lists them:
                    set of options (a yes/no set) becomes a long table instead
     or not stated  the inner value's columns, all NULL when the whole value is not stated
 
-The pipeline's scope value (its `in_scope` derived value, true or false) is
-the fixed `dockets.in_scope` column rather than a column of its own.
     list           a long table with one row per item, plus <name>_count on the wide table
                    (NULL when the list was never established, 0 when it is empty)
     counts by      a long table with one row per option that occurs
+
+The wide table is `appeals`, one row per docket in scope. `all_dockets` adds
+the dockets out of scope, with only the scope topic's columns, since those are
+all the pipeline answers for them. The pipeline's scope value (its `in_scope`
+derived value, true or false) is the fixed `all_dockets.in_scope` column
+rather than a column of its own. Long tables hold appeals in scope only.
 
 A type with no rule stops the build, so a new kind of value gets a rule here
 once, not a mapping per field.
@@ -24,11 +28,13 @@ once, not a mapping per field.
 from dataclasses import dataclass, field
 import re
 
+from appeals.graph.nodes import SCOPE
 from appeals.graph.values import NOT_STATED, OUT_OF_SCOPE
 
-# The tables every release has, whatever the graph. A node may not take these names.
-DOCKET_COLUMNS = ['docket', 'status', 'failure', 'in_scope', 'documents', 'first_posted', 'last_posted']
-FIXED_TABLES = {'dockets', 'appeals', 'documents', 'docket_links', 'confidence'}
+# The tables every release has, whatever the graph, and their fixed columns. A node may not take these names.
+APPEAL_COLUMNS = ['docket', 'documents', 'first_posted', 'last_posted']
+ALL_DOCKET_COLUMNS = ['docket', 'in_scope', 'documents', 'first_posted', 'last_posted']
+FIXED_TABLES = {'appeals', 'all_dockets', 'documents', 'all_documents', 'docket_links', 'all_docket_links'}
 PRECISION = {'day': 'Stated to the day (YYYY-MM-DD).', 'month': 'Stated to the month (YYYY-MM).',
              'year': 'Stated to the year (YYYY).'}
 
@@ -48,9 +54,8 @@ class Column:
     meaning: str = ''
 
     def describe(self):
-        d = {'name': self.name, 'type': self.sql, 'node': self.node, 'value_type': self.kind}
-        if self.path:
-            d['path'] = '.'.join(self.path)
+        """What a reader of the column needs: its name, SQL type, options and meaning."""
+        d = {'name': self.name, 'type': self.sql}
         if self.options:
             d['options'] = self.options
         if self.meaning:
@@ -70,13 +75,17 @@ class Table:
 
 @dataclass
 class Layout:
-    wide: list               # research columns on `dockets`, after DOCKET_COLUMNS
+    wide: list               # research columns on `appeals`, after APPEAL_COLUMNS
     tables: list             # long tables
     nodes: dict              # node id -> its description
 
+    def scope(self):
+        """The wide columns `all_dockets` also has: the scope topic's, answered for every docket."""
+        return [c for c in self.wide if self.nodes[c.node]['topic'] == SCOPE]
+
     def columns(self):
         """Every research column, wide and long, with its table name."""
-        out = [('dockets', c) for c in self.wide]
+        out = [('appeals', c) for c in self.wide]
         for t in self.tables:
             out += [(t.name, c) for c in t.columns]
         return out
@@ -139,11 +148,11 @@ def layout(description):
         raise LayoutError(f'{node}: no release rule for value type {kind!r}')
 
     for node_id, node in nodes.items():
-        if node_id != description.get('in_scope'):           # that one is dockets.in_scope
+        if node_id != description.get('in_scope'):           # that one is all_dockets.in_scope
             wide += scalar(node_id, node['value_type'], (), identifier(node_id), False)
 
     names = [c.name for c in wide]
-    clashes = {n for n in names if names.count(n) > 1} | (set(names) & set(DOCKET_COLUMNS))
+    clashes = {n for n in names if names.count(n) > 1} | (set(names) & set(ALL_DOCKET_COLUMNS))
     clashes |= {t.name for t in tables} & FIXED_TABLES
     if clashes:
         raise LayoutError(f'release names used twice: {sorted(clashes)}')

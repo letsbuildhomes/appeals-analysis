@@ -25,10 +25,13 @@ The conventions and rulings live in the codebook, next to the answers they
 govern, so they travel with every run's graph description and every release:
 
 - **Rules every answer follows** are in `appeals/codebook/conventions.py`:
-  one row per docket, "not stated" versus "no" versus "out of scope", quotes
-  as evidence, closed answers, date precision, units added, actors, how the
-  scan and the steps settle an answer, and what the source can't show.
-- **Rulings about one answer** are `notes` on its field or derived value: after-the-fact permits (S2), deemed approvals (T1), groups of
+  one row per docket, "not stated" versus "no", closed answers, date
+  precision, units added, actors, and what the source can't show. The same
+  file has the plain statements of method and reliability that releases put
+  first. All three are written for readers of the data, so they never name
+  the scan, a step or a threshold; this page covers those.
+- **Rulings about one answer** are `notes` on its field or derived value,
+  in the same reader's terms: after-the-fact permits (S2), deemed approvals (T1), groups of
   neighbors (`appellants`, `appellant_mix`), procedural dismissals (G1), the
   end of the case (C2), stays and design changes the court imposed (D1, D2),
   unit changes (`unit_change`) and durations (`duration`).

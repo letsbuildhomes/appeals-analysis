@@ -95,33 +95,33 @@ function coming() {
 
 function show(release) {
   const p = release.population || {};
-  const missing = (p.failed || 0) + (p.not_run || 0);
+  const missing = p.not_determined || 0;
   $('numbers').innerHTML = `
-    <p class="release">Release <b>${esc(release.id)}</b>
+    <p class="release">Version <b>${esc(release.version)}</b>
       ${release.current ? '<span class="tag">current</span>' : '<span class="tag old">old data</span>'}
-      <span class="muted">· built ${esc(String(release.created_at || '').slice(0, 10))}</span></p>
+      <span class="muted">· built ${esc(release.built)}</span></p>
     <div class="cards">
       <div class="card"><b>${number(p.dockets)}</b>dockets read</div>
       <div class="card"><b>${number(p.in_scope)}</b>appeals about new housing</div>
       <div class="card"><b>${number(p.out_of_scope)}</b>other cases, out of scope</div>
-      ${missing ? `<div class="card"><b>${number(missing)}</b>not yet answered</div>` : ''}
+      ${missing ? `<div class="card"><b>${number(missing)}</b>not yet determined</div>` : ''}
     </div>`;
 }
 
 function oldBanner(release) {
   const banner = $('banner');
   banner.hidden = false;
-  banner.innerHTML = `Old data: you are looking at release <b>${esc(release.id)}</b>, which is not the current
-    release. Assistants connected to this site always use the current one. <a href="${BASE}/">See the current data</a>.`;
+  banner.innerHTML = `Old data: you are looking at version <b>${esc(release.version)}</b>, which is not the current
+    one. Assistants connected to this site always use the current one. <a href="${BASE}/">See the current data</a>.`;
 }
 
 function listReleases(releases) {
   if (releases.length < 2) return;
-  $('releases').innerHTML = `<details><summary>Earlier releases</summary>
-    <table><tr><th>Release</th><th>Built</th><th>Appeals about new housing</th></tr>
-    ${releases.map((r) => `<tr><td><a href="?release=${encodeURIComponent(r.id)}">${esc(r.id)}</a>
+  $('releases').innerHTML = `<details><summary>Earlier versions</summary>
+    <table><tr><th>Version</th><th>Built</th><th>Appeals about new housing</th></tr>
+    ${releases.map((r) => `<tr><td><a href="?release=${encodeURIComponent(r.id)}">${esc(r.version)}</a>
       ${r.current ? '<span class="tag">current</span>' : ''}</td>
-      <td>${esc(String(r.created_at || '').slice(0, 10))}</td><td>${number(r.population?.in_scope)}</td></tr>`).join('')}
+      <td>${esc(r.built)}</td><td>${number(r.population?.in_scope)}</td></tr>`).join('')}
     </table></details>`;
 }
 

@@ -5,7 +5,7 @@ above it: topics → questions → gates → steps → fields → derived. The f
 values are the output: a general set of facts about each docket, for any question.
 """
 from appeals.codebook import derived, fields, gates, questions, steps, topics
-from appeals.codebook.conventions import CONVENTIONS
+from appeals.codebook.conventions import CONVENTIONS, METHOD, RELIABILITY
 from appeals.graph.nodes import Scan
 from appeals.graph.pipeline import Pipeline
 
@@ -16,7 +16,7 @@ def build(thresholds):
         name='housing-appeals',
         description=('Appeals of Vermont town land-use decisions about new housing, heard by the Vermont '
                      'Superior Court, Environmental Division, as seen through its published decisions: '
-                     'one row per docket, every answer settled from the decisions themselves.'),
+                     'one row per appeal, every answer drawn from the decisions themselves.'),
         scan=Scan('scan', None, questions=questions.ALL),
         gates=gates.ALL,
         base=steps.base,
@@ -28,4 +28,6 @@ def build(thresholds):
         thresholds=thresholds,
         in_scope=derived.IN_SCOPE.id,
         conventions=CONVENTIONS,
+        method=METHOD,
+        reliability=RELIABILITY,
     )

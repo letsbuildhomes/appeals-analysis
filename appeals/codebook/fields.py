@@ -102,7 +102,7 @@ appellants_named = Field('appellants_named', topics.APPELLANTS, label='All appel
                          scan=Q.A1)
 appellants = Field('appellants', topics.APPELLANTS, label='Appellants', type=ListOf(L.APPELLANT, not_stated=True),
                    step=L.L4a, path='appellants',
-                   notes=['Only appellants with a verified quote are listed.',
+                   notes=['Only appellants the documents name as appellants are listed.',
                           '"Not stated" means the list was never established, which is different from an empty list.',
                           'A named group of neighbors counts as neighbors, not as an organization.'])
 def lawyer_rows(item, answer):
@@ -144,8 +144,8 @@ arguments_stated = Field('arguments_stated', topics.GROUNDS, label='Arguments st
                                 'such as reinstatement, the filing deadline, standing or jurisdiction, do not. A Statement of Questions asking only whether the '
                                 'project complies counts, though it disputes no standard in particular.',
                                 'A procedural dismissal whose documents don\'t say what the appellant argued leaves the '
-                                'judgment standards (G2) and conditions (G4) "not stated"; the other questions (G3) are '
-                                'still answered.'])
+                                'judgment standards (judgment_grounds) and challenged conditions "not stated"; the other '
+                                'questions (other_questions) are still answered.'])
 
 
 def _per_group(kind):
@@ -156,7 +156,7 @@ GROUND_NOTES = [
     'One item per kind of judgment standard: ' + '; '.join(f'{k} = {v}' for k, v in Q.GROUP_NAMES.items()) + '.',
     'A judgment standard leaves the outcome to judgment, with no measurable test, and counts only where it is applied '
     'to this project. Disputes over measurable rules, the court\'s procedural discretion, equitable and constitutional '
-    'claims, and impacts argued only for standing are not judgment standards; the other questions (G3) record them.',
+    'claims, and impacts argued only for standing are not judgment standards; the other questions (other_questions) record them.',
     '"Decided, disputed" means a party contested whether the project meets the standard and the court ruled: that is '
     'what makes a standard central (judgment_central). A finding made only because the court runs through every criterion is '
     '"decided, not disputed".',
@@ -164,15 +164,14 @@ GROUND_NOTES = [
     'only the standards a party argued specifically; one the court ruled on without such an argument is "decided, '
     'not disputed".',
     'A standard the court found moot or not required, or sent back to the municipal panel to review first, is "set '
-    'aside".',
-    'A kind the scan gave less than a 0.3 chance of being at issue gets no follow-up and keeps the scan\'s answer.']
+    'aside".']
 judgment_grounds = Field('judgment_grounds', topics.GROUNDS, label='Judgment standards: how far each got',
                          type=_per_group(OneOf(Q.LEVELS, not_stated=True)), scan=Q.G2, steps=L.GROUND_STEPS,
                          path='level', not_stated_if=NO_ARGUMENTS, notes=GROUND_NOTES)
 judgment_results = Field('judgment_results', topics.GROUNDS, label='Judgment standards: the court\'s result',
                          type=_per_group(OneOf(L.RESULTS, not_stated=True)), steps=L.GROUND_RESULTS, path='result',
                          vouched_by='level', vouchers=L.GROUND_STEPS, if_skipped='not decided', not_stated_if=NO_ARGUMENTS,
-                         notes=['"Not decided" for a kind that got no follow-up (the scan saw it as not at issue).',
+                         notes=['"Not decided" for a kind of standard the court did not decide, including one not at issue.',
                                 '"Met with conditions" only when a condition is aimed at that kind of standard.'])
 judgment_conditions = Field('judgment_conditions', topics.GROUNDS, label='Judgment standards: dispute about a condition',
                             type=_per_group(YesNo(not_stated=True)), steps=L.GROUND_CONDITIONS, path='condition',
@@ -180,18 +179,16 @@ judgment_conditions = Field('judgment_conditions', topics.GROUNDS, label='Judgme
                             notes=['Whether the dispute the court ruled on for that kind of standard was about a '
                                    'condition the municipality attached, or one a party asked the court to add, change '
                                    'or remove.',
-                                   'Asked only when the level is "decided, disputed"; any other level, including a kind '
-                                   'that got no follow-up, reads "no".'])
+                                   '"no" whenever the level is anything other than "decided, disputed".'])
 relief_kind = Field('relief_kind', topics.GROUNDS, label='Kind of dimensional relief', type=OneOf(L.RELIEF_KINDS),
                     step=L.L8_relief_kind, path='kind', not_stated_if=NO_ARGUMENTS,
                     notes=['Only "statutory variance" is a variance in the legal sense (24 V.S.A. § 4469). Counts of '
                            'dimensional relief include bylaw waivers and planned-development modifications.'])
 OTHER_NOTES = [
     'One item per other kind of question: ' + '; '.join(f'{k} = {v}' for k, v in Q.OTHER_NAMES.items()) + '.',
-    'Several kinds can apply to one docket. With the judgment standards (G2) they show what an appeal turned on: '
+    'Several kinds can apply to one docket. With the judgment standards (judgment_grounds) they show what an appeal turned on: '
     'for an appeal with no central judgment standard (judgment_central no), the kinds at "decided, disputed" are what it was about.',
     '"Decided, disputed" means a party contested the question and the court ruled on it.',
-    'A kind the scan gave less than a 0.5 chance of being at issue gets no follow-up and keeps the scan\'s answer.',
     'Answered for every docket in scope, including those whose documents don\'t say what the appellant argued, '
     'such as an appeal dismissed as untimely before the merits.']
 other_questions = Field('other_questions', topics.GROUNDS, label='Other questions: how far each got',
@@ -269,9 +266,9 @@ units_added_court_approved = Field('units_added_court_approved', topics.UNITS, l
                                           'under appeal, only that part is counted, as in the town\'s count.'])
 
 # The final comparisons are derived (derived.units_vs_town): from the counts when both are known, else these.
-STATED_NOTES = ['What the documents show with a quote, from L6g: such as a court upholding the town\'s approval '
-                'without restating its size. Used by the derived comparison only when a count is missing. The scan\'s '
-                'guess is never used.']
+STATED_NOTES = ['What the documents say directly, such as a court upholding the town\'s approval without '
+                'restating its size. The comparisons without "stated" in their name use it only when a count is '
+                'missing.']
 units_vs_town_stated = Field('units_vs_town_stated', topics.UNITS, label='Units added vs the town\'s decision, as stated',
                              type=_choice(Q.U4), step=L.L6g, path='vs_town', notes=STATED_NOTES)
 units_vs_application_stated = Field('units_vs_application_stated', topics.UNITS,
@@ -282,7 +279,7 @@ design_changed = Field('design_changed', topics.STAY_DESIGN, label='Court change
                        notes=["Only changes the court imposed; changes the town made belong to the town's decision."])
 design_change = Field('design_change', topics.STAY_DESIGN, label='The size or design change', type=Text(),
                       step=L.L12b, path='description',
-                      notes=['Free text from the reasoning model, describing the change; never scored.'])
+                      notes=['A short description of the change, in free text.'])
 
 ALL = [proceeding, physical_change, housing_use, units_effect,
        filing_date, earliest_event, docket_filing, municipality, place_within_town, units_added_proposed, appeal_partial,

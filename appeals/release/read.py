@@ -6,6 +6,9 @@ extensions and configuration changes locked out, so a query can read the
 release's tables and nothing else. Quotes live in a separate file that no
 SQL from outside ever reaches; `Release.docket` reads them for a few dockets
 at a time.
+
+Readers see a release by its version and the day it was built (v0.0.2,
+October 19, 2026); the 12-character ID is for operators and URLs.
 """
 from datetime import date, datetime, time as time_of_day
 from decimal import Decimal
@@ -17,6 +20,7 @@ from pathlib import Path
 import re
 import shutil
 import threading
+from zoneinfo import ZoneInfo
 
 import duckdb
 
@@ -25,6 +29,14 @@ LIMITS = {'sql_characters': 16_000, 'rows': 1_000, 'default_rows': 200, 'respons
 LOCKDOWN = {'enable_external_access': False, 'autoinstall_known_extensions': False,
             'autoload_known_extensions': False, 'memory_limit': '512MB', 'threads': 2, 'lock_configuration': True}
 RELEASE_ID = re.compile(r'^[0-9a-f]{12}$')
+FORMAT = 'appeals-release-2'          # releases of any other format are listed but never served
+LOCAL_TIME = ZoneInfo('America/New_York')    # the court's time zone, for the day a release was built
+
+
+def built_on(created_at):
+    """The day a release was built, for readers: "October 19, 2026"."""
+    day = datetime.fromisoformat(created_at).astimezone(LOCAL_TIME)
+    return f'{day:%B} {day.day}, {day.year}'
 
 
 class QueryError(ValueError):
@@ -123,6 +135,10 @@ class Release:
         self.folder = Path(folder)
         self.meta = json.loads((self.folder / 'release.json').read_text())
         self.id = self.meta['id']
+        if self.meta.get('format') != FORMAT:
+            raise ValueError(f'release {self.id} is in format {self.meta.get("format")}, not {FORMAT}; rebuild it')
+        self.version = self.meta['version']
+        self.built = built_on(self.meta['created_at'])
         for name, expected in self.meta['files'].items():
             if _sha256(self.folder / name) != expected:
                 raise ValueError(f'release {self.id}: {name} does not match its recorded hash')
@@ -134,7 +150,7 @@ class Release:
         self.evidence.close()
 
     def query(self, sql, max_rows=None):
-        return {'release': self.id, **run_query(self.data, sql, max_rows)}
+        return {'version': self.version, **run_query(self.data, sql, max_rows)}
 
     def _rows(self, con, sql, params):
         cursor = con.cursor()
@@ -146,44 +162,51 @@ class Release:
             cursor.close()
 
     def docket(self, numbers, fields=None):
-        """Everything about a few dockets: answers, long-table rows, confidence, quotes and documents.
-        `fields` (node IDs) narrows it to those fields and derived values."""
+        """Everything about a few dockets: answers, list rows, the passages behind them and the documents.
+        `fields` (field names such as court_result or duration) narrows it. A docket out of scope has only its
+        scope answers."""
         numbers = [numbers] if isinstance(numbers, str) else list(numbers or [])
         if not numbers or len(numbers) > LIMITS['dockets_per_call']:
             raise QueryError(f'give between 1 and {LIMITS["dockets_per_call"]} docket numbers')
         wanted = set(fields or [])
-        keep = {c['name'] for t in self.meta['tables'] if t['name'] == 'dockets'
-                for c in t['columns'] if c.get('node') in wanted or 'node' not in c}
+        tables = {t['name']: t for t in self.meta['tables']}
+        keep = {c['name'] for c in tables['appeals']['columns'] if c.get('field') in wanted or 'field' not in c}
         out = []
         for number in numbers:
-            found = self._rows(self.data, 'SELECT * FROM dockets WHERE docket = ?', [number])
+            found = self._rows(self.data, 'SELECT * FROM appeals WHERE docket = ?', [number])
+            in_scope = bool(found)
+            if not found:
+                found = self._rows(self.data, 'SELECT * EXCLUDE (in_scope) FROM all_dockets WHERE docket = ?',
+                                   [number])
+                scope = self._rows(self.data, 'SELECT in_scope FROM all_dockets WHERE docket = ?', [number])
             if not found:
                 out.append({'docket': number, 'found': False})
                 continue
             answers = found[0]
             if wanted:
                 answers = {k: v for k, v in answers.items() if k in keep}
-            entry = {'docket': number, 'found': True, 'answers': answers, 'lists': {}}
-            for table in self.meta['tables']:
-                if table['form'] in ('set', 'list', 'counts') and (not wanted or table['node'] in wanted):
-                    rows = self._rows(self.data, f'SELECT * EXCLUDE (docket) FROM "{table["name"]}" WHERE docket = ?',
-                                      [number])
-                    entry['lists'][table['name']] = rows
-            confidence = self._rows(self.data, 'SELECT * EXCLUDE (docket) FROM confidence WHERE docket = ? '
-                                               'ORDER BY field, item', [number])
-            quotes = self._rows(self.evidence, 'SELECT * EXCLUDE (docket) FROM evidence WHERE docket = ? '
+            entry = {'docket': number, 'found': True, 'in_scope': True if in_scope else scope[0]['in_scope']}
+            if not in_scope:
+                entry['note'] = ('Not an appeal about new housing, so the study set it aside: only its scope answers '
+                                 'are recorded.' if entry['in_scope'] is False else
+                                 'Whether this docket is in scope could not be determined, so it has no answers.')
+            entry['answers'] = answers
+            if in_scope:
+                entry['lists'] = {}
+                for t in self.meta['tables']:
+                    if t.get('field') and (not wanted or t['field'] in wanted):
+                        entry['lists'][t['name']] = self._rows(
+                            self.data, f'SELECT * EXCLUDE (docket) FROM "{t["name"]}" WHERE docket = ?', [number])
+            quotes = self._rows(self.evidence, 'SELECT * EXCLUDE (docket) FROM quotes WHERE docket = ? '
                                                'ORDER BY field, document, page', [number])
-            if wanted:
-                confidence = [c for c in confidence if c['field'] in wanted]
-                quotes = [q for q in quotes if q['field'] in wanted]
-            entry['confidence'] = confidence
-            entry['evidence'] = quotes
-            entry['documents'] = self._rows(self.data, 'SELECT document, title, posted, pages, url FROM documents '
+            entry['quotes'] = [q for q in quotes if not wanted or q['field'] in wanted]
+            entry['documents'] = self._rows(self.data, 'SELECT document, title, posted, pages, url FROM all_documents '
                                                        'WHERE docket = ? ORDER BY document', [number])
-            entry['linked_dockets'] = self._rows(self.data, 'SELECT linked_docket, shared_documents FROM docket_links '
-                                                            'WHERE docket = ? ORDER BY 1', [number])
+            entry['linked_dockets'] = self._rows(
+                self.data, 'SELECT linked_docket, shared_documents, linked_docket IN (SELECT docket FROM appeals) AS '
+                           'linked_in_scope FROM all_docket_links WHERE docket = ? ORDER BY 1', [number])
             out.append(entry)
-        return {'release': self.id, 'dockets': out}
+        return {'version': self.version, 'dockets': out}
 
 
 class Releases:
@@ -200,16 +223,19 @@ class Releases:
         return [p.name for p in self.root.iterdir() if RELEASE_ID.match(p.name) and (p / 'release.json').exists()]
 
     def summaries(self, tag=None):
-        """Every release, newest first, with what a list needs to show; only those tagged `tag` when given."""
+        """Every release, newest first, with what a list needs to show; only those tagged `tag` when given.
+        `servable` is false for a release in an older format, which no server will serve."""
         current = self.current_id()
         out = []
         for rid in self.ids():
             meta = json.loads((self.root / rid / 'release.json').read_text())
             tags = meta.get('tags', [])
+            run = meta.get('internal', meta)['run']
             if tag is None or tag in tags:
-                out.append({'id': rid, 'created_at': meta['created_at'], 'current': rid == current, 'tags': tags,
-                            'run': meta['run']['id'], 'graph_hash': meta['run']['graph_hash'],
-                            'population': meta['population']})
+                out.append({'id': rid, 'version': meta.get('version'), 'built': built_on(meta['created_at']),
+                            'created_at': meta['created_at'], 'current': rid == current, 'tags': tags,
+                            'servable': meta.get('format') == FORMAT, 'run': run['id'],
+                            'graph_hash': run['graph_hash'], 'population': meta['population']})
         return sorted(out, key=lambda r: r['created_at'], reverse=True)
 
     def delete(self, ids):
@@ -232,9 +258,18 @@ class Releases:
         rid = pointer.read_text().strip() if pointer.exists() else ''
         return rid if RELEASE_ID.match(rid) else None
 
+    def current_meta(self):
+        """The current release's release.json, whatever its format, or None."""
+        rid = self.current_id()
+        path = self.root / rid / 'release.json' if rid else None
+        return json.loads(path.read_text()) if path and path.exists() else None
+
     def get(self, rid):
-        """An open release by ID, or None. Releases are immutable, so each is opened once per process."""
+        """An open release by ID, or None, also for a release in an older format. Releases are immutable, so each
+        is opened once per process."""
         if not isinstance(rid, str) or not RELEASE_ID.match(rid) or not (self.root / rid / 'release.json').exists():
+            return None
+        if json.loads((self.root / rid / 'release.json').read_text()).get('format') != FORMAT:
             return None
         with self._lock:
             if rid not in self._open:
@@ -248,7 +283,7 @@ class Releases:
     def publish(self, rid):
         """Make `rid` the current release. Servers pick it up on their next request."""
         if self.get(rid) is None:
-            raise ValueError(f'no release {rid}')
+            raise ValueError(f'no release {rid} in format {FORMAT}')
         tmp = self.root / '.current.tmp'
         tmp.write_text(rid + '\n')
         os.replace(tmp, self.root / 'current')

@@ -63,8 +63,8 @@ score:           ## compare a run with the reference answers: make score RUN_ID=
 serve:           ## serve the dashboard on 0.0.0.0:$(PORT); restarts itself when the code changes
 	$(RUN) appeals serve --port $(PORT)
 
-release:         ## build a release from a finished run: make release RUN_ID=<id> [TAG=preview]
-	$(RUN) appeals release $(RUN_ID) $(if $(TAG),--tag "$(TAG)")
+release:         ## build a release from a finished run: make release RUN_ID=<id> [VERSION=v0.0.2] [TAG=preview]
+	$(RUN) appeals release $(RUN_ID) $(if $(VERSION),--version "$(VERSION)") $(if $(TAG),--tag "$(TAG)")
 
 releases:        ## list releases, marking the current one: make releases [TAG=test]
 	$(RUN) appeals releases $(if $(TAG),--tag "$(TAG)")

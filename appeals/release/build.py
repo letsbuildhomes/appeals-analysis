@@ -3,9 +3,16 @@
 A release is a folder under data/releases/<id>/:
 
     data.duckdb      the data tables (what the `query` tool and the dashboard read)
-    evidence.duckdb  every quote behind the answers, read one docket at a time
-    release.json     identity and provenance, the run's graph description, the data
-                     dictionary with each column's profile and query tips
+    evidence.duckdb  the quoted passages behind the answers, read one docket at a time
+    release.json     its version and date, the data dictionary with each column's profile and
+                     query tips, what changed since the last release, and an `internal`
+                     section (run, code, graph description) that nothing serves
+
+A release publishes the pipeline's final answers only. How each answer was
+settled (the scan, its probabilities, which step answered) stays in the store
+for whoever runs the pipeline; readers get the facts, plus the method and
+reliability statements at the front door. Tables default to the appeals in
+scope: only the `all_` tables reach the dockets the study set aside.
 
 Everything about the tables comes from the run's stored graph description, not
 from today's codebook, so a release always describes the pipeline that made it.
@@ -13,6 +20,7 @@ The store is only read. A release folder is never changed once written.
 """
 from datetime import datetime, timezone
 import hashlib
+from importlib import metadata
 import json
 import os
 from pathlib import Path
@@ -25,20 +33,27 @@ import duckdb
 from appeals.graph.values import OUT_OF_SCOPE, from_description
 from appeals.ingest.dockets import docket_documents
 from appeals.release import catalog, schema
-from appeals.release.read import Release, Releases, _sha256, connect
-
-FORMAT = 'appeals-release-1'
+from appeals.release.read import FORMAT, Release, Releases, _sha256, connect
 
 
 class BuildError(Exception):
     pass
 
 
-def build(store, run_id, root, test=False, tags=(), log=print):
+def default_version():
+    """The version readers see, such as v0.0.2: the project's version unless one is given."""
+    try:
+        return 'v' + metadata.version('appeals')
+    except metadata.PackageNotFoundError:
+        return None
+
+
+def build(store, run_id, root, test=False, tags=(), version=None, log=print):
     """Write a new release from run `run_id` under `root`; return its release.json.
 
-    `tags` label the release, such as "preview", for listing and deleting. A release built with `test` from a run
-    that isn't a production run is also tagged "test".
+    `version` is what readers see and cite, such as v0.0.2; by default the project's version. `tags` label the
+    release, such as "preview", for listing and deleting. A release built with `test` from a run that isn't a
+    production run is also tagged "test".
     """
     run = next((r for r in store.runs() if r['id'] == run_id), None)
     if run is None:
@@ -48,6 +63,11 @@ def build(store, run_id, root, test=False, tags=(), log=print):
         raise BuildError(f'run {run_id} is not a production run: {"; ".join(problems)}. '
                          'Use --test to build a release from it anyway.')
     tags = sorted(set(tags) | ({'test'} if problems else set()))
+    version = version or default_version()
+    if not version:
+        raise BuildError('no version: give one, such as v0.0.2')
+    if any(r.get('version') == version for r in Releases(root).summaries()):
+        log(f'note: another release is already {version}; readers will not be able to tell them apart')
     raw = store.value('SELECT description FROM graphs WHERE hash = ?', (run['graph_hash'],))
     if raw is None:
         raise BuildError(f'the graph {run["graph_hash"]} that run {run_id} used is not stored')
@@ -67,7 +87,7 @@ def build(store, run_id, root, test=False, tags=(), log=print):
     try:
         counts = _write_data(store, description, layout, records, folder)
         _write_evidence(records, folder)
-        meta = _meta(run, description, layout, counts, records, folder, Releases(root), tags)
+        meta = _meta(run, description, layout, counts, records, folder, Releases(root), tags, version)
         (folder / 'release.json').write_text(json.dumps(meta, indent=1, default=str))
         Release(folder)                                  # opens, checks hashes and the lockdown
         target = root / meta['id']
@@ -162,56 +182,57 @@ def _write_data(store, description, layout, records, folder):
         documents, posted, count = [], {}, {}
         for docket in records:
             docs = docket_documents(store, docket)
-            documents += [(docket, d['n'], d['sha256'], d['title'], d['posted'], d['pages'], urls.get(d['sha256']))
-                          for d in docs]
+            documents += [(docket, d['n'], d['title'], d['posted'], d['pages'], urls.get(d['sha256'])) for d in docs]
             posted[docket] = sorted(d['posted'] for d in docs if d['posted'])
             count[docket] = len(docs)
 
-        fixed = [('docket', 'VARCHAR'), ('status', 'VARCHAR'), ('failure', 'VARCHAR'), ('in_scope', 'BOOLEAN'),
-                 ('documents', 'BIGINT'), ('first_posted', 'DATE'), ('last_posted', 'DATE')]
-        assert [n for n, _ in fixed] == schema.DOCKET_COLUMNS
-        _create(con, 'dockets', fixed + [(c.name, c.sql) for c in layout.wide])
-        rows, long = [], {t.name: [] for t in layout.tables}
-        for docket, record in records.items():
-            row, status = record.get('row'), _status(record)
-            error = (record.get('error') or {}).get('error')
+        def fixed(docket, record):
             dates = posted[docket]
-            values = [schema.cell(c, row[c.node]) if row else None for c in layout.wide]
-            rows.append([docket, status, error.splitlines()[0][:300] if error else None,
-                         row.get(in_scope) if row and in_scope else None,
-                         count[docket], dates[0] if dates else None,
-                         dates[-1] if dates else None,
-                         *values])
-            if row:
+            row = record.get('row')
+            return {'docket': docket, 'in_scope': row.get(in_scope) if row and in_scope else None,
+                    'documents': count[docket], 'first_posted': dates[0] if dates else None,
+                    'last_posted': dates[-1] if dates else None}
+
+        types = {'docket': 'VARCHAR', 'in_scope': 'BOOLEAN', 'documents': 'BIGINT', 'first_posted': 'DATE',
+                 'last_posted': 'DATE'}
+        everyone = [(n, types[n]) for n in schema.ALL_DOCKET_COLUMNS] + [(c.name, c.sql) for c in layout.scope()]
+        appeals = [(n, types[n]) for n in schema.APPEAL_COLUMNS] + [(c.name, c.sql) for c in layout.wide]
+        rows_all, rows_appeals, long = [], [], {t.name: [] for t in layout.tables}
+        for docket, record in records.items():
+            row, f = record.get('row'), fixed(docket, record)
+            rows_all.append([f[n] for n in schema.ALL_DOCKET_COLUMNS]
+                            + [schema.cell(c, row[c.node]) if row else None for c in layout.scope()])
+            if f['in_scope']:
+                rows_appeals.append([f[n] for n in schema.APPEAL_COLUMNS]
+                                    + [schema.cell(c, row[c.node]) for c in layout.wide])
                 for t in layout.tables:
                     long[t.name] += schema.long_rows(t, docket, row[t.node])
-        _insert(con, folder, 'dockets', fixed + [(c.name, c.sql) for c in layout.wide], rows)
-        con.execute('CREATE VIEW appeals AS SELECT * FROM dockets WHERE in_scope')
+        for name, columns, rows in (('all_dockets', everyone, rows_all), ('appeals', appeals, rows_appeals)):
+            _create(con, name, columns)
+            _insert(con, folder, name, columns, rows)
         for t in layout.tables:
             columns = [('docket', 'VARCHAR')] + [(c.name, c.sql) for c in t.columns]
             _create(con, t.name, columns)
             _insert(con, folder, t.name, columns, long[t.name])
 
-        doc_columns = [('docket', 'VARCHAR'), ('document', 'BIGINT'), ('sha256', 'VARCHAR'), ('title', 'VARCHAR'),
-                       ('posted', 'DATE'), ('pages', 'BIGINT'), ('url', 'VARCHAR')]
-        _create(con, 'documents', doc_columns)
-        _insert(con, folder, 'documents', doc_columns, documents)
+        doc_columns = [('docket', 'VARCHAR'), ('document', 'BIGINT'), ('title', 'VARCHAR'), ('posted', 'DATE'),
+                       ('pages', 'BIGINT'), ('url', 'VARCHAR')]
+        _create(con, 'all_documents', doc_columns)
+        _insert(con, folder, 'all_documents', doc_columns, documents)
+        con.execute('CREATE VIEW documents AS SELECT * FROM all_documents WHERE docket IN (SELECT docket FROM appeals)')
 
         link_columns = [('docket', 'VARCHAR'), ('linked_docket', 'VARCHAR'), ('shared_documents', 'BIGINT')]
         links = [(r['a'], r['b'], r['n']) for r in store.rows("""
             SELECT a.docket AS a, b.docket AS b, count(*) AS n FROM document_dockets a
             JOIN document_dockets b ON b.sha256 = a.sha256 AND b.docket <> a.docket
             GROUP BY a.docket, b.docket ORDER BY 1, 2""") if r['a'] in records]
-        _create(con, 'docket_links', link_columns)
-        _insert(con, folder, 'docket_links', link_columns, links)
-
-        confidence_columns = [('docket', 'VARCHAR'), ('field', 'VARCHAR'), ('item', 'VARCHAR'), ('source', 'VARCHAR'),
-                              ('probability', 'DOUBLE'), ('conflict', 'BOOLEAN')]
-        _create(con, 'confidence', confidence_columns)
-        _insert(con, folder, 'confidence', confidence_columns, _confidence(layout, records))
+        _create(con, 'all_docket_links', link_columns)
+        _insert(con, folder, 'all_docket_links', link_columns, links)
+        con.execute('CREATE VIEW docket_links AS SELECT * FROM all_docket_links WHERE docket IN (SELECT docket FROM '
+                    'appeals) AND linked_docket IN (SELECT docket FROM appeals)')
         counts = {name: con.execute(f'SELECT count(*) FROM "{name}"').fetchone()[0]
-                  for name in ['dockets', *long, 'documents', 'docket_links', 'confidence']}
-        counts['appeals'] = con.execute('SELECT count(*) FROM appeals').fetchone()[0]
+                  for name in ['appeals', 'all_dockets', *long, 'documents', 'all_documents', 'docket_links',
+                               'all_docket_links']}
         con.execute('CHECKPOINT')
         return counts
     finally:
@@ -224,41 +245,25 @@ def _reported(record, nid):
     return row is not None and row.get(nid) != OUT_OF_SCOPE
 
 
-def _confidence(layout, records):
-    """One row per docket and field (and item, for a yes/no set): where the settled answer came from."""
-    fields = [nid for nid, n in layout.nodes.items() if n['kind'] == 'field']
-    rows = []
-    for docket, record in records.items():
-        facts = record.get('facts') or {}
-        for nid in fields:
-            fact = facts.get(nid)
-            if fact is None or not _reported(record, nid):
-                continue
-            if isinstance(fact.get('source'), dict):     # a yes/no set: a source per item
-                conflicts = set(fact.get('conflicts') or [])
-                rows += [(docket, nid, item, source, None, item in conflicts)
-                         for item, source in fact['source'].items()]
-            else:
-                rows.append((docket, nid, None, fact.get('source'), fact.get('probability'), bool(fact.get('conflict'))))
-    return rows
-
-
 # ---- evidence.duckdb --------------------------------------------------------------------
 
 def _write_evidence(records, folder):
+    """The passages behind the answers: only quotes that were checked against the page text, since only those
+    settle an answer."""
     con = duckdb.connect(str(folder / 'evidence.duckdb'))
     try:
         columns = [('docket', 'VARCHAR'), ('field', 'VARCHAR'), ('document', 'BIGINT'), ('page', 'BIGINT'),
-                   ('quote', 'VARCHAR'), ('verified', 'BOOLEAN')]
-        _create(con, 'evidence', columns)
+                   ('quote', 'VARCHAR')]
+        _create(con, 'quotes', columns)
         rows = []
         for docket, record in records.items():
             for nid, fact in (record.get('facts') or {}).items():
                 if not _reported(record, nid):
                     continue
                 for q in fact.get('quotes') or []:
-                    rows.append((docket, nid, q.get('doc'), q.get('page'), q.get('quote'), bool(q.get('verified'))))
-        _insert(con, folder, 'evidence', columns, rows)
+                    if q.get('verified'):
+                        rows.append((docket, nid, q.get('doc'), q.get('page'), q.get('quote')))
+        _insert(con, folder, 'quotes', columns, rows)
         con.execute('CHECKPOINT')
     finally:
         con.close()
@@ -290,33 +295,40 @@ def _run_summary(run, records):
                                                        'max': calls[-1]} if calls else None)}
 
 
-def _meta(run, description, layout, counts, records, folder, releases, tags):
+def _meta(run, description, layout, counts, records, folder, releases, tags, version):
     statuses = [_status(r) for r in records.values()]
-    population = {'dockets': len(records), 'complete': statuses.count('complete'),
-                  'failed': statuses.count('failed'), 'not_run': statuses.count('not run'),
-                  'in_scope': counts['appeals'], 'out_of_scope': statuses.count('complete') - counts['appeals']}
+    population = {'dockets': len(records), 'in_scope': counts['appeals'],
+                  'out_of_scope': statuses.count('complete') - counts['appeals'],
+                  'not_determined': statuses.count('failed') + statuses.count('not run')}
     con = connect(folder / 'data.duckdb')
     try:
         tables = catalog.tables(con, description, layout)
     finally:
         con.close()
-    previous = releases.current()
+    previous = releases.current_meta()
     files = {name: _sha256(folder / name) for name in ('data.duckdb', 'evidence.duckdb')}
     created = datetime.now(timezone.utc)
     identity = [FORMAT, run['id'], run['graph_hash'], files, created.isoformat()]
+    public_changes, internal_changes = catalog.changes(previous, description, tables)
     return {
         'id': hashlib.sha256(json.dumps(identity, sort_keys=True).encode()).hexdigest()[:12],
         'format': FORMAT,
-        'tags': tags,
+        'version': version,
         'created_at': created.isoformat(),
+        'tags': tags,
         'files': files,
-        'run': _run_summary(run, records),
-        'code': _git(),
         'population': population,
         'table_rows': counts,
         'tables': tables,
-        'conventions': description.get('conventions', []),
-        'previous': previous.id if previous else None,
-        'changes': catalog.changes(previous.meta if previous else None, description, tables),
-        'graph': description,
+        'about': {'description': description.get('description', ''),
+                  'topics': [t['title'] for t in description.get('topics', [])],
+                  'conventions': description.get('conventions', []),
+                  'method': description.get('method', []),
+                  'reliability': description.get('reliability', [])},
+        'previous': previous['id'] if previous else None,
+        'changes': public_changes,
+        'internal': {'run': _run_summary(run, records), 'code': _git(), 'population': {
+                         'complete': statuses.count('complete'), 'failed': statuses.count('failed'),
+                         'not_run': statuses.count('not run')},
+                     'changes': internal_changes, 'graph': description},
     }

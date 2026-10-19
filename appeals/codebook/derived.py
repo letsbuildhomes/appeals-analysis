@@ -169,9 +169,9 @@ IN_SCOPE = Derive('in_scope', topics.SCOPE, label='In scope', type=Boolean(),
                   inputs=[F.proceeding, F.physical_change, F.housing_use, F.units_effect], fn=in_scope,
                   notes=["True only for an appeal of a municipal body's decision on an application for permission (alone or with other decisions in the docket), for housing, that adds or replaces dwelling units or creates building lots, and is neither after the fact nor without physical change.",
                          'Group and care housing (assisted living, nursing homes, dormitories, group homes) counts as housing, adding residents\' rooms or beds instead of units; housing_use marks it, so it can be left out.'])
-COMPARISON_NOTES = ['Worked out from the unit counts when both are known; otherwise what the documents state with a '
-                    'quote (L6g), such as a court upholding the town\'s approval without restating its size; else "not '
-                    'stated". The scan\'s guess is never used.']
+COMPARISON_NOTES = ['Worked out from the unit counts when both are known; otherwise what the documents say directly '
+                    '(the "as stated" comparison), such as a court upholding the town\'s approval without restating its '
+                    'size; else "not stated".']
 UNITS_VS_TOWN = Derive('units_vs_town', topics.UNITS, label='Units added vs the town\'s decision',
                        type=F.units_vs_town_stated.type, fn=units_vs_town, notes=COMPARISON_NOTES,
                        inputs=[F.units_added_court_approved, F.units_added_town_approved, F.units_vs_town_stated])
@@ -265,7 +265,7 @@ WHAT_WAS_CENTRAL = Derive('what_was_central', topics.GROUNDS, label='What was ce
                           type=OneOf({'a judgment standard': 'At least one judgment standard was disputed and decided (judgment_central yes); '
                                                'other questions may have been too.',
                                       'other questions only': 'No judgment standard was central, but at least one other question '
-                                                '(G3) was disputed and decided.',
+                                                '(other_questions) was disputed and decided.',
                                       'nothing': 'Nothing was disputed and decided, such as an unopposed dismissal or a docket still '
                                    'pending.'}, not_stated=True),
                           inputs=[F.judgment_grounds, F.other_questions], fn=what_was_central,
