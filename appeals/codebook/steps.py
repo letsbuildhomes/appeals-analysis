@@ -475,6 +475,27 @@ L8_relief_kind = Step('L8_relief_kind', topics.GROUNDS, title='Kind of dimension
 # They run for every docket that proceeds, whether or not the appellant's arguments are stated: a docket
 # dismissed before anyone argued the merits is exactly the kind "who can appeal" explains.
 
+# What the one-sentence question must name, for the kinds the step otherwise flags on a passing mention. Here
+# rather than in G3, so the scan and the other steps are unchanged.
+OTHER_TESTS = {
+    'earlier': 'For this kind, the sentence must name an earlier permit or decision, other than the decision under '
+               'appeal, and what a party says it settles about this application: that it gives vested rights, binds '
+               'because no one appealed it, bars this as a repeat application, limits what may be approved until it '
+               'is amended, or already shows the project complies. If it doesn\'t name both, the level is "not at '
+               'issue". An earlier decision that matters only to how the appeal runs (when an appeal period started, '
+               'what the record holds, which questions are before the court, or whether a changed application can be '
+               'reviewed) belongs to who can appeal or to the court managing the appeal. A dispute over which bylaw '
+               'rules apply to an amendment is allowed use and defined terms.',
+    'appeal': 'For this kind, the sentence must name what a party argued, or the court ruled, would keep the whole '
+              'appeal or an appellant from being heard: standing or party status, a late notice of appeal, a decision '
+              'that was not final or not appealable, or a changed application the court can\'t review. A sentence '
+              'noting that the appeal was filed on time or that a party has status, with nothing argued and no ruling '
+              'on it, is "not at issue". Whether one issue or criterion is within the appeal is the court managing '
+              'the appeal. Whether an earlier decision bars the application itself (a successive application) is '
+              'earlier permits and approvals.',
+}
+
+
 def _other_prompt(key, scan):
     return _paragraphs(
         f'The kind of question: {OTHER_KINDS[key]}.',
@@ -486,6 +507,7 @@ def _other_prompt(key, scan):
         'the level is then "not at issue", as it is for a rule, permit or doctrine the decision only recites. Whether '
         'the project meets a standard calling for judgment, and variances or waivers, belong to the judgment '
         'standards.',
+        *([OTHER_TESTS[key]] if key in OTHER_TESTS else []),
         QUOTE_LEVEL)
 
 

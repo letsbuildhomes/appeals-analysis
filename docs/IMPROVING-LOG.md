@@ -385,3 +385,37 @@ These edge-case rules reach no step:
 
 The cause is structural: edge cases are written by hand for the key's labelers, and nothing carries them into step
 prompts. The labeling prompt is generated from the codebook; the edge cases should be too.
+
+## Pass 6e: what an earlier-permits or who-can-appeal question must name (2026-10-19)
+
+Run `20261019-050906-8c70`, $0.04, against 6c (`20261019-040249-a3eb`). Only L9_earlier and L9_appeal changed (35
+calls); every other step and the scan came from the cache, and nothing else moved. Not committed.
+
+The two kinds' false flags were a stable bias, not noise: each was wrong in 4 or 5 of the 5 fresh draws since pass
+4, and the right flags were right in all 5. The step stated a question that mentioned an earlier decision, or the
+appeal, without one being argued:
+- **Earlier permits** (6 dockets): the permit that started the reinstatement period (110-6-08), a condition of the
+  decision under appeal (112-8-14), an application changed to fit an Act 250 decision (118-7-03), what the record
+  holds (121-10-16), whether a criterion is before the court (124-7-99), which bylaw rules apply to a PUD amendment
+  (39-2-06).
+- **Who can appeal** (3 dockets): a recital that the appeal was timely (209-11-04), whether one criterion is within
+  the appeal (124-7-99), a successive-application bar (196-9-08).
+
+Changed: in L9 only (`OTHER_TESTS` in `steps.py`), not G3, so the scan is unchanged. For each kind, the one-sentence
+question must name two things or the level is "not at issue": for earlier permits, an earlier permit or decision
+other than the one under appeal and what a party says it settles about this application; for who can appeal, what
+would keep the whole appeal or an appellant from being heard. Each ends by saying where the lookalikes go.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| L9 earlier and appeal | 25 → 17 | 9 | 1 | +8/−1 | real gain; compare.py calls it a wash (+7 against ±8) |
+| Untouched (noise) | 105 → 105 | 0 | 0 | — | cached, no noise reading |
+
+- **Read item by item, not by the band.** The band measures whole-key reruns; here two steps reran. All 9 fixes are
+  answers that were wrong in 4 or 5 of 5 earlier draws, so chance is an unlikely cause.
+- **Every correct flag held**, including the at-risk ones (189-11-10's state permit showing compliance, 112-8-14 and
+  118-7-03 under who can appeal) and both held-back flags (101-5-07, 54-5-15).
+- **The one break, 34-2-08 earlier (taken up → not at issue), unreviewed key:** the open question is whether a 1959
+  right-of-way gives a vested right under the statute then in force. That right comes from the right-of-way's age,
+  not from an earlier permit, so under the new test it isn't this kind. A definition gap; the key may belong under
+  nonconforming instead.

@@ -141,26 +141,26 @@ characters left out. Every fourth docket in a stratum is held back: 13 in all.
 
 ## Where things stand
 
-Pipeline at commit `4099881` plus the cleanup; latest run `20261019-040249-a3eb`. Scored without adjudication, against
-the key as it stands:
+Pipeline at commit `4099881` plus the cleanup and pass 6e; latest run `20261019-050906-8c70`. Scored without
+adjudication, against the key as it stands:
 
 | | Development (51 dockets) | Held back (13) |
 |---|---|---|
 | Scope right | 50 | 11 |
 | In-scope dockets found | 17 of 18 | 3 of 3 |
 | False passes | 0 | 2 (23-ENV-00104, 38-2-00) |
-| Field agreement, dockets in scope on both sides | 92% (1,093 of 1,190) | 96% (202 of 210) |
+| Field agreement, dockets in scope on both sides | 93% (1,101 of 1,190) | 96% (202 of 210) |
 
 - **The one development miss** is 23-2-06, an inn with the owners' living quarters, which L1c flipped to "not
   housing" by chance in pass 6a.
-- **Where development errors are:** other questions 25, judgment standards 27 (levels 14, results 8, conditions
+- **Where development errors are:** other questions 17, judgment standards 27 (levels 14, results 8, conditions
   5), condition-challenge lists 10, kinds of permission 4, kind of relief 4.
 - **Noise:** chance alone moves about 45 units gross per full rerun; the wash band is ±8. About a fifth of errors
   are coin flips; the rest repeat run to run (the noise check in the log).
 - **Passes so far:** see [IMPROVING-LOG.md](IMPROVING-LOG.md). Kept: grounds evidence rules (3), conversions and
   derived unit comparisons (4), the arguments ruling and ending gate (5a), this-permission scope and units said
-  affirmatively (6a), remands entered as judgment (6b) and the lot rules in L6d (6c). Reverted: the question-first
-  L9 (5b) and the codebook rule register (6d).
+  affirmatively (6a), remands entered as judgment (6b), the lot rules in L6d (6c) and what an earlier-permits or
+  who-can-appeal question must name (6e). Reverted: the question-first L9 (5b) and the codebook rule register (6d).
 
 ## Open ideas, not yet tried
 
