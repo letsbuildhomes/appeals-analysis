@@ -308,7 +308,9 @@ C2 = Question('C2', topics.COURT,
     ask='Do the documents include a decision of the Environmental Court that leaves nothing pending in this docket?',
     options={'yes': 'A decision ends the docket in this court: a final judgment, dismissal, approved settlement or '
                     'withdrawal. A decision on the merits that decides every issue ends it even if a judgment order is '
-                    'still to be submitted.',
+                    'still to be submitted. So does a remand to the municipal panel that the court enters as its '
+                    'judgment, or says completes its proceedings, even if the town must act again or other matters '
+                    'wait on the remand.',
              'no': 'Only interim rulings appear; something is still pending.'},
     why='The first final decision ends the duration.')
 

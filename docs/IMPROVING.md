@@ -450,6 +450,56 @@ Changed:
 - **23-ENV-00104, held back, wrongly in (high):** L1b now calls a boundary line adjustment "create building lots",
   though L1d quotes that it creates no new lot. Unclear whether the new wording or noise caused it.
 
+### Pass 6b: a remand entered as the judgment ends the docket (2026-10-18)
+
+Runs `20261019-034532-b1ef` ($0.88, a full rerun: the scan changed) and `20261019-035057-5364` ($0.04), against
+pass 6a (`20261019-033224-3734`). Not committed. (Fix 5 of this slate, a Sonnet review of likely key errors, was
+dropped: 75 of the 81 stable errors on in-scope dockets had already been adjudicated, nearly all for the key.)
+
+Changed (project owner's ruling): a remand to the municipal panel that the court enters as its judgment, or says
+completes its proceedings, ends the docket, even if the town must act again or other matters wait on it. In C2's
+"yes", in L5a and in `edge_cases.md`.
+
+- **C2 alone did not reach L5a.** The `{C2}` placeholder gives a step the question, not its options' meanings. The
+  scan moved (93-8-18: 0.01 → 0.73 that the docket ended; 40-4-13: 0.12 → 0.96), but L5a, now let through, still
+  read the paused matters as pending. The rule went into L5a's own text in the second run. Lesson: a definition in
+  a scan option reaches a step only if the step's prompt repeats it.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| Remand as judgment (C2 + L5a) | 7 → 3 | 4 | 0 | +4/−0 | the targeted fields: right where intended |
+| Untouched (noise) | 118 → 126 | 24 | 32 | +20/−25 | the third noise reading |
+
+- **Verdict as the rule reads: net loss, −1 unit,** carried by the untouched fields: every step reran because the
+  scan changed. The noise readings are now +6, −6 and −5 net, about 45 units gross each time.
+- **118-7-03 wrongly out of scope (high):** pass 6a's new L1d sentence ("a subdivision whose houses are left to later
+  permits neither adds nor replaces") was read on rerun to cover a land condominium whose houses "will be built by
+  the purchasers of the house sites". In 6a the same step said it adds. The wording is ambiguous on this case.
+- **121-10-16 judgment standards (high, 8 answers):** levels moved from "not at issue" to decided. Rerun noise.
+
+### Pass 6c: follow-ups to 6b (2026-10-19)
+
+Runs `20261019-035715-813a` ($0.16) and `20261019-040249-a3eb` ($0.01), against 6b (`20261019-035057-5364`). Not
+committed.
+
+- **L1d:** houses this permission approves are added even if purchasers will build them; a subdivision adds none
+  only when its houses need permits of their own.
+- **L6d** now carries the lot rulings in its own text: 0 when the documents show the project creates no lots, and a
+  lot released from a restriction (such as open space) is a new lot. They had been only in the codebook note and
+  `edge_cases.md`, which steps don't see.
+- **A first try also reworded the shared units-added rule** to match L1d. It broke the lots-only zeros (4 answers:
+  the step couldn't tell whether the houses need permits of their own, so it answered "not stated") and was undone.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| L1d: houses purchasers build | 36 → 33 | 3 | 0 | +2/−0 | 118-7-03 rightly back in scope (70 answers, 60 right) |
+| L6d: zero lots and released lots | 9 → 3 | 6 | 0 | +6/−0 | no breaks |
+
+**Audit: scan definitions that never reach their steps.** Twelve steps cite a scan question (`{F1}`, `{C2}`, …) whose
+option meanings they never see: the placeholder gives the question, not the meanings. Only C2's meanings carried
+rules, now repeated in L5a; the other eleven restate their options. The same leak applies to field notes and
+`edge_cases.md`, which only the key's labelers read: a rule there reaches the pipeline only if a step's prompt says it.
+
 ## Open ideas, not yet tried
 
 Roughly in order of expected value.

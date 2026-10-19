@@ -100,9 +100,9 @@ L1c = Step('L1c', topics.SCOPE, title='Scope: housing use', after=L1b,
 
 L1d = Step('L1d', topics.SCOPE, title='Scope: dwelling units', after=L1c,
     prompt=_paragraphs('{S4}', 'Answer for the dwelling units the permission under appeal itself allows, beyond '
-                               'those that exist or an earlier permit approved. A subdivision whose houses are left '
-                               'to later permits neither adds nor replaces units, even when the decision expects '
-                               'houses on its lots.', QUOTE_IT),
+                               'those that exist or an earlier permit approved. Houses this permission approves are '
+                               'added even if purchasers will build them. A subdivision adds none only when its houses '
+                               'need permits of their own, even if the decision expects houses on its lots.', QUOTE_IT),
     returns=Record(units=_choice(S4)),
     halt_unless=A('L1d', 'units').in_(['adds', 'replaces', NOT_STATED]) | A('L1b', 'change').is_('create building lots'))
 
@@ -211,7 +211,9 @@ L5a = Step('L5a', topics.COURT, title='A final decision', when=G.final,
         '{C2}',
         'Is there a decision of the Environmental Court that leaves nothing pending in this docket: a final judgment, '
         'dismissal, approved settlement or withdrawal? Partial rulings do not count. A decision on the merits that '
-        'decides every issue counts even if it asks the parties to submit a judgment order. If there is, quote the '
+        'decides every issue counts even if it asks the parties to submit a judgment order. So does a remand to the '
+        'municipal panel that the court enters as its judgment, or says completes its proceedings, even if the town '
+        'must act again or other matters wait on the remand. If there is, quote the '
         'concluding passage of the first such decision; later post-judgment proceedings do not change which decision '
         'was first. The decision can also be shown by a later document that recounts it, such as a Supreme Court order '
         'describing this court\'s decision after a hearing on the merits; then quote that account.'),
@@ -284,7 +286,11 @@ L6c = Step('L6c', topics.UNITS, title='Units added: under appeal', when=G.counts
 L6d = Step('L6d', topics.UNITS, title='New housing lots', when=G.counts, after=L6a,
     prompt=_paragraphs('{U3}', 'How many new building lots for housing would the application create? Count only new '
                                'lots, not the parcel being divided, and not a remainder lot that keeps an existing '
-                               'home.'),
+                               'home. An existing lot released from a restriction, such as open space, so it can '
+                               'become a house lot counts as a new lot. When the documents show the project creates '
+                               'no lots, such as a building on an '
+                               'existing lot, the answer is 0, with a quote showing what the project is; "not stated" '
+                               'is for when they don\'t let you tell.'),
     returns=Record(lots=Quoted(Count())))
 
 # The town's and the court's counts are compared (unit_change), so both count the same thing: a denial approved no units,
