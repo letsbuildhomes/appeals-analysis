@@ -331,6 +331,58 @@ Against pass 4: **net improvement, +10 units**.
 27-2-10, 35-3-04 and 39-2-06 recovered. The only breaks are in the condition-challenge chain, which reruns whenever
 L7a changes: 121-10-16's list wording, and 196-9-08's challenge dropped (yes → no). Rerun noise, unconfirmed.
 
+### Pass 5b: question-first L9, reverted (2026-10-18)
+
+Run `20261019-014748-94c7`, $0.50, against 5a2, the only change. **Wash, −1 unit.** With its revision (5b2,
+below), it failed the project owner's bar (beat 5a2) and was reverted: L9 is the per-kind version from 5a2.
+
+Changed: the nine per-kind L9 steps became L9a (list the docket's other questions, up to 12, one sentence and a
+quote each) and L9b (for each, its kind with all kinds side by side, and its level). `other_questions` is derived:
+each kind takes the furthest level of its questions. G3 stays in the scan only to decide whether L9a runs (any kind
+at 0.5 or above); in this run it skipped no docket. Drop it, and the gate, at the final pipeline run.
+
+| Change | Errors before → after | Fixed | Broken | Net units | Read |
+|---|---|---|---|---|---|
+| Question-first L9 | 27 → 27 | 16 | 16 | +5/−6 | within noise |
+
+- **It traded false positives for misses:** false "at issue" 19 → 13, missed 2 → 7, wrong level 6 → 7.
+- **The list was good; the sorting wasn't.** L9a found 6 to 12 questions per docket. L9b gave each exactly one kind,
+  and pulled whole dockets toward one: on 164-12-17, 8 of 10 questions went to "earlier permits" (the docket is a
+  permit amendment), including the 75% open-space rule and the reading of a bylaw section; on 189-11-10, 7 of 11 went
+  to "allowed use and defined terms", including whether septic systems are structures under a setback. The kind
+  definitions expect one dispute to count under several kinds (a measuring dispute is both meaning and measurable),
+  which a single-kind sort can't express.
+- **The court managing the appeal still leaked** into "who can appeal" (39-2-06 and 93-8-18: questions dismissed as
+  outside the appeal), though most such items went to "none of these".
+- **Cost:** 233 calls, about 3.5 times the per-kind L9's, because every L9b call carries the whole docket.
+
+**Revised as 5b2** (run `20261019-015601-4270`, $0.34): L9a leaves out the court's handling of the case (motions,
+the Statement of Questions); L9b sorts all of a docket's questions in one call and may give a second kind. Against
+5a2: **wash, −3 units** (14 fixed, 15 broken). Reverted with 5b.
+
+| Run | False "at issue" | Missed | Wrong level | Total |
+|---|---|---|---|---|
+| 5a2 (per-kind L9) | 19 | 2 | 6 | 27 |
+| 5b (one kind per question) | 13 | 7 | 7 | 27 |
+| 5b2 (second kind allowed) | 18 | 3 | 7 | 28 |
+
+- The second kind brought back the misses (7 → 3) and the false positives with them (13 → 18). It was given to 37
+  of 153 questions, most often "allowed use and defined terms" for questions about reading a statute or a
+  stipulation (110-6-08, 27-2-10, 93-8-18), which that kind's question doesn't ask.
+- Cost: $0.34, more than twice the per-kind L9. The two calls per docket are long: L9a averaged $0.0074 a call,
+  about seven times a per-kind L9 call, because it writes up to 12 quoted questions.
+- Three structures landed within one error of each other. The limit is likely in the kind definitions, or in the
+  key's other-question labels, not in how the steps are arranged.
+
+What the failed experiment taught:
+- **Listing worked; sorting didn't.** L9a found real questions (6 to 12 a docket). The errors moved between kinds of
+  error as the sorting rules changed, but the total didn't.
+- **One kind per question is too few, and a free second kind is too many.** If this is tried again, settle first
+  which kinds may pair (the definitions only call for meaning with measurable rules).
+- **Writing out lists is expensive.** A step that writes many quoted items costs several times a yes/no step.
+- **Before restructuring a field again, measure its noise.** A field that sits at the same error count under three
+  designs may be at its noise floor, or limited by its key.
+
 ## Open ideas, not yet tried
 
 Roughly in order of expected value.
@@ -359,7 +411,8 @@ Roughly in order of expected value.
 5. **Unstable step answers.** Rerun noise moved scope (90-6-01) and reviewed grounds answers (121-10-16, 101-5-07).
    Consider asking a step twice when it contradicts a confident scan, and keeping the answer only when both agree.
 6. **L9 patterns** from the named questions: a recited fact read as a ruling, and a question put under a
-   neighbouring kind. A check that classifies the named question into the nine kinds could catch the second.
+   neighbouring kind. A question-first design (5b, 5b2) didn't help; see what it taught before trying another.
+   The noise check comes first.
 7. **Unit counts.** The pipeline counts a property's total units as units added when the existing units aren't
    stated (121-10-16). For lots-only subdivisions, units added should follow the "neither" rule (0), which the
    key now uses.
