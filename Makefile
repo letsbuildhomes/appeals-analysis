@@ -31,7 +31,7 @@ test:            ## run the tests
 	$(RUN) pytest -q
 
 lint:            ## check the code with ruff
-	$(RUN) ruff check appeals tests
+	$(RUN) ruff check appeals tests scripts
 
 ingest:          ## download new PDFs from known listings, extract text, assign dockets
 	$(RUN) appeals ingest

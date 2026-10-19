@@ -241,12 +241,13 @@ unusual pricing (such as DeepSeek's peak hours) gets its own kind. Keys go in
 
 Ingest holds every PDF, the September 2026 listing snapshot and all page
 text, imported once from the prototype, with dockets recomputed by the new
-rules. The extraction graph is
-built and checked, and can be inspected in the dashboard. It has been tried
-live on two dockets (Jev for the scan, DeepSeek Flash for the steps), as
-scratch runs. The gate thresholds are untuned placeholders until the
-reference set is relabeled. Releases, the public site and the MCP server are
-built and tested on fake-model runs; no release has been published yet,
-since there is no production run.
+rules. The extraction graph is built and checked, and can be inspected in the
+dashboard. It has been improved pass by pass against a 64-docket answer key
+(Jev for the scan, DeepSeek Flash for the steps), with the gate thresholds set
+from it; [docs/IMPROVING.md](docs/IMPROVING.md) has the method and where
+things stand. The whole corpus has been scanned once, for drawing the key;
+the production run, which rescans it, comes after iterating ends. Releases,
+the public site and the MCP server are built and tested on fake-model runs;
+no release has been published yet.
 [docs/PIPELINE.md](docs/PIPELINE.md) is the design, and
 [docs/CONTEXT.md](docs/CONTEXT.md) explains how we got here.

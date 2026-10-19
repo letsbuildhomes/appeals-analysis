@@ -84,8 +84,8 @@ L1a = Step('L1a', topics.SCOPE, title='Scope: kind of proceeding',
         '{S1}', QUOTE_IT),
     returns=Record(proceeding=_choice(S1)), halt_unless=A('L1a', 'proceeding').in_([*MUNICIPAL_PERMIT, NOT_STATED]))
 
-# Answer scope for the permission under appeal, not the project as a whole (pass 6): a follow-up approval, an
-# after-the-fact approval and an amendment were each judged by the whole project and passed scope wrongly.
+# Answer scope for the permission under appeal, not the project as a whole: judged by the whole project, a
+# follow-up approval, an after-the-fact approval or an amendment passes scope wrongly.
 THIS_PERMISSION = ('Answer for what the permission under appeal itself allows, beyond what was already approved or '
                    'built. An approval that carries out an earlier permit\'s condition, such as a landscaping plan, '
                    'allows only what it adds. An approval of work already done is "authorize something already built".')
@@ -260,7 +260,7 @@ L5f = Step('L5f', topics.COURT, title='Date of the latest order', after=L5a, onl
 
 # ---- A, B, F · Dwelling units added, one count at a time --------------------------------------
 
-# What to count, said as what it is (pass 6): the step had followed any number a decision states, such as the houses
+# What to count, said as what it is: otherwise the step follows any number a decision states, such as the houses
 # a subdivision is expected to bring, or a property's total.
 UNITS_ADDED = ('Count the new dwelling units this permission would allow to be built: units beyond those that already '
                'exist or that an earlier permit approved, built or not. A unit that replaces one removed counts as '
@@ -329,7 +329,7 @@ L6g = Step('L6g', topics.UNITS, title='Units added: court against town and appli
 
 # ---- C · Grounds: arguments stated, challenged conditions, each judgment standard, each other question ----
 
-# The project owner's rulings (October 2026): arguments only about procedure don't count; a general compliance
+# The project owner's rulings: arguments only about procedure don't count; a general compliance
 # question does. L7a's "no" with no standard at issue gives "not stated" (fields.NO_ARGUMENTS).
 ARGUMENTS_MEANING = ('Count only arguments about the municipal decision itself: why it should be upheld, reversed or '
                      'changed, including such arguments made on a motion for summary judgment. Arguments only about '
@@ -403,9 +403,8 @@ def _scan_level(placeholder, what):
                           f'likely at the level "{{{placeholder}}}"). Decide from the documents.'}
 
 
-# What lifts a kind above "not at issue", and two rulings on levels (October 2026, after the second pass): kinds
-# were being flagged from a passing word or from text about a neighbouring kind, and decided where the court
-# never reached the standard.
+# What lifts a kind above "not at issue", and two rulings on levels: without them, kinds are flagged from a
+# passing word or from text about a neighbouring kind, and decided where the court never reached the standard.
 GROUP_EVIDENCE = ('Answer above "not at issue" only for a standard of this kind that a party argued about this '
                   'project or that the court applied to it. A passing word (such as "historic" in a description), a '
                   'fact recited only as background or as the reason for another ruling, and a standard of a '

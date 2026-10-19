@@ -318,7 +318,7 @@ whole.
 
 ### Gates
 
-Thresholds are *to set* per question from the reference set.
+Thresholds are in `config.toml`, set against the answer key.
 
 | Gate | Condition | Passes to |
 |---|---|---|
@@ -326,7 +326,7 @@ Thresholds are *to set* per question from the reference set.
 | Counts | U1, U2 or U3 stated, or U4/U5 is more or fewer | L6 |
 | Grounds | G1 yes at or above `grounds` (0.3, low so dockets with arguments are rarely skipped) | L7, L8 |
 | Review | C1 is not "not stated" | L10 |
-| Final | C2 at or above threshold | L5 |
+| Final | C2 at or above `final` (0.1, low so L5a checks endings the scan doubts) | L5 |
 | Stay | D1 at or above threshold | L11 |
 | Design | D2 at or above threshold | L12 |
 
@@ -481,13 +481,13 @@ it was dismissed.
   the answers along each chain. The first live test (Tuggle PUD, October 2026)
   made 29 calls costing about a cent off-peak.
 
-## To set
+## Still open
 
-- The thresholds for each gate.
-- The long-context threshold, in measured tokens.
-- The reasoning model. DeepSeek Flash is in use for now; others will be
-  tried: any model reached through the Anthropic or OpenAI API can be added
-  as a file in `providers/` and chosen in `config.toml`.
-- A spending limit for development runs.
-- The reference set: dockets labeled as answers to these question IDs.
-  Thresholds are tuned against it.
+- The reasoning model. DeepSeek Flash is in use; any model reached through
+  the Anthropic or OpenAI API can be added as a file in `providers/` and
+  chosen in `config.toml`.
+- The budget for the production run.
+
+The gate thresholds and the long-context threshold (28,000 estimated tokens)
+are set in `config.toml`, against the answer key described in
+[IMPROVING.md](IMPROVING.md).

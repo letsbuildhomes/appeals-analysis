@@ -36,7 +36,7 @@ chars_per_token = 4.0
 # C3) there is no step; from there up to `sure` the step is told the scan was unsure and asked to decide; at
 # `sure` or above it is told the scan's reading and asked to confirm or refute it. `sure` also labels every scan
 # answer in the claims each call starts with. 0.6 is measured: answers at or above it repeated exactly when the
-# grounds experiments asked the same questions twice; below it some changed.
+# same questions were asked twice; below it some changed.
 check = 0.3
 sure = 0.6
 # Scope: a docket goes on to the steps when the scan's chance it is in scope is above this; L1 then checks scope
@@ -50,7 +50,7 @@ grounds = 0.3
 other_check = 0.5
 review = 0.5
 # Final decision (C2): low so L5a checks the ending with a quote even when the scan doubts one. At 0.5 a
-# remand with a judgment order (scanned 0.12) was never checked (pass 4).
+# remand with a judgment order (scanned 0.12) was never checked.
 final = 0.1
 stay = 0.5
 design = 0.5

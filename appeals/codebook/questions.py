@@ -145,7 +145,7 @@ A1 = Question('A1', topics.APPELLANTS,
 
 
 # ---- C · Grounds ----------------------------------------------------------------------
-# The definitions here were settled by the grounds experiments (scored against a 46-docket answer key).
+# These definitions were settled by testing them against an answer key.
 
 G1 = Question('G1', topics.GROUNDS,
     ask='Do the documents say what the appellant argued in this appeal?',
@@ -208,8 +208,7 @@ G2 = ChoiceSet('G2', topics.GROUNDS,
         'makes a standard central to the appeal.')
 
 # The other kinds of question an appeal can turn on, asked like the judgment groups so a docket shows every
-# kind it had. Distilled from 25 candidates and scored against a 46-docket answer key (the grounds
-# experiments, v4–v6).
+# kind it had. Distilled from 25 candidates tested against an answer key.
 OTHER_LEVELS = {
     'not at issue': 'Not argued, and not considered by the court.',
     'raised only': 'A party argued it; the court has not addressed it.',
@@ -221,8 +220,8 @@ OTHER_LEVELS = {
                  'withdrawn.',
 }
 
-# Each kind is the question the court must answer, with examples of how a decision puts it (the project owner,
-# October 2026: affirmative definitions with examples, rather than lists of exclusions).
+# Each kind is the question the court must answer, with examples of how a decision puts it: affirmative
+# definitions, rather than lists of exclusions.
 OTHER_KINDS = {
     'measurable': 'measurable rules. The question: does the project meet a rule with a measurable test, such as a '
                   'setback, height limit, minimum lot size or frontage, density limit or required number of parking '

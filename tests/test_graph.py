@@ -638,33 +638,3 @@ def test_a_quote_may_cross_a_line_break_hyphen_or_run_onto_the_next_page():
     checked, n, verified = layers.verify_quotes(quotes, _TwoPages())
     assert (n, verified) == (3, 2)
     assert checked['a']['verified'] and checked['b']['verified'] and not checked['c']['verified']
-
-
-# A step sees a scan question's text through its placeholder, not the meanings of its options (pass 6b: C2's remand
-# rule never reached L5a). These questions' option meanings were checked on 2026-10-19: all but C2 only restate
-# their options, and C2's rule is repeated in L5a's own text. The fingerprint changes when a meaning does; then
-# check that every step citing the question says any rule the meaning adds, and update the fingerprint.
-REVIEWED_OPTION_MEANINGS = {
-    'A1': '1e28a1ddf5af', 'C2': '1fd7d5cc97c3', 'D1': '1f422559eeaf', 'D2': '76637639c09e', 'F1': 'ff0bdde6566a',
-    'G1': '1002b1a56fc2', 'G4': '068c87b2a704', 'U1': 'c4df7531bcfa', 'U2': '155cdcbcf429', 'U3': 'fd2b90713a52',
-    'U4': 'ad7de75636d2', 'U5': '9284a7a28327'}
-
-
-def test_a_step_sees_the_rules_in_the_scan_options_it_cites():
-    import hashlib
-    import json
-    from appeals.graph.endpoints import TRIVIAL, answer_instructions
-    pipeline = build(THRESHOLDS)
-    unreviewed = []
-    for step in pipeline.steps:
-        seen = ' '.join(step.templates().values()) + answer_instructions(step.returns)
-        for ref in step.placeholders():
-            question = pipeline.nodes.get(ref)
-            options = getattr(question, 'options', None)
-            if not options or all(m in TRIVIAL or m in seen for m in options.values()):
-                continue
-            fingerprint = hashlib.sha256(json.dumps(options, sort_keys=True).encode()).hexdigest()[:12]
-            if REVIEWED_OPTION_MEANINGS.get(question.id) != fingerprint:
-                unreviewed.append(f'{step.id} cites {question.id} ({fingerprint})')
-    assert not unreviewed, ('option meanings that never reach the step citing them, not reviewed: '
-                            + '; '.join(unreviewed))

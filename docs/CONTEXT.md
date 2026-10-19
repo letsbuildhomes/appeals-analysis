@@ -6,8 +6,9 @@ grew a large framework, layers of versioning, and labeling rules written case
 by case. This repository keeps what was learned and leaves the rest behind.
 This page is the part worth knowing. The [README](../README.md) says what we're
 building, and [PIPELINE.md](PIPELINE.md) gives the current design in detail.
-[IMPROVING.md](IMPROVING.md) is the log of improvement passes against the answer
-key: read it before changing the pipeline, and add to it after a pass.
+[IMPROVING.md](IMPROVING.md) is how improvement passes against the answer key
+are run and judged, and where things stand: read it before changing the
+pipeline. [IMPROVING-LOG.md](IMPROVING-LOG.md) records every pass.
 
 ## How the user works
 
@@ -164,10 +165,14 @@ reproduction) solved problems this rewrite deliberately doesn't have.
   others will be tried by adding them in `providers/` and choosing them in
   `config.toml`.
 
+- **Thresholds.** The gate thresholds and the long-context threshold are set in
+  `config.toml`, against the answer key.
+- **The answer key** was labeled by model agents and corrected by adjudication;
+  [IMPROVING.md](IMPROVING.md) says how, and how passes are run and judged.
+- **The corpus is rescanned only in the production run**, never while iterating.
+
 ## Open decisions
 
 The user will decide these, so don't assume them:
-- the reasoning model and the budget,
-- the gate thresholds and the long-context threshold,
-- how the relabeling is done,
-- the order of the build phases.
+- the reasoning model and the budget for the production run,
+- whether to draw fresh held-back dockets before the production run.

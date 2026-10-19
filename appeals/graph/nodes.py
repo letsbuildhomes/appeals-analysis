@@ -207,7 +207,7 @@ class Base(Node):
     """The shared start of every reasoning-model call for a docket: framing, docket text, scan claims.
 
     Every scan answer is a claim here, not only those a step checks: the claims are a map of the docket that the
-    steps lean on (dropping them, tried in October 2026, cost accuracy and doubled the grounds steps' reasoning).
+    steps lean on (dropping them was tried: it cost accuracy and doubled the grounds steps' reasoning).
     A step also states the claims it checks in its own question.
     """
     framing: str = ''
