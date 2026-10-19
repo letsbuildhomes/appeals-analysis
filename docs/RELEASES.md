@@ -2,10 +2,11 @@
 
 A **release** is one finished run frozen into files that can be published.
 The public site serves releases at `https://data.letsbuildhomes.org/appeals/`.
-It has a landing page, a read-only JSON API, and an MCP server at
-`/appeals/mcp`. Through the MCP server, an AI assistant can analyse the data,
-learn what each column means, and read the passages of the decisions behind
-any one case's answers.
+It has a landing page, a page for every appeal, a read-only JSON API, and an
+MCP server at `/appeals/mcp`. Through the MCP server, an AI assistant can
+analyse the data, learn what each column means, read the passages of the
+decisions behind any one case's answers, and link the reader to that case's
+page.
 
 ## What readers see
 
@@ -30,11 +31,52 @@ nothing about how each answer was settled:
   and the day it was built in Vermont (October 19, 2026). The 12-character
   ID is for operators and URLs; run IDs, graph hashes and commits are in
   `release.json`'s `internal` section, which nothing serves.
-The landing page is written for the public: how to connect the main
-assistants, what the data is and can't show, how it is made, prompts to
-start with, and the current release's numbers, or a note that data is coming
-when none is published. It is static HTML, CSS and JavaScript in
-`appeals/site/static/`, with no build step.
+The site is written for the public, who will not use a terminal. It is
+static HTML, CSS and JavaScript in `appeals/site/static/`, with no build step;
+asset links carry a hash of the files, so browsers fetch them again after a
+deploy. Its look is set once in `site.css`: the Let's Build Homes logo
+(`static/brand/lbh-logo.svg`, from reports.letsbuildhomes.org) on its green in
+a header bar with the same three links on every page, Source Serif 4
+(self-hosted in `static/fonts/`, under the SIL Open Font License) for
+headlines and figures, small-caps labels, hairline rules rather than boxes,
+square controls, the LBH green as the one accent, and amber only for a quoted
+passage. `case.css` adds the appeal pages in the same terms.
+
+- **The landing page** (`index.html`, `site.js`): the current release's
+  numbers (or a note that data is coming), an animated seven-step
+  walkthrough of how the data is made, how to use the data with an AI
+  assistant, and a plain-language guide to the data (summary, how appeals
+  work, sources, method, recorded facts, limitations, definitions) written
+  for readers who know nothing about the court, AI or data. The walkthrough plays only while
+  on screen, stops once the reader steps through it, and never moves for
+  readers who ask for reduced motion.
+- **Connecting an assistant** is a dialog, opened by any link to `#connect`
+  (so `/appeals/#connect` from another page lands with it open). Apps down
+  the side (Claude, ChatGPT, Perplexity and any other app that adds a remote
+  MCP server by address); for the chosen one, a few numbered steps that link
+  straight to the app's settings page where they can, and the name and
+  address to paste, each with a copy button. No app offers a link that adds a
+  server by itself, so each step links to the app's own settings page.
+- **A page per appeal** at `/appeals/<version>/<docket>` (`docket.html`,
+  `case.js`, `case.css`), such as `/appeals/v0.0.2/134-7-04-vtec`: the docket
+  number in lower case with spaces as hyphens, though the plain number works
+  too. It shows the case at a glance (the town's decision, the appeal, the
+  court's result, how long it took, new homes), every fact grouped by topic
+  with its meaning, a timeline, the documents and linked cases. Each fact's
+  quotes open beside the page in a reader that shows the document's text at
+  the quote's page with the passage highlighted, and links to the court's PDF
+  at that page. `appeals/release/view.py` builds the page from the release's
+  data dictionary, so new fields appear by themselves; the server puts it in
+  the page, so it shows without a second request. A version names the current
+  release if it has that version, else the newest with it; `latest` redirects
+  to the current version, and an older version shows an "old data" banner.
+- **The list of appeals** at `/appeals/<version>/` (`browse.html`,
+  `browse.js`), to search by docket, town or case name and filter by outcome.
+
+Addresses that leave the site (the MCP address the pages show, citations,
+and the MCP tools' page links) use `[site] public_url` in `config.toml`, or
+the address each request came to when it is empty. For a preview on the
+LAN, run `make site PUBLIC_URL=http://192.168.88.3:8000`.
 
 ```text
 store ──make release──▶ data/releases/<id>/ ──make publish──▶ current ──▶ site: dashboard · API · MCP
@@ -47,7 +89,7 @@ store ──make release──▶ data/releases/<id>/ ──make publish──�
 | File | What |
 |---|---|
 | `data.duckdb` | The research tables, the only data `query` can read |
-| `evidence.duckdb` | The checked passages behind the answers. They are read only through `docket`, a few dockets at a time, so quotes never come back from bulk queries |
+| `evidence.duckdb` | The checked passages behind the answers (`quotes`), and the page text of every appeal's documents (`pages`), so a reader can see a quote where it stands. Both are read only a docket at a time, through `docket` and the docket pages, so they never come back from bulk queries. A release built before `pages` existed still serves; its quotes link only to the PDFs |
 | `release.json` | The version, build date and file hashes; what the data is, its conventions, method and reliability; the data dictionary with a profile and query tips for every column; and what changed since the previous version. An `internal` section keeps the provenance (run, models, git commit) and the run's full graph description for operators; nothing serves it |
 
 The tables:
@@ -121,10 +163,15 @@ release that isn't current.
 
 | Tool | What it returns |
 |---|---|
-| `overview` | Start here. The version and build date, what the data is, what it covers, how it was made, how reliable it is, the topics, the tables (with the `all_` tables listed apart), the conventions, how to work with the data, the limits and what changed |
+| `overview` | Start here. The version and build date, what the data is, what it covers, how it was made, how reliable it is, the topics, the tables (with the `all_` tables listed apart), the conventions, how to work with the data, the limits, what changed, and `web_pages`: where each appeal's page is |
 | `describe` | Full descriptions of a table, a topic ("Units added"), a field name (`duration`) or named columns. Each has its meaning, options, notes, a profile (counts and how many are known) and tips. With no target, a compact index. Fields and topics match the main tables only; name an `all_` table to see its columns |
 | `query` | One read-only DuckDB SELECT: at most 1,000 rows, 256 KB and 5 seconds |
-| `docket` | Up to 10 dockets in full: answers, lists, the passages behind them, document links and linked dockets. A docket out of scope has only its scope answers and a note saying so |
+| `docket` | Up to 10 dockets in full: answers, lists, the passages behind them, document links, linked dockets and `page_url`, the docket's page. A docket out of scope has only its scope answers and a note saying so |
+
+**Links to pages.** The server's instructions tell assistants to link each
+case they discuss to its page, so a reader can check the answers. The address
+comes from `[site] public_url`, also over stdio (`uv run appeals mcp`); with
+neither a public address nor a request to take one from, there are no links.
 
 **Query bounds.** Each query is a single SELECT on a DuckDB connection that
 is read-only and has file access, extensions and configuration changes

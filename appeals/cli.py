@@ -244,14 +244,20 @@ def cmd_site(args):
     host, port, base = _site_options(args, settings)
     hosts = allowed_hosts(settings.site.get('allowed_hosts', []), args.allowed_host or [], host, port)
     password = args.password if args.password is not None else os.environ.get('SITE_PASSWORD', '')
-    serve(Releases(settings.releases), host, port, base, settings.site.get('title', 'Research data'), hosts, password)
+    public_url = settings.site.get('public_url') if args.public_url is None else args.public_url
+    serve(Releases(settings.releases), host, port, base, settings.site.get('title', 'Research data'), hosts, password,
+          public_url or None)
 
 
 def cmd_mcp(args):
     from appeals.release.read import Releases
+    from appeals.site.app import base_path
     from appeals.site.mcp import make_server
     settings = _settings(args)
-    make_server(Releases(settings.releases), name=settings.site.get('title', 'Research data')).run('stdio')
+    public_url = settings.site.get('public_url')
+    site_url = f'{public_url.rstrip("/")}{base_path(settings.site.get("base_path", "/appeals"))}' if public_url else None
+    make_server(Releases(settings.releases), name=settings.site.get('title', 'Research data'),
+                site_url=site_url).run('stdio')
 
 
 def cmd_mcp_check(args):
@@ -329,6 +335,9 @@ def main(argv=None):
     p.add_argument('--host', help='address to listen on, such as a VPN address')
     p.add_argument('--port', type=int)
     p.add_argument('--base-path', help='path prefix for every route, such as /appeals; "" for none')
+    p.add_argument('--public-url', help='the public origin that page links, citations and MCP links name, such as '
+                                        'http://192.168.88.3:8000 for a preview (default: [site] public_url; "" '
+                                        'for the address each request came to)')
     p.add_argument('--allowed-host', action='append', help='another Host header the MCP endpoint accepts; may repeat')
     p.add_argument('--password', help='ask for this password before the dashboard (default: SITE_PASSWORD; '
                                       'empty for none). /mcp and /healthz stay open')

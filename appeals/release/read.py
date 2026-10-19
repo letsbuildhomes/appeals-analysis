@@ -39,6 +39,11 @@ def built_on(created_at):
     return f'{day:%B} {day.day}, {day.year}'
 
 
+def docket_slug(number):
+    """A docket number as it appears in a page address: 134-7-04 Vtec becomes 134-7-04-vtec."""
+    return re.sub(r'[^0-9a-z]+', '-', str(number).casefold()).strip('-')
+
+
 class QueryError(ValueError):
     """A query that was refused or failed; the message is safe to show to whoever sent it."""
 
@@ -161,6 +166,33 @@ class Release:
         finally:
             cursor.close()
 
+    def has_pages(self):
+        """Whether the release carries its documents' page text (releases built before it was added don't)."""
+        if not hasattr(self, '_has_pages'):
+            self._has_pages = bool(self._rows(self.evidence, "SELECT 1 AS x FROM information_schema.tables "
+                                                             "WHERE table_name = 'pages'", []))
+        return self._has_pages
+
+    def find_docket(self, text):
+        """The docket number a reader typed or a page address names (25-ENV-00114, 134-7-04-vtec), or None."""
+        if not hasattr(self, '_slugs'):
+            numbers = self._rows(self.data, 'SELECT docket FROM all_dockets', [])
+            self._slugs = {docket_slug(r['docket']): r['docket'] for r in numbers}
+        return self._slugs.get(docket_slug(text))
+
+    def document(self, number, document):
+        """One of a docket's documents with the text of each page, for reading a quote where it stands. Only the
+        appeals in scope carry page text; `pages` is empty for the others and for older releases."""
+        found = self._rows(self.data, 'SELECT document, title, posted, pages, url FROM all_documents '
+                                      'WHERE docket = ? AND document = ?', [number, document])
+        if not found:
+            return None
+        pages = []
+        if self.has_pages():
+            pages = self._rows(self.evidence, 'SELECT page, text FROM pages WHERE docket = ? AND document = ? '
+                                              'ORDER BY page', [number, document])
+        return {'version': self.version, 'docket': number, **found[0], 'text': pages}
+
     def docket(self, numbers, fields=None):
         """Everything about a few dockets: answers, list rows, the passages behind them and the documents.
         `fields` (field names such as court_result or duration) narrows it. A docket out of scope has only its
@@ -187,9 +219,10 @@ class Release:
                 answers = {k: v for k, v in answers.items() if k in keep}
             entry = {'docket': number, 'found': True, 'in_scope': True if in_scope else scope[0]['in_scope']}
             if not in_scope:
-                entry['note'] = ('Not an appeal about new housing, so the study set it aside: only its scope answers '
-                                 'are recorded.' if entry['in_scope'] is False else
-                                 'Whether this docket is in scope could not be determined, so it has no answers.')
+                entry['note'] = ('This case is not an appeal of a town decision about new housing, so only the answers '
+                                 'used to decide that are recorded.' if entry['in_scope'] is False else
+                                 'We could not determine whether this case is an appeal about new housing, so it has '
+                                 'no answers.')
             entry['answers'] = answers
             if in_scope:
                 entry['lists'] = {}
@@ -279,6 +312,16 @@ class Releases:
     def current(self):
         rid = self.current_id()
         return self.get(rid) if rid else None
+
+    def by_version(self, version):
+        """The release readers know by a version such as v0.0.2: the current one if it has that version, else the
+        newest servable one that does. Page addresses name releases this way."""
+        wanted = str(version).casefold()
+        wanted = wanted if wanted.startswith('v') else f'v{wanted}'
+        matches = [r for r in self.summaries() if r['servable'] and str(r['version']).casefold() == wanted]
+        if not matches:
+            return None
+        return self.get(next((r for r in matches if r['current']), matches[0])['id'])
 
     def publish(self, rid):
         """Make `rid` the current release. Servers pick it up on their next request."""

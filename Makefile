@@ -77,8 +77,8 @@ delete-releases: ## delete releases for good: make delete-releases RELEASE=<id> 
 
 # deploy/appeals-site.service keeps it running as a systemd user service, with
 # SITE_HOST and SITE_PORT from .site-env (such as the VPN address).
-site:            ## serve the public site and MCP server: make site SITE_HOST=0.0.0.0 SITE_PORT=8000
-	$(RUN) appeals site --host $(SITE_HOST) --port $(SITE_PORT)
+site:            ## serve the public site and MCP server: make site SITE_HOST=0.0.0.0 SITE_PORT=8000 [PUBLIC_URL=http://192.168.88.3:8000]
+	$(RUN) appeals site --host $(SITE_HOST) --port $(SITE_PORT) $(if $(PUBLIC_URL),--public-url "$(PUBLIC_URL)")
 
 mcp-check:       ## check a running MCP endpoint: make mcp-check URL=http://host:port/appeals/mcp
 	$(RUN) appeals mcp-check $(URL)

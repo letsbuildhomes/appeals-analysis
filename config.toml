@@ -62,6 +62,7 @@ design = 0.5
 [site]
 title = "Vermont municipal housing appeals"
 base_path = "/appeals"
+public_url = "https://data.letsbuildhomes.org"   # the address page links, citations and MCP links name
 host = "0.0.0.0"
 port = 8000
 allowed_hosts = ["data.letsbuildhomes.org", "192.168.88.3:*", "localhost:*", "127.0.0.1:*"]

@@ -86,7 +86,7 @@ def build(store, run_id, root, test=False, tags=(), version=None, log=print):
     folder = Path(tempfile.mkdtemp(prefix='.building-', dir=root))
     try:
         counts = _write_data(store, description, layout, records, folder)
-        _write_evidence(records, folder)
+        _write_evidence(store, description, records, folder)
         meta = _meta(run, description, layout, counts, records, folder, Releases(root), tags, version)
         (folder / 'release.json').write_text(json.dumps(meta, indent=1, default=str))
         Release(folder)                                  # opens, checks hashes and the lockdown
@@ -247,9 +247,10 @@ def _reported(record, nid):
 
 # ---- evidence.duckdb --------------------------------------------------------------------
 
-def _write_evidence(records, folder):
+def _write_evidence(store, description, records, folder):
     """The passages behind the answers: only quotes that were checked against the page text, since only those
-    settle an answer."""
+    settle an answer. And the page text of each appeal's documents, so a reader can see a quote where it stands.
+    Like the quotes, the pages are read one docket at a time and never reach SQL from outside."""
     con = duckdb.connect(str(folder / 'evidence.duckdb'))
     try:
         columns = [('docket', 'VARCHAR'), ('field', 'VARCHAR'), ('document', 'BIGINT'), ('page', 'BIGINT'),
@@ -264,6 +265,19 @@ def _write_evidence(records, folder):
                     if q.get('verified'):
                         rows.append((docket, nid, q.get('doc'), q.get('page'), q.get('quote')))
         _insert(con, folder, 'quotes', columns, rows)
+
+        in_scope = description.get('in_scope')
+        columns = [('docket', 'VARCHAR'), ('document', 'BIGINT'), ('page', 'BIGINT'), ('text', 'VARCHAR')]
+        _create(con, 'pages', columns)
+        rows = []
+        for docket, record in records.items():
+            if (record.get('row') or {}).get(in_scope) is not True:
+                continue
+            for doc in docket_documents(store, docket):
+                rows += [(docket, doc['n'], p['page'], p['text'] if p['status'] == 'usable' else None)
+                         for p in store.rows('SELECT page, text, status FROM pages WHERE sha256 = ? ORDER BY page',
+                                             (doc['sha256'],))]
+        _insert(con, folder, 'pages', columns, rows)
         con.execute('CHECKPOINT')
     finally:
         con.close()

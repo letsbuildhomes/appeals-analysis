@@ -2,6 +2,7 @@ import asyncio
 from dataclasses import replace
 from datetime import date
 import json
+import re
 
 import pytest
 
@@ -219,7 +220,7 @@ def test_docket_returns_quotes_for_a_few_dockets_only(released):
     assert appeal['documents'][0]['url'] == 'https://example/a.pdf'
     assert appeal['linked_dockets'] == [{'linked_docket': '13-1-20 Vtec', 'shared_documents': 1,
                                          'linked_in_scope': True}]
-    assert other['in_scope'] is False and 'set it aside' in other['note'] and 'lists' not in other
+    assert other['in_scope'] is False and 'not an appeal' in other['note'] and 'lists' not in other
     assert 'duration_days' not in other['answers'] and other['documents']
     with pytest.raises(QueryError):
         release.docket([f'd{i}' for i in range(11)])
@@ -238,6 +239,48 @@ def test_the_guide_describes_the_data_by_version_and_date(released):
     assert guide.describe(release, 'The court\'s decision')['columns']        # a topic
     assert {c['table'] for c in guide.describe(release, 'proceeding')['columns']} == {'appeals'}
     assert {c['table'] for c in guide.describe(release, 'all_dockets')['columns']} == {'all_dockets'}
+
+
+def test_a_docket_is_found_by_the_address_of_its_page(released):
+    *_, releases, release = released
+    assert read.docket_slug('134-7-04 Vtec') == '134-7-04-vtec' and read.docket_slug('25-ENV-00114') == '25-env-00114'
+    assert release.find_docket('12-1-20-vtec') == '12-1-20 Vtec' and release.find_docket('12-1-20 VTEC') == '12-1-20 Vtec'
+    assert release.find_docket('nope') is None
+    assert releases.by_version('v9.9.9').id == release.id and releases.by_version('9.9.9').id == release.id
+    assert releases.by_version('v1.0.0') is None
+
+
+def test_appeals_carry_their_page_text_and_others_do_not(released):
+    *_, release = released
+    assert release.has_pages()
+    doc = release.document('12-1-20 Vtec', 1)
+    assert doc['url'] == 'https://example/a.pdf' and 'Maple Street Duplex' in doc['text'][0]['text']
+    assert release.document('25-ENV-00114', 1)['text'] == []                  # out of scope: no page text
+    assert release.document('12-1-20 Vtec', 9) is None
+    with pytest.raises(QueryError, match='pages'):                          # page text never reaches SQL
+        release.query('SELECT * FROM pages')
+
+
+def test_a_docket_page_reads_as_plain_facts(released):
+    from appeals.release import view
+    *_, releases, release = released
+    page = view.docket_page(release, '12-1-20 Vtec', releases.current_id(), 'https://example.org/appeals')
+    assert page['found'] and page['current'] and page['in_scope'] is True and page['title'] == 'Maple Street Duplex'
+    assert page['address'] == 'https://example.org/appeals/v9.9.9/12-1-20-vtec'
+    assert [s['topic'] for s in page['sections']] == [t for t in release.meta['about']['topics']
+                                                      if t in {s['topic'] for s in page['sections']}]
+    items = [i for s in page['sections'] for i in s['items']]
+    assert {'proceeding', 'court_result', 'duration', 'appellants'} <= {i['field'] for i in items}
+    assert all(i['value'] for i in items if 'kind' not in i)                 # every fact reads as something
+    assert not any(i['field'].endswith('_count') for i in items)            # lists show instead of their counts
+    assert page['documents'][0]['document'] == 1 and page['timeline'][0]['kind'] == 'document'
+    assert page['linked'] == [{'linked_docket': '13-1-20 Vtec', 'shared_documents': 1, 'linked_in_scope': True,
+                               'slug': '13-1-20-vtec'}]
+    other = view.docket_page(release, '25-ENV-00114', releases.current_id())
+    assert other['in_scope'] is False and other['note'] and {s['topic'] for s in other['sections']} == {'Scope'}
+    assert view.say_date('2007-07-18') == 'July 18, 2007' and view.say_date('2004-06', 'month') == 'June 2004'
+    listed = view.appeals_list(release)
+    assert {a['slug'] for a in listed['appeals']} == {'12-1-20-vtec', '13-1-20-vtec'}
 
 
 def test_a_release_is_built_on_a_day_in_vermont():
@@ -265,6 +308,25 @@ def test_the_mcp_tools_answer_over_the_current_release(released):
     assert tools == {'overview', 'describe', 'query', 'docket'}
     assert overview['data'] == {'version': 'v9.9.9', 'built': release.built}
     assert counted['rows'] == [[2]] and counted['version'] == 'v9.9.9' and refused.isError
+    assert 'web_pages' not in overview                                       # no address known over a pipe
+
+
+def test_the_mcp_tools_link_each_docket_to_its_page(released):
+    from mcp.shared.memory import create_connected_server_and_client_session
+    from appeals.site.mcp import make_server
+    *_, releases, release = released
+
+    async def go():
+        server = make_server(releases, site_url='https://example.org/appeals')
+        async with create_connected_server_and_client_session(server._mcp_server) as client:
+            overview = (await client.call_tool('overview', {})).structuredContent
+            found = (await client.call_tool('docket', {'dockets': ['12-1-20 Vtec', 'nope']})).structuredContent
+            return overview, found
+
+    overview, found = asyncio.run(go())
+    assert overview['web_pages']['appeal_page'] == 'https://example.org/appeals/v9.9.9/<docket>'
+    appeal, missing = found['dockets']
+    assert appeal['page_url'] == 'https://example.org/appeals/v9.9.9/12-1-20-vtec' and 'page_url' not in missing
 
 
 def test_the_site_serves_everything_under_its_base_path(released):
@@ -292,6 +354,29 @@ def test_the_site_serves_everything_under_its_base_path(released):
         assert refused.status_code == 421
 
 
+def test_each_appeal_has_a_page_by_version(released):
+    from starlette.testclient import TestClient
+    from appeals.site.app import make_app
+    *_, releases, release = released
+    with TestClient(make_app(releases, '/appeals', 'Test', public_url='https://example.org')) as client:
+        page = client.get('/appeals/v9.9.9/12-1-20-vtec')
+        assert page.status_code == 200 and '<title>12-1-20 Vtec' in page.text and '{{' not in page.text
+        data = json.loads(re.search(r'id="page-data" type="application/json">(.*?)</script>', page.text).group(1))
+        assert data['address'] == 'https://example.org/appeals/v9.9.9/12-1-20-vtec'
+        assert 'data-site="https://example.org/appeals"' in page.text                # links name the public address
+        assert 'data-site="https://example.org/appeals"' in client.get('/appeals/').text
+        assert client.get('/appeals/v9.9.9/12-1-20%20Vtec').status_code == 200
+        assert client.get('/appeals/v9.9.9/nope').status_code == 404
+        assert client.get('/appeals/v1.2.3/12-1-20-vtec').status_code == 404
+        latest = client.get('/appeals/latest/12-1-20-vtec', follow_redirects=False)
+        assert latest.status_code == 307 and latest.headers['location'] == '/appeals/v9.9.9/12-1-20-vtec'
+        assert client.get('/appeals/v9.9.9/').status_code == 200
+        assert len(client.get('/appeals/api/versions/v9.9.9/appeals').json()['appeals']) == 2
+        doc = client.get('/appeals/api/versions/v9.9.9/dockets/12-1-20-vtec/documents/1').json()
+        assert doc['text'][0]['page'] == 1
+        assert client.get('/appeals/api/versions/v9.9.9/dockets/12-1-20-vtec/documents/x').status_code == 404
+
+
 def test_the_landing_page_and_its_files_respect_the_base_path(tmp_path):
     from starlette.testclient import TestClient
     from appeals.site.app import make_app
@@ -300,7 +385,7 @@ def test_the_landing_page_and_its_files_respect_the_base_path(tmp_path):
         with TestClient(make_app(releases, base, 'Test')) as client:
             page = client.get(f'{base}/').text
             assert '{{' not in page and 'role="tablist"' in page
-            assert f'src="{base}/static/site.js" data-base="{base}"' in page
+            assert re.search(rf'src="{base}/static/site\.js\?v=\w+" data-base="{base}"', page)
             for name in ('site.js', 'site.css'):
                 assert client.get(f'{base}/static/{name}').status_code == 200
             assert client.get(f'{base}/healthz').json()['current_release'] is None    # the page then says data is coming

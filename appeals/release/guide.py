@@ -18,7 +18,8 @@ HOW_TO_WORK = [
     'from "no" and from zero, and give shares of the known answers next to the number known.',
     'Before adding up units or lots, check docket_links: appeals that share a decision may describe the same project.',
     'Use docket to read a few dockets in full, with the passages of the decisions behind each answer and links to '
-    'the PDFs. It is for individual cases, not for bulk analysis.',
+    'the PDFs. It is for individual cases, not for bulk analysis. Each appeal also has a web page (web_pages): '
+    'link the user to it whenever you discuss a case.',
     'Present the answers as what the decisions show. For how the data was made and how reliable it is, use '
     'how_it_was_made and how_reliable here rather than speculating.',
     'Cite the version with any figure, such as "v0.0.1".',
@@ -67,6 +68,21 @@ def overview(release, current_id=None):
         'changes_since_previous_version': m['changes'],
     }
     return {k: v for k, v in out.items() if v != []}       # a graph from before a statement existed lacks it
+
+
+def web_pages(release, site_url):
+    """Where readers can see the data on the web: a list of every appeal, and one page per appeal."""
+    base = f'{site_url.rstrip("/")}/{release.version}'
+    return {
+        'appeal_page': f'{base}/<docket>',
+        'how_to_link': 'Write the docket number in lower case with each space as a hyphen, such as '
+                       f'{base}/25-env-00114 or {base}/134-7-04-vtec. The docket tool returns the exact address as '
+                       'page_url.',
+        'what_it_shows': 'Every fact about the appeal in plain words, a timeline, its documents, and each quoted '
+                         'passage, which opens the decision at its page. Link to it whenever you discuss a case, so '
+                         'the user can read it and check the answers.',
+        'all_appeals': f'{base}/',
+    }
 
 
 def _columns(release):

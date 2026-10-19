@@ -4,272 +4,477 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{TITLE}}</title>
-<meta name="description" content="Research data on appeals of Vermont town decisions about new housing, drawn from the published decisions of the Environmental Division. Ask your own questions of it with an AI assistant.">
+<meta name="description" content="What happens when someone challenges a Vermont town's decision on new housing? Plain-language facts on every such case decided by the Environmental Division, each linked to the court's own words.">
 <link rel="stylesheet" href="{{BASE}}/static/site.css">
 </head>
 <body>
 <a class="skip" href="#main">Skip to the content</a>
+<header class="topbar">
+  <div class="container">
+    <a class="brand" href="{{BASE}}/"><img src="{{BASE}}/static/brand/lbh-logo.svg" alt="Let's Build Homes: Vermont housing appeals data" width="150" height="55"></a>
+    <nav aria-label="Site">
+      <a href="{{BASE}}/">Overview</a>
+      <a href="{{BASE}}/latest/">All appeals</a>
+      <a href="{{BASE}}/#about">About the data</a>
+    </nav>
+  </div>
+</header>
 <div id="banner" class="banner" role="status" hidden></div>
 
-<header class="hero">
-  <div class="wrap">
-    <p class="eyebrow">Let's Build Homes · research data</p>
-    <h1>{{TITLE}}</h1>
-    <p class="lede">When a Vermont town decides on new housing, people can appeal that decision to the
-      Environmental Division of the Vermont Superior Court. This project reads the court's published decisions
-      and turns each case into a row of plain facts: what was proposed, who appealed, on what grounds, what the
-      court did and how long it took. Every answer comes with a quote from the decision it came from.</p>
-    <div id="numbers" class="numbers" aria-live="polite">
+<main id="main">
+<section class="hero">
+  <div class="container hero-grid">
+    <div class="hero-text">
+      <p class="label">Vermont housing appeals · research data</p>
+      <h1>What happens when someone challenges a Vermont town's decision on new housing?</h1>
+      <p class="lede">When a town approves or turns down a housing project, the builder, neighbors and others can ask
+        a court to review the decision. We collected every published ruling on those cases and recorded, in plain
+        language, who appealed, what they argued, what the court decided and how long it took. Each fact links to
+        the passage in the ruling it came from.</p>
+      <div class="actions">
+        <a class="btn btn-primary" href="{{BASE}}/latest/" data-browse>Browse the appeals</a>
+        <a class="btn" href="#connect" data-connect>Connect your AI assistant</a>
+        <a class="btn-link" href="#about">About the data <span aria-hidden="true">↓</span></a>
+      </div>
+    </div>
+    <div id="numbers" class="hero-stats" aria-live="polite">
       <p class="muted">Checking for published data…</p>
     </div>
   </div>
-</header>
+</section>
 
-<nav class="toc wrap" aria-label="On this page">
-  <a href="#assistant">Use it with your AI assistant</a>
-  <a href="#data">What the data is</a>
-  <a href="#how">How it works</a>
-  <a href="#ideas">Ideas to start chatting</a>
-</nav>
-
-<main id="main" class="wrap">
-
-<section id="assistant" aria-labelledby="assistant-title">
-  <h2 id="assistant-title">Use it with your AI assistant</h2>
-  <p>Connect the data to the AI assistant you already use, then ask questions in ordinary English. The assistant
-    looks the answers up in the data, explains what each fact means, and can show you the passage of the court's
-    decision behind it. The connection is free, needs no account with us, and can only read the data.</p>
-
-  <div class="address">
-    <p class="label" id="url-label">The address to connect to</p>
-    <div class="copyline">
-      <code id="mcp-url" aria-labelledby="url-label"><span data-mcp>{{BASE}}/mcp</span></code>
-      <button type="button" class="copy" data-copy="mcp-url">Copy</button>
-    </div>
-    <p class="small muted">Technically, this is an MCP server (the Model Context Protocol, a standard way to give an
-      assistant tools). Any assistant that can add a remote MCP server by its address can use it; no sign-in is
-      needed.</p>
+<section id="how" class="band" aria-labelledby="how-title">
+ <div class="container">
+  <div class="section-head">
+    <p class="label">Process</p>
+    <h2 id="how-title">How the data is made</h2>
+    <p>Seven steps take the court's published rulings to the facts on this site.</p>
   </div>
+  <div class="walk" data-walk>
+    <ol class="walk-steps" role="tablist" aria-label="Steps of the process">
+      <li><button type="button" role="tab" aria-selected="true" aria-controls="scene-1" id="walk-1"><span>1</span>Collect</button></li>
+      <li><button type="button" role="tab" aria-selected="false" aria-controls="scene-2" id="walk-2" tabindex="-1"><span>2</span>Read</button></li>
+      <li><button type="button" role="tab" aria-selected="false" aria-controls="scene-3" id="walk-3" tabindex="-1"><span>3</span>Group</button></li>
+      <li><button type="button" role="tab" aria-selected="false" aria-controls="scene-4" id="walk-4" tabindex="-1"><span>4</span>Sort</button></li>
+      <li><button type="button" role="tab" aria-selected="false" aria-controls="scene-5" id="walk-5" tabindex="-1"><span>5</span>Ask</button></li>
+      <li><button type="button" role="tab" aria-selected="false" aria-controls="scene-6" id="walk-6" tabindex="-1"><span>6</span>Check</button></li>
+      <li><button type="button" role="tab" aria-selected="false" aria-controls="scene-7" id="walk-7" tabindex="-1"><span>7</span>Publish</button></li>
+    </ol>
+    <div class="walk-progress" aria-hidden="true"><i></i></div>
 
-  <div class="tabs" data-tabs>
-    <div class="tablist" role="tablist" aria-label="Choose your assistant">
-      <button type="button" role="tab" id="tab-claude" aria-controls="panel-claude" aria-selected="true">Claude</button>
-      <button type="button" role="tab" id="tab-claude-code" aria-controls="panel-claude-code" aria-selected="false" tabindex="-1">Claude Code</button>
-      <button type="button" role="tab" id="tab-chatgpt" aria-controls="panel-chatgpt" aria-selected="false" tabindex="-1">ChatGPT</button>
-      <button type="button" role="tab" id="tab-codex" aria-controls="panel-codex" aria-selected="false" tabindex="-1">Codex</button>
+    <div class="walk-stage">
+      <div class="scene" role="tabpanel" id="scene-1" aria-labelledby="walk-1">
+        <div class="art art-collect" aria-hidden="true">
+          <div class="site-card"><b>vtcourts.gov</b><span>Environmental Division decisions</span></div>
+          <div class="pdf-rain">
+            <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+          </div>
+          <div class="tally"><b>≈2,560</b> decisions, 2000 to today</div>
+        </div>
+        <div class="caption"><h3>Collect the decisions</h3>
+          <p>The court publishes its written decisions on the Vermont Judiciary's website. We download every one
+            the Environmental Division has posted since 2000, roughly a hundred a year.</p></div>
+      </div>
+
+      <div class="scene" role="tabpanel" id="scene-2" aria-labelledby="walk-2" hidden>
+        <div class="art art-read" aria-hidden="true">
+          <div class="page pdf"><span class="scanbar"></span><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="arrow">→</div>
+          <div class="page text"><p>Appellant-Applicants own a 1.1-acre parcel of land…</p><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="caption"><h3>Turn each page into text</h3>
+          <p>We copy the words off every page. Some older decisions are scans of paper, so software reads the
+            letters from the image. Each page keeps its page number, so any sentence can be found again later.</p></div>
+      </div>
+
+      <div class="scene" role="tabpanel" id="scene-3" aria-labelledby="walk-3" hidden>
+        <div class="art art-group" aria-hidden="true">
+          <div class="loose"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="folders">
+            <div class="folder"><b>134-7-04 Vtec</b><span><i></i><i></i><i></i></span></div>
+            <div class="folder"><b>22-ENV-00018</b><span><i></i><i></i></span></div>
+            <div class="folder"><b>25-ENV-00114</b><span><i></i></span></div>
+          </div>
+        </div>
+        <div class="caption"><h3>Sort the pages into cases</h3>
+          <p>Every case has a number, called a docket number, printed at the top of its decisions. Documents with
+            the same number are put together, giving <b data-n="dockets">about 1,700</b> cases.</p></div>
+      </div>
+
+      <div class="scene" role="tabpanel" id="scene-4" aria-labelledby="walk-4" hidden>
+        <div class="art art-sort" aria-hidden="true">
+          <div class="model fast"><span class="chip">AI model 1</span><b>A fast first read</b></div>
+          <div class="questions">
+            <div class="q"><span>Is this an appeal of a town permit?</span><span class="bar"><i style="--p:.94"></i></span></div>
+            <div class="q"><span>Will it be used for housing?</span><span class="bar"><i style="--p:.88"></i></span></div>
+            <div class="q"><span>Does it add homes?</span><span class="bar"><i style="--p:.81"></i></span></div>
+            <div class="q"><span>…and dozens more</span><span class="bar"><i style="--p:.55"></i></span></div>
+          </div>
+          <div class="funnel">
+            <div class="f-in"><b data-n="dockets">1,700</b> cases</div>
+            <div class="f-out"><b data-n="in_scope">300+</b> appeals about new housing</div>
+          </div>
+        </div>
+        <div class="caption"><h3>Find the housing appeals</h3>
+          <p>Most of the court's cases aren't about new housing. A fast AI model skims every case and answers a
+            set of multiple-choice questions, such as <q>Will this be used for housing?</q> Any case that might be a
+            housing appeal, even a doubtful one, goes on to the next step, where that is checked again.</p></div>
+      </div>
+
+      <div class="scene" role="tabpanel" id="scene-5" aria-labelledby="walk-5" hidden>
+        <div class="art art-ask" aria-hidden="true">
+          <div class="model careful"><span class="chip">AI model 2</span><b>Careful questions</b></div>
+          <div class="chat">
+            <div class="msg q">Who appealed?</div>
+            <div class="msg a">The applicants, Frederick L. Jenness and David S. Berrie.
+              <span class="quote">“Appellant-Applicants Frederick L. Jenness and David S. Berrie appealed from the…”
+                <em>Document 1, page 1</em></span></div>
+            <div class="msg q">What did the court decide?</div>
+            <div class="msg a typing"><i></i><i></i><i></i></div>
+          </div>
+        </div>
+        <div class="caption"><h3>Ask detailed questions</h3>
+          <p>A second, more careful AI model reads each housing appeal and answers 15 to 40 specific questions,
+            one at a time: who appealed, what they argued, what the court decided. For every answer it must copy
+            the sentence from the decision that supports it.</p></div>
+      </div>
+
+      <div class="scene" role="tabpanel" id="scene-6" aria-labelledby="walk-6" hidden>
+        <div class="art art-check" aria-hidden="true">
+          <div class="page proof">
+            <i></i><i></i>
+            <p><mark>Appellant-Applicants Frederick L. Jenness and David S. Berrie appealed from the</mark> decision of
+              the Zoning Board of Adjustment…</p>
+            <i></i><i></i>
+          </div>
+          <div class="verdicts">
+            <div class="verdict ok"><b>✓</b> Found on page 1: the answer is kept</div>
+            <div class="verdict no"><b>✕</b> Not found on the page: the answer isn't used</div>
+          </div>
+        </div>
+        <div class="caption"><h3>Check every quote</h3>
+          <p>A simple program, not an AI, looks for each quoted sentence on the page it came from. If the sentence
+            isn't there word for word, the answer is thrown out. That's why every answer on this site can show you
+            its source.</p></div>
+      </div>
+
+      <div class="scene" role="tabpanel" id="scene-7" aria-labelledby="walk-7" hidden>
+        <div class="art art-publish" aria-hidden="true">
+          <div class="row-card">
+            <div><span>Town</span><b>Dummerston</b></div>
+            <div><span>Town's decision</span><b>Denied</b></div>
+            <div><span>What the court did</span><b>Denied</b></div>
+            <div><span>Took</span><b>At least 1,082 days</b></div>
+          </div>
+          <div class="version"><span data-version>v0.0.2</span></div>
+          <div class="outputs">
+            <div class="out"><b>Your AI assistant</b><span>asks its own questions</span></div>
+            <div class="out"><b>A page for every case</b><span>with every quote</span></div>
+          </div>
+        </div>
+        <div class="caption"><h3>Publish the results</h3>
+          <p>The checked answers are combined into a set of facts for each case, such as how long it took, and
+            published as a numbered version so that results can be cited and compared over time.
+            <a href="{{BASE}}/latest/134-7-04-vtec">See the example case</a>.</p></div>
+      </div>
     </div>
 
-    <div class="panel" role="tabpanel" id="panel-claude" aria-labelledby="tab-claude" tabindex="0">
-      <h3 class="panel-title">Claude on the web and in the desktop app</h3>
-      <p class="need">Works on every Claude plan. On the free plan you can add one custom connector.</p>
-      <ol class="steps">
-        <li>Open Claude at <a href="https://claude.ai">claude.ai</a> or in the desktop app, and go to
-          <b>Customize</b> → <b>Connectors</b>.</li>
-        <li>Click <b>+ Add</b>, then <b>Add custom connector</b>.</li>
-        <li>Name it <q>Vermont housing appeals</q> and paste in the address:
-          <div class="copyline">
-            <code id="claude-url"><span data-mcp>{{BASE}}/mcp</span></code>
-            <button type="button" class="copy" data-copy="claude-url">Copy</button>
-          </div>
-        </li>
-        <li>When Claude asks how to sign in, choose <b>No sign in</b>, then click <b>Add</b>.</li>
-        <li>In a new chat, click <b>+</b> at the bottom left, choose <b>Connectors</b>, and turn on
-          Vermont housing appeals.</li>
-      </ol>
-      <p class="small muted">On a Team or Enterprise plan, an owner adds it first, under <b>Organization
-        settings</b> → <b>Connectors</b> → <b>Add</b> → <b>Custom</b> → <b>Web</b>. Members then find it under
-        <b>Customize</b> → <b>Connectors</b> and click <b>Connect</b>.
-        <a href="https://support.claude.com/en/articles/11175166-getting-started-with-custom-connectors-using-remote-mcp">Claude's guide</a></p>
-    </div>
-
-    <div class="panel" role="tabpanel" id="panel-claude-code" aria-labelledby="tab-claude-code" tabindex="0">
-      <h3 class="panel-title">Claude Code, in a terminal</h3>
-      <p class="need">Needs a Claude Pro, Max, Team or Enterprise plan, or an Anthropic Console account. The free
-        plan doesn't include Claude Code.</p>
-      <ol class="steps">
-        <li>Run this in a terminal:
-          <div class="copyline">
-            <code id="claude-code-cmd">claude mcp add --transport http --scope user housing-appeals <span data-mcp>{{BASE}}/mcp</span></code>
-            <button type="button" class="copy" data-copy="claude-code-cmd">Copy</button>
-          </div>
-          <span class="small muted"><code>--scope user</code> makes it available in every project.</span>
-        </li>
-        <li>Start Claude Code with <code>claude</code> and type <code>/mcp</code>. You should see
-          housing-appeals marked as connected.</li>
-      </ol>
-      <p class="small muted"><a href="https://code.claude.com/docs/en/mcp">Claude Code's guide to MCP</a></p>
-    </div>
-
-    <div class="panel" role="tabpanel" id="panel-chatgpt" aria-labelledby="tab-chatgpt" tabindex="0">
-      <h3 class="panel-title">ChatGPT on the web</h3>
-      <p class="need">Needs a paid ChatGPT plan, and works on the ChatGPT website in a browser. OpenAI changes
-        which plans can add custom servers, and on a work or school workspace an admin may have to allow it, or
-        add it for everyone. If the Plugins page has no + button, your plan or workspace doesn't allow it yet.</p>
-      <ol class="steps">
-        <li>On <a href="https://chatgpt.com/plugins">chatgpt.com</a>, open <b>Plugins</b>.</li>
-        <li>Click the <b>+</b> button, then <b>Add custom MCP server</b>.</li>
-        <li>Name it <q>Vermont housing appeals</q>, and under <b>Connection</b> paste in the server URL:
-          <div class="copyline">
-            <code id="chatgpt-url"><span data-mcp>{{BASE}}/mcp</span></code>
-            <button type="button" class="copy" data-copy="chatgpt-url">Copy</button>
-          </div>
-        </li>
-        <li>For authentication, choose <b>No authentication</b>. Read the warning, select <b>I understand and want
-          to continue</b>, then <b>Create as a plugin</b>.</li>
-        <li>Install the plugin. In a new chat, type <b>@</b> and pick Vermont housing appeals.</li>
-      </ol>
-      <p class="small muted"><a href="https://developers.openai.com/api/docs/guides/custom-mcp-server">OpenAI's guide
-        to custom MCP servers</a></p>
-    </div>
-
-    <div class="panel" role="tabpanel" id="panel-codex" aria-labelledby="tab-codex" tabindex="0">
-      <h3 class="panel-title">Codex, OpenAI's coding assistant</h3>
-      <p class="need">Codex comes with every ChatGPT plan, including the free one, or runs on an OpenAI API key.
-        The Codex command line, its editor extension and the ChatGPT desktop app share one settings file, so adding
-        it once covers all three.</p>
-      <ol class="steps">
-        <li>Run this in a terminal:
-          <div class="copyline">
-            <code id="codex-cmd">codex mcp add housing-appeals --url <span data-mcp>{{BASE}}/mcp</span></code>
-            <button type="button" class="copy" data-copy="codex-cmd">Copy</button>
-          </div>
-        </li>
-        <li>Or add these lines to <code>~/.codex/config.toml</code> yourself:
-          <div class="copyline">
-            <pre id="codex-toml">[mcp_servers.housing-appeals]
-url = "<span data-mcp>{{BASE}}/mcp</span>"</pre>
-            <button type="button" class="copy" data-copy="codex-toml">Copy</button>
-          </div>
-        </li>
-        <li>Start Codex and type <code>/mcp</code>, or run <code>codex mcp list</code>, to see it listed.</li>
-      </ol>
-      <p class="small muted"><a href="https://learn.chatgpt.com/docs/extend/mcp?surface=cli">Codex's guide to MCP</a></p>
+    <div class="walk-controls">
+      <button type="button" class="round" data-walk-prev aria-label="Previous step">←</button>
+      <button type="button" class="round play" data-walk-play aria-label="Pause the walkthrough">❚❚</button>
+      <button type="button" class="round" data-walk-next aria-label="Next step">→</button>
     </div>
   </div>
-
-  <p class="tip"><b>Check that it works:</b> ask <q>Give me an overview of the Vermont housing appeals data.</q>
-    The assistant should name the version and say how many cases it covers. <span id="no-data-note" hidden>Until
-    the first release is published, it will say there is no data yet.</span></p>
+ </div>
 </section>
 
-<section id="data" aria-labelledby="data-title">
-  <h2 id="data-title">What the data is</h2>
-  <p><b>Who is counted.</b> Appeals to the Environmental Division of the Vermont Superior Court against a town's
-    decision about new housing, as seen through the decisions the court has published. <q>New housing</q> means the
-    permission at issue lets someone build, place or convert a building that will contain homes, or create lots for
-    housing. Turning a non-residential space into homes counts, with or without construction. Enforcement cases,
-    changes of use that create no homes, accessory work and permits for something already built don't count, and
-    neither do Act 250 and other state permit appeals, even when the project is housing.</p>
-  <p><b>One row per docket.</b> A docket is one case number, such as <code>25-ENV-00114</code>. Every docket the
-    court has a decision for is read and labeled in scope or out of scope; only the in-scope ones get the full set
-    of facts.</p>
-
-  <h3>What each row tells you</h3>
-  <dl class="facts">
-    <div><dt>Scope</dt>
-      <dd>What kind of proceeding the docket is, what the permission allows, and whether it adds homes, which
-        together decide whether it is a municipal appeal about new housing. Also the kinds of permission at issue,
-        such as subdivision, site plan, conditional use or a variance.</dd></div>
-    <div><dt>The town's decision</dt>
-      <dd>What the last town body decided (approved, approved with conditions, approved in part, or denied), and
-        when. The town, and the village or area within it where the decisions name one.</dd></div>
-    <div><dt>Who appealed</dt>
-      <dd>Each appellant's role: the applicant or owner, a neighbor, a group of neighbors, another organization,
-        the town or a state agency. And whether each had a lawyer.</dd></div>
-    <div><dt>The grounds</dt>
-      <dd>What the appeal argued about, and how far the court got with each issue. Some standards leave the
-        outcome to judgment, such as the character of the area, effects on neighbors, traffic and services, or
-        water and the environment. Others are questions such as measurable rules (setbacks, height, density),
-        whether a use is allowed, who has the right to appeal, or how the town ran its process. Also whether
-        anyone challenged a condition of the permit, and what the court did with it.</dd></div>
-    <div><dt>What the court did</dt>
-      <dd>How the docket ended (decided on the merits, dismissed, settled or withdrawn), what the court did with the
-        application (granted, granted with conditions, granted in part, denied, or sent back to the town), why a
-        dismissed appeal was dismissed, and whether the court ended somewhere different from the town. Also whether
-        the court stayed the permit or changed the size or design of the buildings.</dd></div>
-    <div><dt>How long it took</dt>
-      <dd>Days from the filing of the appeal (or the town's decision, when no filing date is given) to the court's
-        first decision that leaves nothing pending. When the record shows no such decision, the figure runs to the
-        latest order and counts as <q>at least</q> that long.</dd></div>
-    <div><dt>Units and lots</dt>
-      <dd>How many new homes the project would add: as proposed, as the town approved and as the court approved.
-        And how many new building lots for housing it would create. Only new homes are counted, not existing ones
-        that stay.</dd></div>
-  </dl>
-  <p><b>Every answer shows its source.</b> Ask about a case and the assistant can show the passage of the decision
-    each answer rests on, with its page and a link to the PDF. <q>Not stated</q> is a real answer: it means the
-    decisions were silent, which is different from <q>no</q>.</p>
-
-  <h3>What it can't tell you</h3>
-  <ul class="limits">
-    <li><b>Only published decisions.</b> Appeals that left no published decision are invisible here.</li>
-    <li><b>A missing final decision doesn't prove a case is still open.</b> Many cases end without a decision
-      that says so.</li>
-    <li><b>Nothing shows whether homes were built,</b> or whether an appeal delayed construction.</li>
-    <li><b>Cases end at the Environmental Division.</b> Appeals to the Vermont Supreme Court aren't followed.</li>
-    <li><b>Linked cases can describe the same project.</b> A decision issued in several dockets belongs to each,
-      so adding up homes across linked dockets can count the same homes twice.</li>
-    <li><b>AI models read the decisions,</b> and they can be wrong. The quotes are there so you can check.</li>
-  </ul>
+<section id="ask" class="band band-tint" aria-labelledby="ask-title">
+  <div class="container split">
+    <div class="section-head">
+      <p class="label">AI assistants</p>
+      <h2 id="ask-title">Use the data with an AI assistant</h2>
+      <p>You can connect this data to Claude, ChatGPT or Perplexity and ask questions in everyday language. The
+        assistant looks up the answers in the data, tells you how many cases it counted, and links to each case so
+        you can check its work. Connecting is free and takes about two minutes. The assistant can only read the
+        data, not change it.</p>
+      <a class="btn btn-primary" href="#connect" data-connect>Connect your AI assistant</a>
+    </div>
+    <div>
+      <p class="label">Example questions</p>
+      <ul class="prompts">
+        <li><p>How many housing appeals are in the data, and over which years?</p></li>
+        <li><p>How long does a typical housing appeal take from filing to a final decision?</p></li>
+        <li><p>How often are appeals filed by neighbors, and how often by the builder after a denial?</p></li>
+        <li><p>Which towns have had the most housing appeals?</p></li>
+        <li><p>How often does the court reach a different result from the town?</p></li>
+        <li><p>What do appeals most often argue about, and how often does the court rule on those issues?</p></li>
+        <li><p>Show me the appeals about projects in Burlington, with a link to each case.</p></li>
+      </ul>
+      <p class="small muted">Tip: ask the assistant to say which version of the data it used and how many cases
+        it counted, and to report <q>not stated</q> answers separately.</p>
+    </div>
+  </div>
 </section>
 
-<section id="how" aria-labelledby="how-title">
-  <h2 id="how-title">How it works</h2>
-  <ol class="flow">
-    <li><b>Documents</b><span>Every decision the Environmental Division has posted on the court's website since
-      2000, about 2,560 PDFs, with their text read from the page (or scanned with OCR).</span></li>
-    <li><b>Dockets</b><span>The documents are grouped by case number into about 1,760 dockets, one per case.</span></li>
-    <li><b>A fast first read</b><span>A fast decision model reads every docket and answers dozens of
-      multiple-choice questions at once, each with a probability.</span></li>
-    <li><b>Careful questions</b><span>For the dockets likely in scope, a reasoning model answers one small question
-      at a time. Each answer must quote the decision, and code checks the quote.</span></li>
-    <li><b>Versions</b><span>Code combines the answers into research facts, frozen into a numbered version, such
-      as v0.0.1: the data your assistant reads.</span></li>
-  </ol>
-</section>
+<section id="about" class="band" aria-labelledby="about-title">
+  <div class="container longread">
+    <nav class="longread-nav" aria-label="About this data">
+      <p class="label">About this data</p>
+      <a href="#short">Summary</a>
+      <a href="#appeals">How appeals work</a>
+      <a href="#source">Sources</a>
+      <a href="#method">Method</a>
+      <a href="#output">Recorded facts</a>
+      <a href="#limits">Limitations</a>
+      <a href="#words">Definitions</a>
+    </nav>
+    <div class="longread-body">
+      <h2 id="about-title" class="longread-title">About this data</h2>
 
-<section id="ideas" aria-labelledby="ideas-title">
-  <h2 id="ideas-title">Ideas to start chatting</h2>
-  <p>Paste any of these into your assistant once it is connected.</p>
-  <ul class="prompts">
-    <li><p id="p1">How many housing appeals does the data cover, and over which years? Which version is it?</p>
-      <button type="button" class="copy" data-copy="p1">Copy</button></li>
-    <li><p id="p2">How long do housing appeals usually take, from filing to the court's final decision? Has that
-      changed over the years? Keep cases with no final decision separate.</p>
-      <button type="button" class="copy" data-copy="p2">Copy</button></li>
-    <li><p id="p3">Who files these appeals? How often is it neighbors challenging an approval, and how often is it
-      the developer challenging a denial?</p>
-      <button type="button" class="copy" data-copy="p3">Copy</button></li>
-    <li><p id="p4">Which towns have had the most housing appeals? Show the top ten.</p>
-      <button type="button" class="copy" data-copy="p4">Copy</button></li>
-    <li><p id="p5">How often does the court end up somewhere different from the town's decision, and in which
-      direction?</p>
-      <button type="button" class="copy" data-copy="p5">Copy</button></li>
-    <li><p id="p6">What do appeals most often argue about: traffic, the character of the neighborhood, stormwater,
-      setbacks? How often does the court decide those disputes?</p>
-      <button type="button" class="copy" data-copy="p6">Copy</button></li>
-    <li><p id="p7">How many housing appeals were dismissed, and why: standing, timeliness, or something else?</p>
-      <button type="button" class="copy" data-copy="p7">Copy</button></li>
-    <li><p id="p8">How often were appellants represented by a lawyer?</p>
-      <button type="button" class="copy" data-copy="p8">Copy</button></li>
-    <li><p id="p9">Find the appeals about projects in Burlington and tell me, with a quote from each decision, what
-      the court decided.</p>
-      <button type="button" class="copy" data-copy="p9">Copy</button></li>
-  </ul>
-  <p class="tip"><b>One piece of advice:</b> ask the assistant to name the version and which cases it counted.
-    <q>Not stated</q> means the decisions were silent, not <q>no</q>, so ask it to report those separately.</p>
-</section>
+      <article id="short">
+        <p class="label">01</p>
+        <h3>Summary</h3>
+        <p class="intro">Building new homes in Vermont usually requires a permit from the town. When a town makes
+          that decision, people who disagree with it can appeal to a court. This site is a record of those appeals:
+          what was proposed, who objected, what the court decided and how long it took.</p>
+        <p>We built it by collecting the court's published rulings and reading each one carefully with the help of
+          AI. Every fact we report is backed by a quotation from the ruling, which you can read for yourself on the
+          case's page.</p>
+      </article>
 
+      <article id="appeals">
+        <p class="label">02</p>
+        <h3>How appeals work</h3>
+        <p>Most housing in Vermont needs local approval: a zoning permit, a subdivision approval or a similar
+          permit. Applications are decided by a town official or a volunteer board, such as a development review
+          board.</p>
+        <ol class="process">
+          <li><b>Someone applies.</b><span>A property owner or builder asks the town for permission to build
+            homes, convert a building or divide land into lots.</span></li>
+          <li><b>The town decides.</b><span>It approves the project, approves it with conditions (for example,
+            limits on size or hours of construction), or turns it down.</span></li>
+          <li><b>Someone appeals.</b><span>If the applicant, a neighbor or another party disagrees, they can take
+            the decision to court. This is the appeal.</span></li>
+          <li><b>The court rules.</b><span>A judge reviews the project, usually from scratch, and can approve it,
+            deny it, change the conditions or send it back to the town. Many appeals end earlier: they are
+            dismissed, settled or withdrawn.</span></li>
+        </ol>
+        <p>In Vermont these appeals go to the <b>Environmental Division of the Vermont Superior Court</b>, a part of
+          the state court system that handles land use and environmental cases. People often call it the
+          environmental court. Its cases can take months or years, and a single case can produce several written
+          rulings along the way.</p>
+      </article>
+
+      <article id="source">
+        <p class="label">03</p>
+        <h3>Sources</h3>
+        <p>The only source is the court's own written rulings, which it publishes on the
+          <a href="https://www.vtcourts.gov/opinions-decisions">Vermont Judiciary's website</a>. Each ruling is a
+          document, often several pages long, in which the judge explains what the case is about and what the court
+          decided.</p>
+        <p>We collected every ruling the Environmental Division has posted since 2000, about 2,560 documents, and
+          grouped them into cases by their docket number, the number a court gives each case. That gives
+          <span data-n="dockets">about 1,700</span> cases. Most are not about new housing: they concern state
+          permits, enforcement, or projects with no homes. <span data-n="in_scope">About 340</span> are appeals of a
+          town's decision on new housing, and those are what this data describes.</p>
+      </article>
+
+      <article id="method">
+        <p class="label">04</p>
+        <h3>Method</h3>
+        <p>Reading thousands of court documents by hand would take years, so we used AI models: software that can
+          read text and answer questions about it. To keep them accurate, we set firm rules.</p>
+        <ul class="points">
+          <li><b>The same questions for every case.</b> The models answered a fixed list of questions, mostly
+            multiple choice, such as <q>What did the town decide?</q> or <q>Who filed the appeal?</q></li>
+          <li><b>Every answer needs a quotation.</b> The model had to copy the sentence in the ruling that supports
+            each answer. A separate program, not an AI, checked that the sentence really appears on that page.
+            Answers that failed the check were discarded.</li>
+          <li><b><q>Not stated</q> is allowed.</b> When the rulings don't say something, we record that rather than
+            guess.</li>
+          <li><b>Tested against reviewed answers.</b> Before publishing, we compared the results with a set of cases
+            whose answers had been carefully reviewed, and used the differences to improve the questions.</li>
+        </ul>
+        <p>The <a href="#how">process overview</a> above shows each step.</p>
+      </article>
+
+      <article id="output">
+        <p class="label">05</p>
+        <h3>Recorded facts</h3>
+        <p>Every appeal has its own page, with the facts below and the quotations behind them. You can also
+          <a href="{{BASE}}/latest/" data-browse>browse and search all of them</a>, or ask an AI assistant to
+          analyze them for you.</p>
+        <dl class="facts">
+          <div><dt>The project</dt>
+            <dd>What the permit would allow (new buildings, converted buildings or new lots), the kind of permit,
+              and the town.</dd></div>
+          <div><dt>The town's decision</dt>
+            <dd>Whether the town approved the project, approved it with conditions, approved part of it, or
+              denied it, and when.</dd></div>
+          <div><dt>Who appealed</dt>
+            <dd>Each person or group who appealed (the applicant, neighbors, an organization, the town or a state
+              agency) and whether they had a lawyer.</dd></div>
+          <div><dt>What they argued</dt>
+            <dd>The issues in dispute, such as the character of the neighborhood, traffic, stormwater, building
+              height or setbacks, or whether the appeal was filed properly, and how far the court got with each.</dd></div>
+          <div><dt>What the court decided</dt>
+            <dd>How the case ended, what happened to the project, why an appeal was dismissed, and whether the
+              court's result differed from the town's.</dd></div>
+          <div><dt>How long it took</dt>
+            <dd>The number of days from the start of the appeal to the court's final decision. If no final
+              decision has been published, we give the time to the latest ruling and mark it <q>at least</q>.</dd></div>
+          <div><dt>New homes</dt>
+            <dd>How many new homes the project proposed, how many the town approved and how many the court
+              approved, plus any new building lots.</dd></div>
+        </dl>
+      </article>
+
+      <article id="limits">
+        <p class="label">06</p>
+        <h3>Limitations</h3>
+        <ul class="points">
+          <li><b>Only cases with a published ruling.</b> Appeals that ended without one, for example because they
+            were withdrawn early, don't appear.</li>
+          <li><b>Whether homes were built.</b> The rulings say what was permitted, not what happened afterwards.</li>
+          <li><b>Later appeals.</b> Some cases go on to the Vermont Supreme Court; we stop at the Environmental
+            Division's final decision.</li>
+          <li><b>An open case isn't proven open.</b> If we found no final decision, the case may still have ended
+            without one being published.</li>
+          <li><b>The same project can appear twice.</b> When one ruling covers several dockets, each docket lists
+            the same project, so adding up homes across them can double-count.</li>
+          <li><b>Mistakes are possible.</b> AI models did the reading. The quotations are there so you can check
+            any answer yourself.</li>
+        </ul>
+      </article>
+
+      <article id="words">
+        <p class="label">07</p>
+        <h3>Definitions</h3>
+        <dl class="glossary">
+          <div><dt>Appeal</dt><dd>A request for a court to review a town's decision.</dd></div>
+          <div><dt>Appellant</dt><dd>The person or group who files the appeal.</dd></div>
+          <div><dt>Docket</dt><dd>A court case, identified by its docket number, such as 25-ENV-00114.</dd></div>
+          <div><dt>Ruling or decision</dt><dd>A written document in which the judge explains what the court
+            decided. One case can have several.</dd></div>
+          <div><dt>Conditions</dt><dd>Requirements attached to an approval, such as a limit on height or a
+            required landscape buffer.</dd></div>
+          <div><dt>Sent back</dt><dd>The court returned the application to the town to decide again (a
+            <i>remand</i>).</dd></div>
+          <div><dt>Dismissed</dt><dd>The court ended the appeal without deciding the project itself, for example
+            because it was filed late.</dd></div>
+          <div><dt>Not stated</dt><dd>The published rulings don't say. This is different from <q>no</q>.</dd></div>
+          <div><dt>Version</dt><dd>Each release of the data has a number, such as v0.0.2, so results can be cited
+            and compared.</dd></div>
+        </dl>
+      </article>
+    </div>
+  </div>
+</section>
 </main>
 
-<footer class="wrap">
-  <div id="releases"></div>
-  <p class="small muted">The source is the court's own published decisions, at
-    <a href="https://www.vtcourts.gov/opinions-decisions">vtcourts.gov</a>. For developers: the same data is available
-    as read-only JSON at <a href="{{BASE}}/api/releases"><code>{{BASE}}/api/releases</code></a>.</p>
+<footer class="footer">
+  <div class="container footer-line">
+    <p>Data from the published rulings of the Vermont Superior Court, Environmental Division
+      (<a href="https://www.vtcourts.gov/opinions-decisions">vtcourts.gov</a>). A project of
+      <a href="https://www.letsbuildhomes.org">Let's Build Homes</a>.</p>
+    <p><a href="{{BASE}}/api/releases">Data API</a> · MCP server: <code data-mcp>{{BASE}}/mcp</code></p>
+  </div>
+  <div class="container" id="releases"></div>
 </footer>
 
+<dialog id="connect" class="connect" aria-labelledby="connect-title">
+  <div class="connect-head">
+    <div>
+      <p class="label">Connect your AI assistant</p>
+      <h2 id="connect-title">Add this data to your AI app</h2>
+    </div>
+    <button type="button" class="icon-btn" data-close aria-label="Close">✕</button>
+  </div>
+  <div class="connect-body" data-tabs>
+    <div class="app-list" role="tablist" aria-label="Your app" aria-orientation="vertical">
+      <button type="button" role="tab" id="tab-claude" aria-controls="panel-claude" aria-selected="true">
+        <span class="mark mark-claude" aria-hidden="true"></span>Claude</button>
+      <button type="button" role="tab" id="tab-chatgpt" aria-controls="panel-chatgpt" aria-selected="false" tabindex="-1">
+        <span class="mark mark-chatgpt" aria-hidden="true"></span>ChatGPT</button>
+      <button type="button" role="tab" id="tab-perplexity" aria-controls="panel-perplexity" aria-selected="false" tabindex="-1">
+        <span class="mark mark-perplexity" aria-hidden="true"></span>Perplexity</button>
+      <button type="button" role="tab" id="tab-other" aria-controls="panel-other" aria-selected="false" tabindex="-1">
+        <span class="mark mark-other" aria-hidden="true"></span>Another app</button>
+    </div>
+
+    <div class="app-panel" role="tabpanel" id="panel-claude" aria-labelledby="tab-claude" tabindex="0">
+      <p class="plan">Works with every Claude plan, including the free one, on the web, the desktop app and the phone app.</p>
+      <ol class="steps">
+        <li>Open <a href="https://claude.ai/customize/connectors" target="_blank" rel="noopener">Customize → Connectors
+          <span aria-hidden="true">↗</span></a> in Claude.</li>
+        <li>Click <kbd>+</kbd>, then <b>Add custom connector</b>, and fill in:
+          <dl class="fields">
+            <div><dt>Name</dt><dd><code>Vermont housing appeals</code><button type="button" class="copy" data-copy-text="Vermont housing appeals">Copy</button></dd></div>
+            <div><dt>URL</dt><dd><code data-mcp>{{BASE}}/mcp</code><button type="button" class="copy" data-copy-mcp>Copy</button></dd></div>
+          </dl></li>
+        <li>If it asks how to sign in, choose <b>No sign-in</b>. Click <b>Add</b>.</li>
+        <li>In a chat, click <kbd>+</kbd> → <b>Connectors</b> and switch it on.</li>
+      </ol>
+      <p class="fine">On a Team or Enterprise plan, an owner adds it once under <b>Organization settings →
+        Connectors</b>. <a href="https://claude.com/docs/connectors/custom/remote-mcp" target="_blank" rel="noopener">Claude's guide</a></p>
+    </div>
+
+    <div class="app-panel" role="tabpanel" id="panel-chatgpt" aria-labelledby="tab-chatgpt" tabindex="0" hidden>
+      <p class="plan">Requires a paid ChatGPT plan and the ChatGPT website. On a work or school account, an administrator may need to allow it.</p>
+      <ol class="steps">
+        <li>Open <a href="https://chatgpt.com/plugins" target="_blank" rel="noopener">Plugins <span aria-hidden="true">↗</span></a>
+          in ChatGPT.</li>
+        <li>Click <kbd>+</kbd>, then <b>Add custom MCP server</b>, and fill in:
+          <dl class="fields">
+            <div><dt>Name</dt><dd><code>Vermont housing appeals</code><button type="button" class="copy" data-copy-text="Vermont housing appeals">Copy</button></dd></div>
+            <div><dt>URL</dt><dd><code data-mcp>{{BASE}}/mcp</code><button type="button" class="copy" data-copy-mcp>Copy</button></dd></div>
+          </dl></li>
+        <li>Choose <b>No authentication</b>, tick <b>I understand and want to continue</b>, then click <b>Create as
+          a plugin</b> and install it.</li>
+        <li>In a chat, type <kbd>@</kbd> and pick Vermont housing appeals.</li>
+      </ol>
+      <p class="fine">No <kbd>+</kbd> on the Plugins page means your plan or workspace doesn't allow it yet.
+        <a href="https://developers.openai.com/api/docs/guides/custom-mcp-server" target="_blank" rel="noopener">OpenAI's guide</a></p>
+    </div>
+
+    <div class="app-panel" role="tabpanel" id="panel-perplexity" aria-labelledby="tab-perplexity" tabindex="0" hidden>
+      <p class="plan">Requires a paid Perplexity plan. On an Enterprise account, an administrator may need to allow it.</p>
+      <ol class="steps">
+        <li>In <a href="https://www.perplexity.ai/" target="_blank" rel="noopener">Perplexity <span aria-hidden="true">↗</span></a>,
+          open <b>Plugins</b> in the sidebar, or <b>Customize → Connectors</b>.</li>
+        <li>Click <b>Add custom → Connector → Add MCP connector</b>, choose <b>Remote</b>, and fill in:
+          <dl class="fields">
+            <div><dt>Name</dt><dd><code>Vermont housing appeals</code><button type="button" class="copy" data-copy-text="Vermont housing appeals">Copy</button></dd></div>
+            <div><dt>URL</dt><dd><code data-mcp>{{BASE}}/mcp</code><button type="button" class="copy" data-copy-mcp>Copy</button></dd></div>
+          </dl></li>
+        <li>Choose <b>None</b> for authentication, tick the box, and click <b>Add</b>.</li>
+        <li>Click its card on the Plugins page to switch it on.</li>
+      </ol>
+      <p class="fine"><a href="https://www.perplexity.ai/help-center/en/articles/13915507-adding-custom-remote-connectors" target="_blank" rel="noopener">Perplexity's guide</a></p>
+    </div>
+
+    <div class="app-panel" role="tabpanel" id="panel-other" aria-labelledby="tab-other" tabindex="0" hidden>
+      <p class="plan">Any AI app that lets you add a <b>custom connector</b> or <b>remote MCP server</b> by its web address.</p>
+      <ol class="steps">
+        <li>Look in the app's settings for <b>Connectors</b>, <b>Plugins</b>, <b>Integrations</b> or <b>Tools</b>.</li>
+        <li>Add a remote server with:
+          <dl class="fields">
+            <div><dt>Name</dt><dd><code>Vermont housing appeals</code><button type="button" class="copy" data-copy-text="Vermont housing appeals">Copy</button></dd></div>
+            <div><dt>URL</dt><dd><code data-mcp>{{BASE}}/mcp</code><button type="button" class="copy" data-copy-mcp>Copy</button></dd></div>
+          </dl></li>
+        <li>Choose no sign-in or no authentication.</li>
+      </ol>
+      <p class="fine">MCP (Model Context Protocol) is the common standard AI apps use to connect to outside data.
+        Apps that only support tools installed on your own computer can't use this connection.</p>
+    </div>
+  </div>
+  <div class="connect-foot">
+    <p><span class="label">Then ask</span> <q id="first-question">Give me an overview of the Vermont housing appeals data.</q></p>
+    <button type="button" class="copy" data-copy="first-question">Copy</button>
+  </div>
+</dialog>
+
 <p id="copied" class="visually-hidden" aria-live="polite"></p>
-<script src="{{BASE}}/static/site.js" data-base="{{BASE}}"></script>
+<script src="{{BASE}}/static/site.js" data-base="{{BASE}}" data-site="{{SITE_URL}}"></script>
 </body>
 </html>

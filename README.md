@@ -189,10 +189,12 @@ last release. The tables are laid out from the codebook's value types, so a
 release follows the codebook with no hand-kept mapping.
 
 The public site serves the current release at `/appeals/`. It has a
-landing page, which explains the data and how to connect an AI assistant,
-and an MCP server at `/appeals/mcp`. Through the MCP server, an AI assistant
-can query the data, read what each column means, and trace any value back
-through the pipeline.
+landing page, which explains the data, walks through how it is made and
+shows how to connect an AI assistant; a page for every appeal, at
+`/appeals/<version>/<docket>`, with each quote opening its page of the
+decision; and an MCP server at `/appeals/mcp`. Through the MCP server, an AI
+assistant can query the data, read what each column means, read the passages
+behind any case's answers, and link the reader to the case's page.
 [docs/RELEASES.md](docs/RELEASES.md) has the details and the deployment.
 
 ## Using it

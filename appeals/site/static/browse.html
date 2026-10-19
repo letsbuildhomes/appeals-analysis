@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{PAGE_TITLE}}</title>
+<meta name="description" content="{{DESCRIPTION}}">
+<link rel="stylesheet" href="{{BASE}}/static/site.css">
+<link rel="stylesheet" href="{{BASE}}/static/case.css">
+</head>
+<body class="case-page">
+<a class="skip" href="#main">Skip to the content</a>
+<header class="topbar">
+  <div class="container">
+    <a class="brand" href="{{BASE}}/"><img src="{{BASE}}/static/brand/lbh-logo.svg" alt="Let's Build Homes: Vermont housing appeals data" width="150" height="55"></a>
+    <nav aria-label="Site">
+      <a href="{{BASE}}/">Overview</a>
+      <a href="{{BASE}}/latest/">All appeals</a>
+      <a href="{{BASE}}/#about">About the data</a>
+    </nav>
+  </div>
+</header>
+<div id="banner" class="banner" role="status" hidden></div>
+<main id="main" class="container"></main>
+<script id="page-data" type="application/json">{{DATA}}</script>
+<script src="{{BASE}}/static/browse.js" data-base="{{BASE}}" data-site="{{SITE_URL}}"></script>
+</body>
+</html>
